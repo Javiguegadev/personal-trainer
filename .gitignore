@@ -1,0 +1,35 @@
+node_modules/
+.turbo/
+.next/
+dist/
+coverage/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env.*
+!.env.example
+
+# supabase local
+supabase/.branches/
+supabase/.temp/
+
+# expo
+.expo/
+
+# playwright
+test-results/
+playwright-report/
+.playwright-mcp/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+
+# claude code (personal settings only; shared settings are committed)
+.claude/settings.local.json
+CLAUDE.local.md

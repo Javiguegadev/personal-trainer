@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand: #16a34a;
+  --color-protein: #2563eb;
+  --color-carbs: #f59e0b;
+  --color-fat: #e11d48;
+}

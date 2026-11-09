@@ -1,0 +1,21 @@
+{
+  "name": "@pt/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@pt/config": "workspace:*"
+  },
+  "dependencies": {
+    "@pt/contracts": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

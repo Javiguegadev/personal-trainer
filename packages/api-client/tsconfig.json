@@ -1,0 +1,8 @@
+{
+  "extends": "@pt/config/tsconfig.base.json",
+  "compilerOptions": {
+    // fetch/Headers/URL globals exist in browsers, React Native and Node 22.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src", "*.ts"]
+}

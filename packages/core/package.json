@@ -1,0 +1,20 @@
+{
+  "name": "@pt/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@pt/config": "workspace:*"
+  },
+  "dependencies": {
+    "@pt/contracts": "workspace:*"
+  }
+}
