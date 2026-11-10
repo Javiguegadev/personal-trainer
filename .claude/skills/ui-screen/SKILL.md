@@ -1,17 +1,28 @@
 ---
 name: ui-screen
-description: Build a web screen or component in apps/web that is ready to port to Expo (shared hooks, tokens, i18n, all states, verified in the browser). Use for any UI work.
+description: Build a screen or component in the Expo universal app (apps/app) that works on iOS, Android and web, mobile-first, with shared hooks, tokens, i18n, all states and an AI input path. Use for any UI work.
 ---
 
-# UI screen
+# UI screen (Expo Router, universal)
 
-1. Data comes from `@pt/api-client` hooks. If a hook is missing, add it there, not in the app.
-2. Any derived value (totals, percentages, formatting) is a pure function in `@pt/core` with a test.
-3. Copy goes in `@pt/i18n` (`es` first, then `en`; the type system enforces parity).
-4. Build from shadcn/ui primitives in `apps/web/components/ui` with Tailwind theme tokens. No ad-hoc hex
-   colors.
-5. Implement loading (skeleton), empty (with a call to action), error (retry) and success states.
-   Lay out mobile-first, starting at 360 px.
-6. Accessibility: labels on inputs, focus states, color is never the only signal, and hit targets ≥ 44 px.
-7. Verify with the Playwright MCP: navigate, take a snapshot, check the console for errors, and test at
-   360 px and 1280 px widths. Report what you saw.
+Read `apps/app/CLAUDE.md` and `apps/app/AGENTS.md` first. Check the versioned Expo docs for any Expo API
+you use.
+
+1. **Route** in `apps/app/src/app/` (file-based). Components go in `src/components/`, hooks in
+   `src/hooks/`.
+2. **Data** from `@pt/api-client` hooks. If a hook is missing, add it there, not in the app.
+3. **Derived values** (totals, percentages, formatting) are pure functions in `@pt/core` with a test.
+4. **Copy** in `@pt/i18n` (`es` first, then `en`; the type system enforces parity). **Styles** from
+   `@pt/ui` tokens. No ad-hoc hex colors.
+5. **AI-first input**: if the screen captures data, provide the natural-language path (text field with
+   dictation, camera for photos) as the primary action and a manual form as the fallback.
+6. **States**: loading (skeleton), empty (with a call to action), error (retry), success. Light and dark
+   mode.
+7. **Mobile-first layout**: 360–430 px first; safe areas; keyboard avoidance on inputs; hit targets
+   ≥ 44 px; cap content width on web/tablet.
+8. **Accessibility**: `accessibilityLabel`/`accessibilityRole` on controls, color never the only signal,
+   respect reduced motion.
+9. **Platform differences** in `*.web.tsx` / `*.native.tsx`. If you add a native library, add it with
+   `expo install`, run `pnpm --filter @pt/app doctor`, and check it works on web or add a fallback.
+10. **Verify**: run `pnpm --filter @pt/app web` and check with the Playwright MCP at 390 px (light and
+    dark) and 1280 px, with no console errors. List what the human must check on a phone in Expo Go.

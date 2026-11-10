@@ -16,11 +16,11 @@ export default tseslint.config(
   {
     ignores: [
       '**/node_modules/**',
-      '**/.next/**',
+      '**/.expo/**',
+      '**/expo-env.d.ts',
       '**/dist/**',
       '**/coverage/**',
       '**/.turbo/**',
-      '**/next-env.d.ts',
       'packages/db/migrations/**',
     ],
   },
@@ -34,13 +34,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
+    files: ['apps/app/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
   },
   // Client-side code and shared packages: never reach server-only packages.
   {
-    files: ['apps/web/**', 'apps/mobile/**', 'packages/{contracts,core,api-client,ui,i18n}/**'],
+    files: ['apps/app/**', 'packages/{contracts,core,api-client,ui,i18n}/**'],
     rules: { 'no-restricted-imports': ['error', { patterns: serverOnly }] },
   },
   // core is pure: only contracts allowed among internal packages, no I/O libs.
@@ -53,11 +53,26 @@ export default tseslint.config(
           patterns: [
             ...serverOnly,
             {
-              group: ['@pt/api-client', '@pt/ui', '@pt/i18n', 'react', 'react-native', 'next/*'],
+              group: [
+                '@pt/api-client',
+                '@pt/ui',
+                '@pt/i18n',
+                'react',
+                'react-native',
+                'expo',
+                'expo-*',
+              ],
               message: '@pt/core must stay pure (only @pt/contracts allowed).',
             },
             {
-              group: ['drizzle-orm', 'postgres', '@supabase/*', '@anthropic-ai/*', 'stripe'],
+              group: [
+                'drizzle-orm',
+                'postgres',
+                '@supabase/*',
+                '@anthropic-ai/*',
+                'react-native-purchases',
+                '@paddle/*',
+              ],
               message: '@pt/core must not perform I/O.',
             },
           ],

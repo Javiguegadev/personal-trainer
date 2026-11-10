@@ -1,7 +1,7 @@
 /**
  * @pt/api-client — typed client for apps/api, shared by web and mobile.
  * Every response is validated against @pt/contracts at runtime.
- * TanStack Query hooks are added here (Phase 2+) so both platforms reuse them.
+ * TanStack Query hooks are added here so every screen and platform reuses them.
  */
 import { HealthResponseSchema, type HealthResponse } from '@pt/contracts';
 import type { z } from 'zod';

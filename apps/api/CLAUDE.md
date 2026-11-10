@@ -1,6 +1,6 @@
-# apps/api — Hono + @hono/zod-openapi
+# apps/api: Hono + @hono/zod-openapi
 
-The only place with DB access, AI calls, secrets and webhooks.
+The only place with DB access, AI calls, secrets and webhooks. Deployed on Vercel (Node, region `fra1`).
 
 ## Route recipe (one folder per domain under `src/routes/<domain>/`)
 
@@ -15,12 +15,20 @@ The only place with DB access, AI calls, secrets and webhooks.
 
 JSON `{ error: "<snake_case_code>", message?: string }`. Never leak stack traces or SQL.
 
-## Webhooks (Stripe/RevenueCat)
+## Payments (RevenueCat is the source of truth)
 
-Verify the signature against the raw body, make handlers idempotent (store event id), return 2xx fast and
-move heavy work to a background job.
+- `POST /webhooks/revenuecat`: verify the `Authorization` header against `REVENUECAT_WEBHOOK_AUTH`,
+  make it idempotent (store the event id), upsert `entitlements`, return 2xx fast.
+- Paddle web purchases reach us through RevenueCat's Paddle integration, so there is no Paddle webhook
+  here unless a spec says otherwise.
+- `canUse()` reads `entitlements`. Never trust a "premium" flag sent by the client.
 
-## AI endpoints (Phase 8)
+## AI endpoints
 
-Rate limit → entitlement → build context → `@pt/ai` → Zod validate → `@pt/core` validate → persist → meter
-cost in `ai_generations`. Long generations run as background jobs.
+Auth → entitlement and usage cap (`ai_usage`, Postgres) → build context (profile, prefs, recent logs,
+minimal personal data) → `@pt/ai` (tools query the knowledge base) → Zod validate → `@pt/core` validate →
+persist → record tokens and cost in `ai_usage`.
+
+- Fast tasks (Haiku: food/workout logging, swaps) respond inline, with streaming where it helps the UI.
+- Long tasks (Opus: meal plans, programs, weekly adaptation) are queued (Supabase Queues) and processed
+  by a worker. The app polls the job status or listens via Supabase Realtime.

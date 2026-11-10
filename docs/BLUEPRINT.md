@@ -1,182 +1,214 @@
-# Blueprint — AI Nutrition & Fitness App (Web-first, Mobile-ready)
+# Blueprint: AI Nutrition & Fitness App (mobile-first, AI-first)
 
-> Source of truth for architecture and roadmap. Decisions that change it get an ADR in `docs/adr/`.
+> Source of truth for product and architecture. Changes get an ADR in `docs/adr/`.
+> v2 (2026-11-10): mobile-first with a single Expo universal app, AI as the primary input method, fewer
+> services, RevenueCat + Paddle, and a knowledge base built from official data. See ADR 002.
 
-## 0. Executive decisions
+## 0. Product principles
 
-| Area           | Choice                                                    | Why                                                                                   |
-| -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Monorepo       | pnpm workspaces + Turborepo                               | Fast cached builds, clear package boundaries                                          |
-| Web            | Next.js 16 (App Router) + Tailwind 4 + shadcn/ui          | SSR marketing/SEO plus the app in one project                                         |
-| Mobile (later) | Expo (React Native) + Expo Router + NativeWind            | Reuses all shared packages, same styling approach                                     |
-| API            | Hono + `@hono/zod-openapi` in its own app (`apps/api`)    | Web and mobile call the same typed API; logic isn't locked inside Next                |
-| DB             | Supabase Postgres (EU region) + Drizzle ORM               | Managed Postgres, RLS, Auth, Storage, Cron; typed migrations                          |
-| Auth           | Supabase Auth (email/OTP, Google, Apple)                  | Works on web and Expo; Apple sign-in is mandatory on iOS if you offer social logins   |
-| Payments       | Stripe Billing (web) → RevenueCat (mobile)                | Stores require in-app purchases on mobile; RevenueCat unifies the "is premium" status |
-| AI             | Anthropic API via `@anthropic-ai/sdk`, server-side only   | Structured outputs, prompt caching, Batch API                                         |
-| Jobs           | Inngest (or Trigger.dev)                                  | Weekly adaptation, nightly batches, webhook fan-out                                   |
-| Food data      | USDA FoodData Central + Open Food Facts, cached in our DB | Free; OFF is ODbL (attribution)                                                       |
-| Hosting        | Vercel (web) · Fly.io / Vercel Functions (API) · Supabase | Low ops, preview deploys per PR                                                       |
-| Observability  | Sentry + PostHog                                          | Errors, funnels, feature flags                                                        |
-| Testing        | Vitest · Playwright · Maestro (mobile)                    |                                                                                       |
+1. **Mobile-first.** Logging happens at the table and in the gym. One Expo app ships to iOS, Android and
+   the web from the same screens. The web build launches first and the stores follow when ready.
+2. **AI-first.** Natural language, photos and voice dictation are the default way to log, plan and ask.
+   Forms and search remain as a fallback, never as the only path.
+3. **Evidence-based.** The AI answers from a curated knowledge base: official food composition
+   databases, exercise databases and published guidelines, with sources cited. It never answers from its
+   memory alone.
+4. **The AI chooses, the code computes.** Claude picks foods and exercises _from our catalog_ and proposes
+   quantities. `@pt/core` computes every number and validates safety rules.
+5. **Few services.** Every vendor is an account, an invoice, a DPA and a failure point. Add one only when
+   it removes more work than it creates.
+6. **Privacy by design (EU).** Health data is GDPR special-category data, so it is stored in the EU,
+   collected with explicit consent, and users can export or delete it.
 
-**AI billing note:** end users' Claude.ai subscriptions can't power the app. Every AI call uses our API key
-from our server, so Premium pricing must cover token costs. Metering per user starts on day one.
+## 1. Stack
 
-## 1. Stack details
+| Layer                     | Choice                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Monorepo                  | pnpm workspaces + Turborepo                                                                                                    |
+| App (iOS, Android, web)   | **Expo SDK 58 + Expo Router** (universal), web output `single` (SPA)                                                           |
+| Landing (SEO, at launch)  | **Astro** static site (`apps/landing`, created in stage E9)                                                                    |
+| API                       | **Hono** + `@hono/zod-openapi` on Vercel (Node, region `fra1`)                                                                 |
+| Data                      | **Supabase** (EU): Postgres, Auth, Storage, Edge Functions, Cron, Queues, pgvector                                             |
+| ORM                       | Drizzle                                                                                                                        |
+| AI                        | Anthropic API via `@anthropic-ai/sdk`: **Claude Opus 5.5** (deep reasoning) + **Claude Haiku 5.5** (fast, high volume, vision) |
+| Payments                  | **RevenueCat** (App Store / Google Play in-app + single entitlement source) + **Paddle** (web checkout, merchant of record)    |
+| Builds & store submission | Expo EAS (build, submit, OTA updates)                                                                                          |
+| Errors                    | Sentry (`@sentry/react-native` + API)                                                                                          |
+| Product analytics         | PostHog EU, added only when there are users to measure                                                                         |
+| Tests                     | Vitest · Playwright (web build) · Maestro (native E2E, before store launch)                                                    |
 
-- TypeScript strict everywhere (pinned to 6.0.x until typescript-eslint supports 7).
-- TanStack Query (server state) + Zustand (small client state), shared by web and mobile.
-- Zod schemas in `packages/contracts` are the single source of truth.
-- Charts: Recharts (web) / Victory Native (mobile); only data-shaping hooks are shared.
-- i18n from day one: es (reference) + en.
-- Rate limiting for AI endpoints: Upstash Redis. Leaderboards: Postgres until about 100k users.
+### Services (7) and what was dropped
 
-**AI (Anthropic)**
+| Keep       | Why                                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| Supabase   | DB, auth, files, cron and queues in one EU vendor                                                     |
+| Vercel     | Hosts the API, and later the web app and landing                                                      |
+| Expo EAS   | Native builds and store submission without Xcode/Android Studio                                       |
+| RevenueCat | In-app purchases on both stores; unifies web + app entitlements                                       |
+| Paddle     | Web payments as merchant of record: handles EU VAT, invoices, Apple Pay / Google Pay / cards / PayPal |
+| Anthropic  | AI                                                                                                    |
+| Sentry     | Crash and error reporting (free tier)                                                                 |
 
-- Default model `claude-opus-5-5` with adaptive thinking, tuning `output_config.effort` per route
-  (e.g. `medium` for meal plans, `low` for swaps). Cheaper models such as `claude-haiku-5-5` for
-  high-volume, simple routes (natural-language food parsing) are a product decision backed by evals.
-- Structured outputs (`messages.parse()` with Zod) for every AI response.
-- Prompt caching on the stable system prompt. Message Batches API (50% cheaper) for bulk weekly adaptation.
-- Always check `stop_reason` (`refusal`, `max_tokens`). Enable server-side `fallbacks: "default"`.
+**Dropped:** Next.js (replaced by Expo universal), Fly.io, Stripe direct, Inngest (replaced by Supabase
+Cron + Queues), Upstash (rate limits live in Postgres). **Considered:** Lemon Squeezy supports Apple Pay
+(Safari) and Google Pay (Chrome), but has no RevenueCat integration, so web and app entitlements would need
+a custom bridge.
 
 ## 2. Monorepo structure
 
 ```
 apps/
-  web/          Next.js — (marketing) public pages, (app) authenticated app
-  api/          Hono — every business endpoint, AI, webhooks, jobs
-  mobile/       Expo — Phase 10
+  app/          Expo Router universal app: iOS, Android, web (src/app = routes)
+  api/          Hono API: business endpoints, AI orchestration, payment webhooks
+  landing/      Astro marketing site (stage E9)
 packages/
-  core/         pure domain logic: nutrition, training, gamification, entitlements
-  contracts/    Zod schemas + inferred types (API DTOs, AI output schemas)
-  db/           Drizzle schema, migrations, seed
-  api-client/   typed client + TanStack Query hooks (web & mobile)
-  ai/           prompts, Claude wrapper, evals, cost meter
-  ui/           design tokens + cross-platform primitives
-  i18n/         translations
-  config/       tsconfig presets
-docs/ specs/ adr/ BLUEPRINT.md
-.claude/ skills/ agents/ hooks/ settings.json
+  core/         Pure domain logic: nutrition, training, scoring, entitlements, safety rules
+  contracts/    Zod schemas: API payloads, AI tool inputs/outputs
+  api-client/   Typed API client (+ TanStack Query hooks)
+  db/           Drizzle schema, migrations, seeds, knowledge-base importers
+  ai/           Prompts, Claude client, tools, retrieval, evals, cost metering
+  ui/ · i18n/   Design tokens · translations (es, en)
+  config/       TS presets
 ```
 
-Dependency rules (enforced by ESLint `no-restricted-imports`):
+Dependency rules are unchanged and enforced by ESLint: `core` is pure, `contracts` is zod-only, and only
+`apps/api` imports `db` and `ai`.
 
-- `contracts` → zod only. `core` → contracts only, with no I/O.
-- Only `apps/api` imports `db` and `ai`. Apps reach data only through `api-client`.
+## 3. AI-first feature map
 
-## 3. Architecture principles
+| Feature                   | How the user does it                                                       | Model          | Free         | Premium   |
+| ------------------------- | -------------------------------------------------------------------------- | -------------- | ------------ | --------- |
+| Conversational onboarding | Chats about goals, routine, diet and injuries; AI fills the profile        | Haiku          | ✅           | ✅        |
+| **Food logging**          | "2 eggs and toast with olive oil", a **photo of the plate**, or a barcode  | Haiku (vision) | ✅ daily cap | Unlimited |
+| Nutrition label reading   | Photo of the label when a barcode isn't in the database                    | Haiku (vision) | ✅           | ✅        |
+| **Workout logging**       | "Bench press 4×8 at 80 kg, last set RPE 9" by text or dictation            | Haiku          | ✅           | ✅        |
+| Daily feedback            | Short notes on what you logged ("protein low today, try…")                 | Haiku          | ✅           | ✅        |
+| Weekly insights           | Readable summary of habits and trends, with sources                        | Haiku (Batch)  | Basic        | Detailed  |
+| Healthy swaps             | "Something lighter than this?" → alternatives from the catalog             | Haiku          | 3 per week   | ✅        |
+| **Meal plans**            | Weekly plan tailored to goals, allergies and taste, plus shopping list     | Opus           | Preview      | ✅        |
+| **Workout programs**      | Program built from goal, days, equipment and experience                    | Opus           | Preview      | ✅        |
+| **Adaptive training**     | Weekly adjustment from adherence, RPE and PRs (accept/reject)              | Opus (Batch)   | –            | ✅        |
+| **AI coach chat**         | Questions about your data, nutrition and training, answered with citations | Opus + tools   | –            | ✅        |
+| Personal challenges       | Weekly challenges generated from your history                              | Haiku          | ✅           | ✅        |
 
-### 3.1 Data model (first version)
+**Voice:** Claude receives text. Dictation uses the phone's keyboard dictation (free, no extra library),
+and an on-device speech module can be added later if needed.
+
+**Model routing:** Haiku 5.5 for high-volume and latency-sensitive tasks; Opus 5.5 for planning, coaching
+and adaptation. Evals decide whether a task can move between models.
+
+**Approximate cost per call** (API list prices):
+
+| Task                        | Tokens (in/out) | Haiku 5.5 ($0.10/$0.50 per M) | Opus 5.5 ($4/$20 per M) |
+| --------------------------- | --------------- | ----------------------------- | ----------------------- |
+| Food log (text/photo)       | ~1.5k / 0.5k    | ~$0.0004                      | –                       |
+| Weekly meal plan            | ~6k / 3k        | –                             | ~$0.08                  |
+| Coach answer with retrieval | ~8k / 1k        | –                             | ~$0.05                  |
+
+Target: AI cost under 15% of the subscription price per paying user. Free users run on Haiku, so a
+generous free tier stays cheap.
+
+## 4. Knowledge base: grounding the AI in official data
+
+"Training the AI" here means **grounding**, not fine-tuning. Claude is not retrained. Instead it answers
+from a curated, versioned knowledge base it queries through tools, and its outputs are validated by
+`@pt/core`. This approach is cheaper and auditable, can be updated any day, and cites sources.
+
+### Sources (verify each license before importing)
+
+| Domain             | Source                                                                  | Use                                                                       |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Food composition   | **BEDCA** (Spanish database)                                            | Spanish foods and dishes                                                  |
+|                    | **USDA FoodData Central**                                               | Broad generic coverage (public domain)                                    |
+|                    | **CIQUAL** (ANSES, France)                                              | European foods                                                            |
+|                    | **Open Food Facts**                                                     | Branded products and barcodes (ODbL: attribution + share-alike on the DB) |
+| Exercises          | **wger** exercise database                                              | Exercises, muscles, equipment (CC-BY-SA)                                  |
+|                    | **free-exercise-db**                                                    | Additional exercises and images                                           |
+| Energy expenditure | **Compendium of Physical Activities**                                   | MET values for cardio and sports                                          |
+| Guidelines         | **WHO** physical activity guidelines, **EFSA** dietary reference values | Safe targets and limits                                                   |
+|                    | **ISSN / ACSM** position stands                                         | Protein, supplements, progression models                                  |
+| Studies            | PubMed abstracts and PMC open-access articles                           | Summaries with citations; no full texts without an open license           |
+
+### Pipeline
+
+1. **Importers** (`packages/db/src/knowledge/`) download each source, normalize units (per 100 g, metric)
+   and record `source`, `license`, `version` and `imported_at`.
+2. **Structured data** (foods, exercises, MET values) goes into regular tables with full-text and trigram
+   search. Most queries need exact numbers, not semantic search.
+3. **Text knowledge** (guidelines, study summaries) goes into chunks with **pgvector** embeddings, generated
+   by Supabase Edge Functions' built-in embedding model, so no extra vendor is needed.
+4. **Tools for Claude:** `search_foods`, `get_food`, `search_exercises`, `get_guideline`, `get_user_stats`.
+   The model must cite the IDs and sources it used.
+5. **Validation:** `@pt/core` recomputes every number and enforces safety rules (calorie floor, allergens,
+   volume progression) before anything reaches the user.
+6. **Evals** (`packages/ai/evals/`): fixtures reviewed by a nutrition/training professional, run on every
+   prompt, model or knowledge-base change.
+
+## 5. Data model (initial)
 
 ```
 profiles(id, sex, birth_date, height_cm, weight_kg, activity_level, goal, units, locale, consent_health_at)
 dietary_prefs(user_id, diet_type, allergies[], dislikes[], restrictions[])
-foods(id, source, external_id, name, brand, per_100g kcal/protein/carbs/fat/fiber, barcode)
+foods(id, source, source_id, name_es, name_en, brand, barcode, per_100g kcal/protein/carbs/fat/fiber, license)
 food_servings(food_id, label, grams)
-meal_entries(id, user_id, date, meal_type, food_id, grams, kcal/p/c/f snapshot)
-exercises(id, name, category[strength|cardio|sport|mobility], muscle_groups[], met_value)
-workouts(id, user_id, started_at, duration, type, notes, source[manual|ai_program])
-workout_sets(workout_id, exercise_id, set_no, reps, weight, rpe, distance, duration)
-personal_records(user_id, exercise_id, metric, value, workout_set_id, achieved_at)
-points_ledger(user_id, event_type, points, ref_id, created_at)   -- append-only
-achievements / user_achievements / leaderboard_snapshots(period, league, user_id, rank, points)
-subscriptions(user_id, provider[stripe|revenuecat], status, plan, current_period_end)
-ai_generations(id, user_id, feature, model, input_tokens, output_tokens, cost_usd, status, output_json)
-meal_plans / workout_programs (+ weeks, sessions)
+meal_entries(id, user_id, date, meal_type, food_id, grams, kcal/p/c/f snapshot, input_method[text|photo|barcode|manual])
+exercises(id, source, name_es, name_en, category, muscle_groups[], equipment[], met_value)
+workouts / workout_sets(reps, weight, rpe, distance, duration) / personal_records
+knowledge_sources(id, name, url, license, version, imported_at)
+knowledge_chunks(id, source_id, title, content, citation, embedding vector)
+points_ledger / achievements / user_achievements / challenges
+entitlements(user_id, plan, status, provider[app_store|play_store|paddle], expires_at)  ← synced from RevenueCat
+ai_usage(id, user_id, feature, model, input_tokens, output_tokens, cost_usd, latency_ms, status)
+meal_plans / workout_programs (+ weeks, sessions) / coach_messages
 ```
 
-### 3.2 The AI chooses, core computes
+## 6. Payments
 
-The AI picks foods and exercises **from our catalog by ID** and chooses quantities. `@pt/core` computes
-macros and volume and validates them (kcal ±5%, zero allergens, calorie floor, volume increase ≤ 10% per
-week). On failure it retries once with the errors fed back, then fails gracefully.
+- **iOS / Android:** in-app subscriptions through RevenueCat (`react-native-purchases`). The stores
+  charge their commission (15% under the small business programs). Apple Pay is built into the App Store
+  sheet, and Google Pay into Play Billing.
+- **Web:** Paddle checkout (cards, Apple Pay, Google Pay, PayPal). Paddle is the merchant of record:
+  it collects and files VAT in every country and issues invoices.
+- **One entitlement:** RevenueCat's Paddle integration imports web purchases, so a subscription bought
+  on any platform unlocks Premium everywhere. The API mirrors entitlements into `entitlements` through
+  the RevenueCat webhook.
+- Check the integration's current limits before building (it supports Paddle Billing only, one product
+  per checkout).
 
-### 3.3 AI request pipeline
+## 7. Stages (no dates: done when the criteria pass)
 
-auth → entitlement (`core/entitlements`) → rate limit → build context (profile, prefs, last 4 weeks)
-→ Claude (structured output, cached system prompt) → Zod → core validation → persist → meter cost → respond.
-Long generations run as background jobs.
+| Stage                        | Scope                                                                                                | Done when                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **E0 Accounts**              | Supabase (EU), Vercel, Expo, Anthropic (dev/prod keys with spend limits), Sentry                     | Accounts exist; secrets in a password manager                            |
+| **E1 Foundation** ✅         | Monorepo, CI, Expo universal app, typed API                                                          | CI green; the app shows "API: online" on web                             |
+| **E2 Auth & AI onboarding**  | Supabase Auth (email, Google, Apple), conversational onboarding, targets, GDPR consent/export/delete | Targets match a hand calculation; deleting the account removes all data  |
+| **E3 Knowledge base v1**     | Importers for BEDCA, USDA, Open Food Facts, wger, the Compendium; search endpoints                   | Search finds common Spanish foods and gym exercises with correct values  |
+| **E4 AI food logging**       | Text / photo / barcode logging, daily totals, daily feedback                                         | A full day is logged in under 1 minute; totals within ±5% of a reference |
+| **E5 AI workout logging**    | Text/dictation set logging, exercise library, PR detection, rest timer                               | Free-text sessions parse correctly in ≥ 95% of eval cases                |
+| **E6 Payments & limits**     | RevenueCat + Paddle, entitlements, paywall, AI usage caps                                            | Buy on web → Premium in the app and vice versa (sandbox)                 |
+| **— MVP (beta) —**           | E2–E6 plus streaks                                                                                   |                                                                          |
+| **E7 Premium AI**            | Meal plans, workout programs, adaptive training, coach chat with citations                           | Evals ≥ 95% valid, 0 allergen violations, cost target met                |
+| **E8 Insights & engagement** | Weekly insights, challenges, streaks, notifications                                                  | Weekly summary generated for all test users                              |
+| **E9 Launch**                | Astro landing, legal pages, Sentry, store listings, TestFlight / Play testing → public               | `release-check` green; apps approved                                     |
+| **E10 Later**                | Leaderboards and leagues, HealthKit / Health Connect, wearables, social                              | —                                                                        |
 
-### 3.4 Freemium gating
+## 8. Safety and compliance
 
-| Feature                                            | Free        | Premium                          |
-| -------------------------------------------------- | ----------- | -------------------------------- |
-| Meal/workout logging, basic dashboard, leaderboard | ✅          | ✅                               |
-| Advanced insights (trends, adherence)              | last 7 days | ✅                               |
-| AI meal plans / swaps / workout programs           | 1 preview   | ✅ (fair-use cap, e.g. 30/month) |
+- Calorie floor, maximum deficit, under-18 gate, eating-disorder soft-stop, injury → "see a
+  professional". All are enforced in `@pt/core`, not only in prompts.
+- "Not medical advice" disclaimer in onboarding, the coach and plans.
+- Health data sent to Anthropic: minimize it (no names or emails in prompts), sign the DPA, and document it
+  in the privacy policy.
+- EU region for Supabase and Vercel functions; DPAs with every service above.
 
-`canUse()` lives in `core`. The UI uses it for display and the API enforces it.
+## 9. Working with Claude Code
 
-### 3.5 Gamification and anti-cheat
+Spec-driven loop (`feature-spec` → review → plan mode → `implement-spec` → verify → `/code-review`), with
+project skills, agents and hooks in `.claude/`. See `CLAUDE.md`.
 
-Append-only points ledger. Rank by consistency points, not raw strength. Daily caps. Weekly leagues by
-tier. PR jumps above 20% are flagged and excluded until confirmed. Leaderboards are opt-in with a nickname.
+## 10. Open decisions
 
-### 3.6 Compliance (EU)
-
-Health data is GDPR Art. 9 special-category data. Requirements: explicit consent, EU region, export and
-delete endpoints, DPAs with sub-processors. Guardrails: calorie floor, under-18 gate, eating-disorder
-soft-stop, "not medical advice" disclaimer.
-
-## 4. MCP servers
-
-Configured in `.mcp.json`: context7 (docs), playwright (browser verification), github, stripe (test mode).
-Add once you have the dev project ref:
-
-```bash
-claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=<DEV_REF>&read_only=true"
-claude mcp add --scope project --transport http sentry https://mcp.sentry.dev/mcp   # Phase 9
-```
-
-Claude Code already handles files and git natively, so Filesystem and Git MCP servers aren't needed. No
-MCP server ever gets production write access.
-
-## 5. Claude Code setup
-
-- `CLAUDE.md` (root + `apps/api` + `apps/web`).
-- Skills (`.claude/skills`): feature-spec, implement-spec, db-migration, api-endpoint, ui-screen,
-  ai-feature, release-check.
-- Agents (`.claude/agents`): test-writer, domain-reviewer, boundary-guard.
-- Hooks (`.claude/hooks`): block `.env*` edits, block edits to applied migrations, block remote DB
-  pushes, force-push and prod deploys; Prettier on every edit; typecheck on Stop.
-
-Per-feature loop: `/clear` → feature-spec → human review → plan mode → implement-spec → Playwright
-verification → `/code-review` (+ `/security-review` for auth/billing/AI) → PR.
-
-## 6. Roadmap (phases and gates)
-
-| Phase                        | Scope                                                                                                                               | Gate                                                                |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| 0 Decisions & accounts       | GitHub, Supabase dev+prod (EU), Vercel, Stripe test, Anthropic (dev/prod keys with spend limits), Sentry, PostHog, Inngest, Upstash | Accounts exist; secrets in a password manager / env vars only       |
-| 1 Foundation (wk 1)          | Monorepo, CI, preview deploys, Claude config                                                                                        | PR shows green CI + preview URL; deployed `/health` responds        |
-| 2 Auth & onboarding (wk 2)   | Supabase Auth, onboarding wizard, consent, TDEE/macro targets, GDPR export/delete                                                   | Targets match a hand calculation; account delete removes all rows   |
-| 3 Nutrition MVP (wk 3–4)     | Food seed + search, servings, meal logging, recents/favorites/copy day, barcode                                                     | A full day is logged in < 2 min; totals correct                     |
-| 4 Fitness MVP (wk 5–6)       | Exercise library, workout logger, rest timer, e1RM/volume/MET, PR detection                                                         | PRs detected correctly; cardio kcal within ±10%                     |
-| 5 Analytics (wk 7)           | Trends, adherence, macro split, volume per muscle, weight moving average                                                            | < 1 s on 6 months of seed data                                      |
-| 6 Gamification (wk 8)        | Ledger, streaks, achievements, leagues, anti-cheat                                                                                  | 500 simulated users rank correctly; cheated PR excluded             |
-| **MVP closed beta**          |                                                                                                                                     |                                                                     |
-| 7 Payments (wk 9)            | Stripe Checkout + Portal, webhooks, entitlements, paywall, Stripe Tax                                                               | Stripe CLI lifecycle events update access correctly                 |
-| 8 AI premium (wk 10–12)      | NL food logging, swaps, meal plans, workout programs, weekly adaptation (Batch), cost dashboard, evals in CI                        | ≥ 95% valid, 0 allergen violations, AI cost < 15% of price per user |
-| 9 Hardening & launch (wk 13) | Sentry, rate limits, k6, RLS audit, security review, legal, a11y, SEO                                                               | release-check all green                                             |
-| 10 Mobile (wk 14–18)         | Expo app, native barcode, push, HealthKit/Health Connect, RevenueCat, EAS                                                           | One account and one Premium status on web, iOS and Android          |
-
-## 7. Human guide
-
-**Decisions to make:** brand/domain, markets and languages, pricing and trial, free-tier limits, food data
-provider (free vs. paid for better Spanish coverage), scoring rules, AI model/effort per feature (from
-evals), legal entity / GDPR approach, and an expert reviewer for nutrition and training rules.
-
-**Testing ownership:** Claude writes the core unit tests (≥ 90%, test-first), API integration tests, and
-Playwright tests for the 6 critical journeys. You run the critical journeys manually before each
-release, approve eval thresholds and spend, and replay Stripe webhooks.
-
-**Working with Claude Code:** you own the spec and Claude owns the implementation. Use plan mode for
-changes over 3 files, one feature per session, and small PRs. Review migrations, RLS, webhooks,
-entitlements and prompts line by line. After 2 failed attempts, `/clear` and narrow the request. Update
-`CLAUDE.md` weekly.
-
-**Risks:** AI cost (metering, caps, caching, batch), unsafe advice (core validators, expert review), weak
-Spanish food data (curated seed, user foods), store rejection (in-app purchases via RevenueCat),
-leaderboard cheating (consistency scoring, caps, flags).
+- Pricing (monthly/annual), trial length, exact free-tier caps.
+- License review for BEDCA, CIQUAL and wger before importing (attribution text in the app).
+- Who reviews the nutrition and training rules and the eval cases (dietitian / coach).
+- App name, bundle identifiers and store accounts (Apple Developer: paid yearly; Google Play: one-time fee).

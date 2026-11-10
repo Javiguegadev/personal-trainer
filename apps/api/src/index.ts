@@ -3,7 +3,10 @@ import { createApp } from './app';
 
 const port = Number(process.env.API_PORT ?? 8787);
 const app = createApp({
-  webOrigin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
+  webOrigins: (process.env.WEB_ORIGINS ?? 'http://localhost:8081')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   version: process.env.APP_VERSION ?? '0.0.0',
 });
 

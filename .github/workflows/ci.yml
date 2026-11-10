@@ -32,4 +32,7 @@ jobs:
       - name: Typecheck, lint, test, build
         run: pnpm turbo typecheck lint test build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:8787
+          EXPO_PUBLIC_API_URL: http://localhost:8787
+
+      - name: Expo dependency check
+        run: pnpm --filter @pt/app exec expo install --check
