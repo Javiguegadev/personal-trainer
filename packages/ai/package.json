@@ -9,9 +9,18 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "eval:onboarding": "node --env-file-if-exists=../../.env --import tsx evals/onboarding/run.ts"
   },
   "devDependencies": {
-    "@pt/config": "workspace:*"
+    "@pt/config": "workspace:*",
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@pt/contracts": "workspace:*",
+    "@pt/core": "workspace:*",
+    "zod": "^4.6.7"
   }
 }
