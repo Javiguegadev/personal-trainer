@@ -6,11 +6,11 @@ import {
   ProfileInputSchema,
   TargetsPreviewResponseSchema,
 } from '@pt/contracts';
+import { checkClientDates, evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { onboardingChat } from '../../services/onboarding';
-import { checkClientDates, evaluateProfileInput } from '../../services/profile';
 
 const error = (description: string) => ({
   description,

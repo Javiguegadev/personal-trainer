@@ -8,3 +8,4 @@ export * from './units';
 export * from './nutrition/targets';
 export * from './safety/profile';
 export * from './onboarding/draft';
+export * from './profile/evaluate';

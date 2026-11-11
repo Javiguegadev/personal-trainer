@@ -6,10 +6,11 @@ import {
   MeResponseSchema,
   ProfileInputSchema,
 } from '@pt/contracts';
+import { evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
-import { evaluateProfileInput, saveProfile, toMeResponse } from '../../services/profile';
+import { saveProfile, toMeResponse } from '../../services/profile';
 
 const error = (description: string) => ({
   description,
