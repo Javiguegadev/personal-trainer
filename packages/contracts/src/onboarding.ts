@@ -67,6 +67,8 @@ export type RequiredDraftField = z.infer<typeof RequiredDraftFieldSchema>;
 export const ProfileDraftToolInputSchema = z.object({
   sex: SexSchema.optional(),
   birthDate: IsoDateSchema.optional(),
+  /** When the user gives an age instead of a birth date; @pt/core derives an approximate birth date. */
+  ageYears: z.number().int().min(0).max(120).optional(),
   height: LengthMeasurementSchema.optional(),
   weight: WeightMeasurementSchema.optional(),
   targetWeight: WeightMeasurementSchema.optional(),

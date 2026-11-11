@@ -17,6 +17,9 @@ of my health data (consent, export, delete).
   in a later spec, once the Apple Developer account exists.
 - **Minors:** under 16 → blocked. **16–17 → limited mode**: no calorie deficit, no surplus above
   maintenance + 10 %, no aggressive goals.
+- **After the domain review (2026-11-11):** protein on a BMI-25 reference weight when BMI ≥ 30 (capped at
+  35 % of kcal); pregnancy/breastfeeding → no numeric targets, refer to a professional; ESPEN/GLIM low-BMI
+  thresholds by age; fibre max(25 g, 14 g/1000 kcal). `ed_soft_stop` is sticky once stored.
 
 ## Acceptance criteria
 
@@ -66,8 +69,10 @@ of my health data (consent, export, delete).
   - TDEE = BMR × activity factor (sedentary 1.2 · light 1.375 · moderate 1.55 · active 1.725 ·
     very active 1.9).
   - Goal: lose → TDEE − min(20 % TDEE, 500 kcal); maintain → TDEE; gain → TDEE + min(10 % TDEE, 300 kcal).
-  - Protein: 1.8 g/kg (lose), 1.6 g/kg (maintain, gain). Fat: 25 % of kcal, at least 0.6 g/kg.
-    Carbs: the remaining kcal (never negative). Fibre: 14 g per 1000 kcal.
+  - Protein: 1.8 g/kg (lose), 1.6 g/kg (maintain, gain), on a **reference weight** (actual weight, or the
+    weight at BMI 25 for the user's height when BMI ≥ 30), and never above 35 % of kcal. Fat: 25 % of
+    kcal, at least 0.6 g/kg of the reference weight. Carbs: the remaining kcal (never negative).
+    Fibre: max(25 g, 14 g per 1000 kcal) (EFSA adequate intake, IOM ratio).
   - kcal rounded to the nearest 10, grams to the nearest 1.
     and they match a hand calculation for at least 6 fixture profiles (es/en, male/female/other, each goal).
     _(free)_
@@ -85,9 +90,10 @@ of my health data (consent, export, delete).
   beyond the auth user, and the user sees a kind message and can delete the account. _(free)_
 - **AC18** — Given an age of 16–17, then the goal "lose" is converted to "maintain", "gain" is capped at
   +10 %, and the summary explains why (limited mode). _(free)_
-- **AC19** — Given BMI < 18.5 with goal "lose", or a target weight implying BMI < 18.5, or the user
-  reports pregnancy/breastfeeding, then no deficit is applied (maintain) and the app recommends
-  professional advice. _(free)_
+- **AC19** — Given a low BMI (ESPEN/GLIM: < 20 under 70 years, < 22 from 70) with goal "lose", or a
+  target weight implying such a BMI, then no deficit is applied (maintain) and the app recommends
+  professional advice. Given the user reports pregnancy/breastfeeding, then **no numeric targets** are
+  computed or shown and the app refers them to their midwife or doctor. _(free)_
 - **AC20** — Given the user mentions an eating disorder, purging, extreme restriction or self-harm in the
   chat, then the AI stops collecting goals, the API flags `ed_soft_stop`, no deficit is ever applied,
   and the UI shows support resources (es/en) with the option to continue with maintenance targets. _(free)_
@@ -241,3 +247,7 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 - [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
+  - The AI tool accepts `ageYears`; core turns it into the latest matching birth date (editable in the summary).
+  - Allergies and restrictions only grow from the chat (union); items are removed in the summary/form.
+  - `computeTargets` refuses profiles whose safety evaluation has `targetsAllowed: false`.
+  - AI tool inputs are validated with Zod on our side (no `strict` schemas: the contracts use unions).

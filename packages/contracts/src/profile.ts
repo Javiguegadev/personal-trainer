@@ -134,6 +134,8 @@ export const TargetsBreakdownSchema = z.object({
   goalAdjustmentKcal: z.number().int(),
   floorKcal: z.number().int(),
   proteinGPerKg: z.number(),
+  /** Weight used for protein and the fat minimum: the actual weight, or the BMI-25 weight when BMI ≥ 30. */
+  referenceWeightKg: z.number(),
 });
 export type TargetsBreakdown = z.infer<typeof TargetsBreakdownSchema>;
 
@@ -147,6 +149,8 @@ export const SafetyEvaluationSchema = z.object({
   flags: z.array(SafetyFlagSchema),
   /** Cap on the surplus as a fraction of TDEE, when limited (teens: 0.1). */
   maxSurplusRatio: z.number().nullable(),
+  /** False when the app must not show numeric targets (blocked age, pregnancy/breastfeeding → see a professional). */
+  targetsAllowed: z.boolean(),
 });
 export type SafetyEvaluation = z.infer<typeof SafetyEvaluationSchema>;
 
