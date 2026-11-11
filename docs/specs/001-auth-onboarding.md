@@ -245,7 +245,12 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- Next: API step (skill `api-endpoint`): auth middleware (jose + JWKS), consent middleware, `/me*` and
+  `/onboarding/*` routes with injected services (DB + AI) and fakes in tests; record `ai_usage`; AC12
+  rate limit from `ai_usage`; AC24 integration test against the dev DB (skipped without DATABASE_URL).
+  Pass stored `profiles.safety_flags` as `previousFlags`; skip targets when `targetsAllowed` is false.
+- Eval: `pnpm --filter @pt/ai eval:onboarding` written, not yet run (needs the human's go-ahead).
 - Decisions taken during implementation:
   - The AI tool accepts `ageYears`; core turns it into the latest matching birth date (editable in the summary).
   - Allergies and restrictions only grow from the chat (union); items are removed in the summary/form.
