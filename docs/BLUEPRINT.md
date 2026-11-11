@@ -95,7 +95,10 @@ Dependency rules are unchanged and enforced by ESLint: `core` is pure, `contract
 and an on-device speech module can be added later if needed.
 
 **Model routing:** Haiku 5.5 for high-volume and latency-sensitive tasks; Opus 5.5 for planning, coaching
-and adaptation. Evals decide whether a task can move between models.
+and adaptation. Evals decide whether a task can move between models. **Claude Fable 5.2** ($8/$40 per M,
+2× Opus, slower turns, requires 30-day data retention so no ZDR) is not used in the app by default: only
+for a planning feature (meal plans, workout programs, adaptation) whose eval shows a measurable gain over
+Opus 5.5, and as a candidate LLM judge for evals and offline knowledge-base review (reviewed 2026-11-11).
 
 **Approximate cost per call** (API list prices):
 
@@ -191,6 +194,14 @@ meal_plans / workout_programs (+ weeks, sessions) / coach_messages
 | **E8 Insights & engagement** | Weekly insights, challenges, streaks, notifications                                                  | Weekly summary generated for all test users                              |
 | **E9 Launch**                | Astro landing, legal pages, Sentry, store listings, TestFlight / Play testing → public               | `release-check` green; apps approved                                     |
 | **E10 Later**                | Leaderboards and leagues, HealthKit / Health Connect, wearables, social                              | —                                                                        |
+
+**E9 option, store and landing videos:** [HyperFrames](https://github.com/heygen-com/hyperframes)
+(HeyGen, Apache 2.0) renders MP4 from HTML/CSS animations, with a Claude Code plugin
+(`claude plugin marketplace add heygen-com/hyperframes`, then `claude plugin install hyperframes@hyperframes`).
+Candidate for App Store / Google Play preview videos, the landing hero video and social clips, rendered per
+locale (es/en) from code so they can be re-rendered when the UI changes. Needs Node 22+, FFmpeg and Chrome
+on the machine that renders. Not for in-app animations (use Reanimated) or exercise demos (use the
+knowledge-base images).
 
 ## 8. Safety and compliance
 
