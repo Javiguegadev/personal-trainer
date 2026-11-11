@@ -13,7 +13,16 @@ The only place with DB access, AI calls, secrets and webhooks. Deployed on Verce
 
 ## Errors
 
-JSON `{ error: "<snake_case_code>", message?: string }`. Never leak stack traces or SQL.
+JSON `ApiErrorSchema` from `@pt/contracts`: `{ code, message, fields? }` (helpers in `src/http.ts`;
+`createRouter()` maps Zod failures to 400 `validation_error` with `fields`). New codes go in
+`ApiErrorCodeSchema` first. Never leak stack traces or SQL.
+
+## Dependencies and tests
+
+Routers take a `Deps` object (`src/deps.ts`: store, token verifier, auth admin, AI, clock), built from env
+in `src/index.ts`. Route tests use `src/test/fakes.ts` (in-memory store + locally signed ES256 tokens).
+`*.integration.test.ts` hit the dev DB and run only with `pnpm --filter @pt/api test:integration`.
+Import Drizzle operators from `@pt/db` (one `drizzle-orm` instance), never from `drizzle-orm` directly.
 
 ## Payments (RevenueCat is the source of truth)
 

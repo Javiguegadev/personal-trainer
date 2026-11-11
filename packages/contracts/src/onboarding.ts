@@ -113,8 +113,9 @@ export const OnboardingChatResponseSchema = z.object({
 export type OnboardingChatResponse = z.infer<typeof OnboardingChatResponseSchema>;
 
 export const TargetsPreviewResponseSchema = z.object({
-  targets: TargetsSchema,
-  breakdown: TargetsBreakdownSchema,
+  /** Null when `safety.targetsAllowed` is false (pregnancy/breastfeeding: no numbers, AC19). */
+  targets: TargetsSchema.nullable(),
+  breakdown: TargetsBreakdownSchema.nullable(),
   safety: SafetyEvaluationSchema,
 });
 export type TargetsPreviewResponse = z.infer<typeof TargetsPreviewResponseSchema>;

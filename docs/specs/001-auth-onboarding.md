@@ -245,11 +245,12 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 ## Progress
 
-- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [ ] api · [ ] client · [ ] ui · [ ] e2e
-- Next: API step (skill `api-endpoint`): auth middleware (jose + JWKS), consent middleware, `/me*` and
-  `/onboarding/*` routes with injected services (DB + AI) and fakes in tests; record `ai_usage`; AC12
-  rate limit from `ai_usage`; AC24 integration test against the dev DB (skipped without DATABASE_URL).
-  Pass stored `profiles.safety_flags` as `previousFlags`; skip targets when `targetsAllowed` is false.
+- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [ ] client · [ ] ui · [ ] e2e
+- API (2026-11-11): all 7 routes; 47 route tests (AC5, AC7, AC12, AC14, AC16–AC25 at the API level);
+  AC24 integration test passed against pt-dev (`pnpm --filter @pt/api test:integration`). The pt-dev
+  JWKS publishes an ES256 key, which the verifier expects.
+- Next: client step: `@pt/api-client` methods for the 7 routes, with `ApiError` carrying the
+  `ApiErrorSchema` body (`code`, `fields`), plus TanStack Query hooks. Then UI (skill `ui-screen`).
 - Eval (2026-11-11, Haiku 5.5, effort low): 22/22 cases and 5/5 safety flags in 3 consecutive runs,
   about $0.0035 per run. Fixed on the way: append-only tool loop (thinking blocks are bound to the prefix),
   coeliac/intolerances recorded as allergies, ordered values from prompt injection ignored.
@@ -258,3 +259,10 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
   - Allergies and restrictions only grow from the chat (union); items are removed in the summary/form.
   - `computeTargets` refuses profiles whose safety evaluation has `targetsAllowed: false`.
   - AI tool inputs are validated with Zod on our side (no `strict` schemas: the contracts use unions).
+  - `targets-preview` returns `targets: null` and `breakdown: null` when `targetsAllowed` is false
+    (pregnancy); `PUT /me/profile` then closes the current targets row and inserts none.
+  - `ed_soft_stop` raised in the chat travels in the draft (`healthFlags`) until the profile is saved;
+    from then on it is sticky (stored flags are passed as `previousFlags`). Nothing is stored before.
+  - The AC12 cap counts every onboarding `ai_usage` row, failures included (one row per chat request).
+  - `calorie_floor` is added to `profiles.safety_flags` when targets were clamped (AC14).
+  - The API does not mount user routes when the Supabase env is missing (dev runs with `/health` only).

@@ -1,6 +1,7 @@
 import { HealthResponseSchema } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import { createTestApp } from './test/fakes';
 
 const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test' });
 
@@ -23,5 +24,29 @@ describe('GET /openapi.json', () => {
     const res = await app.request('/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };
     expect(doc.paths).toHaveProperty('/health');
+  });
+});
+
+describe('user routes', () => {
+  it('are documented in /openapi.json when deps are configured', async () => {
+    const { app: full } = await createTestApp();
+    const doc = (await (await full.request('/openapi.json')).json()) as {
+      paths: Record<string, unknown>;
+    };
+    for (const path of [
+      '/me',
+      '/me/consent',
+      '/me/profile',
+      '/me/export',
+      '/onboarding/chat',
+      '/onboarding/targets-preview',
+    ]) {
+      expect(doc.paths).toHaveProperty([path]);
+    }
+  });
+
+  it('are not mounted without deps (missing env in dev)', async () => {
+    const res = await app.request('/me');
+    expect(res.status).toBe(404);
   });
 });

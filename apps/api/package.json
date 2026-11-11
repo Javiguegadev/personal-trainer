@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "node --env-file-if-exists=../../.env ../../node_modules/vitest/vitest.mjs run integration"
   },
   "devDependencies": {
     "@pt/config": "workspace:*",
@@ -20,9 +21,12 @@
   "dependencies": {
     "@hono/node-server": "^2.1.6",
     "@hono/zod-openapi": "^1.6.3",
+    "@pt/ai": "workspace:*",
     "@pt/contracts": "workspace:*",
     "@pt/core": "workspace:*",
+    "@pt/db": "workspace:*",
     "hono": "^4.13.17",
+    "jose": "^6.2.17",
     "zod": "^4.6.7"
   }
 }
