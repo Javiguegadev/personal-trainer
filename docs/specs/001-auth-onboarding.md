@@ -245,12 +245,21 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 ## Progress
 
-- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [ ] ui · [ ] e2e
 - API (2026-11-11): all 7 routes; 47 route tests (AC5, AC7, AC12, AC14, AC16–AC25 at the API level);
   AC24 integration test passed against pt-dev (`pnpm --filter @pt/api test:integration`). The pt-dev
   JWKS publishes an ES256 key, which the verifier expects.
-- Next: client step: `@pt/api-client` methods for the 7 routes, with `ApiError` carrying the
-  `ApiErrorSchema` body (`code`, `fields`), plus TanStack Query hooks. Then UI (skill `ui-screen`).
+- Client (2026-11-11): `@pt/api-client` has the 7 route methods; `ApiError` carries `status`, `code` and
+  `fields` (fallback code by status when the body is not an API error); `onUnauthorized` fires on 401.
+  TanStack Query v5: query-option factories + `createApiHooks(api)` (the app binds them in `src/lib/api.ts`);
+  4xx errors are never retried; `/me` is invalidated after consent, overwritten after `PUT /me/profile`,
+  and the whole cache is cleared after `DELETE /me`. 18 tests.
+- Next: UI (skill `ui-screen`): Supabase auth in the app (email OTP + Google), pass `getAccessToken` and
+  `onUnauthorized` to the client, root guard, then the screens listed in "UI".
+- Pending (human, postponed 2026-11-11): the "Prerequisites" (Supabase Email OTP + template, Google OAuth
+  web client, redirect URLs, app `.env.local`). Until they are done, build the UI against a **mock auth**
+  adapter (same interface as the real Supabase one, selected by an env flag, dev only) so screens can be
+  built and tested; wire the real adapter once the prerequisites exist.
 - Eval (2026-11-11, Haiku 5.5, effort low): 22/22 cases and 5/5 safety flags in 3 consecutive runs,
   about $0.0035 per run. Fixed on the way: append-only tool loop (thinking blocks are bound to the prefix),
   coeliac/intolerances recorded as allergies, ordered values from prompt injection ignored.

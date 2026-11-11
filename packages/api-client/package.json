@@ -12,10 +12,17 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@pt/config": "workspace:*"
+    "@pt/config": "workspace:*",
+    "@tanstack/react-query": "^5.107.1",
+    "@types/react": "~19.3.0",
+    "react": "19.3.0"
   },
   "dependencies": {
     "@pt/contracts": "workspace:*",
     "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.107.1",
+    "react": "19.3.0"
   }
 }
