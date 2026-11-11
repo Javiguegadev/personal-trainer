@@ -4,4 +4,4 @@
  * App-only components live in apps/app/src/components; promote to here only
  * when a primitive is reused across features.
  */
-export { tokens, type Tokens } from './tokens';
+export { tokens, type ColorScheme, type Palette, type Tokens } from './tokens';
