@@ -250,7 +250,9 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
   `/onboarding/*` routes with injected services (DB + AI) and fakes in tests; record `ai_usage`; AC12
   rate limit from `ai_usage`; AC24 integration test against the dev DB (skipped without DATABASE_URL).
   Pass stored `profiles.safety_flags` as `previousFlags`; skip targets when `targetsAllowed` is false.
-- Eval: `pnpm --filter @pt/ai eval:onboarding` written, not yet run (needs the human's go-ahead).
+- Eval (2026-11-11, Haiku 5.5, effort low): 22/22 cases and 5/5 safety flags in 3 consecutive runs,
+  about $0.0035 per run. Fixed on the way: append-only tool loop (thinking blocks are bound to the prefix),
+  coeliac/intolerances recorded as allergies, ordered values from prompt injection ignored.
 - Decisions taken during implementation:
   - The AI tool accepts `ageYears`; core turns it into the latest matching birth date (editable in the summary).
   - Allergies and restrictions only grow from the chat (union); items are removed in the summary/form.

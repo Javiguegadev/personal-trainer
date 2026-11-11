@@ -66,10 +66,13 @@ export async function runOnboardingTurn(
     status,
   });
 
-  const conversation: Anthropic.MessageParam[] = request.messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  // Append-only history: Haiku 5.5 binds thinking blocks to the exact prefix they were produced with, so
+  // nothing already sent may change between tool rounds. The context message is sent once; tool results
+  // carry what changed afterwards (stillMissing).
+  const conversation: Anthropic.MessageParam[] = [
+    ...request.messages.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'system', content: contextMessage(request, draft) },
+  ];
 
   for (let round = 0; round <= config.maxToolRounds; round++) {
     const response = await createMessage({
@@ -80,7 +83,7 @@ export async function runOnboardingTurn(
         { type: 'text', text: ONBOARDING_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
       ],
       tools: ONBOARDING_TOOLS,
-      messages: [...conversation, { role: 'system', content: contextMessage(request, draft) }],
+      messages: conversation,
     });
     inputTokens += response.usage.input_tokens;
     outputTokens += response.usage.output_tokens;

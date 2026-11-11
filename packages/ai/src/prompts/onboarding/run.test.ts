@@ -81,8 +81,21 @@ describe('runOnboardingTurn', () => {
 
     // The second request carries the tool result with what is still missing.
     const second = calls[1]!;
-    const toolResultTurn = second.messages.at(-2)!;
+    const toolResultTurn = second.messages.at(-1)!;
     expect(JSON.stringify(toolResultTurn.content)).toContain('stillMissing');
+  });
+
+  it('keeps the history append-only across tool rounds (thinking blocks are bound to the prefix)', async () => {
+    const { fn, calls } = fakeModel(
+      message([toolUse('t1', 'update_profile_draft', { sex: 'male' })], 'tool_use'),
+      message([toolUse('t2', 'update_profile_draft', { dietType: 'vegan' })], 'tool_use'),
+      message([text('Vale')], 'end_turn'),
+    );
+    await runOnboardingTurn(fn, request);
+    for (let i = 1; i < calls.length; i++) {
+      const previous = calls[i - 1]!.messages;
+      expect(calls[i]!.messages.slice(0, previous.length)).toEqual(previous);
+    }
   });
 
   it('raises the eating-disorder soft stop (AC20)', async () => {
@@ -102,7 +115,7 @@ describe('runOnboardingTurn', () => {
     );
     const result = await runOnboardingTurn(fn, request);
     expect(result.draft).toEqual({ sex: 'male' });
-    expect(JSON.stringify(calls[1]!.messages.at(-2)!.content)).toContain('"is_error":true');
+    expect(JSON.stringify(calls[1]!.messages.at(-1)!.content)).toContain('"is_error":true');
   });
 
   it.each(['refusal', 'max_tokens'] as const)(
