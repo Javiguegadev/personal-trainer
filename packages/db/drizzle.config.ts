@@ -10,6 +10,9 @@ export default defineConfig({
   out: './migrations',
   dialect: 'postgresql',
   dbCredentials: { url },
+  // Supabase owns its roles (anon, authenticated, service_role) and the auth schema: never create them.
+  entities: { roles: { provider: 'supabase' } },
+  schemaFilter: ['public'],
   strict: true,
   verbose: true,
 });
