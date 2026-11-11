@@ -38,6 +38,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5b66b624-7ea7-4527-bbc4-b8dac8299362"
+      }
+    },
+    "owner": "javiguegadevs-team"
   }
 }
