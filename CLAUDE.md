@@ -3,6 +3,9 @@
 Mobile-first, AI-first. One Expo universal app (iOS, Android, web) plus a Hono API. Full plan:
 `docs/BLUEPRINT.md` (v2, see ADR 002). Current stage: see "Status" at the bottom of this file.
 
+**Language: always answer the human in Spanish** (explanations, summaries, questions), even after
+`/clear` and even when the prompt or a skill is in English. Code, docs, specs and commits stay in English.
+
 ## Commands
 
 ```bash
