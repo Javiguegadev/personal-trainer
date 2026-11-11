@@ -2,7 +2,7 @@ import { HealthResponseSchema } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
 
-const app = createApp({ webOrigin: 'http://localhost:3000', version: 'test' });
+const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test' });
 
 describe('GET /health', () => {
   it('returns a response matching the shared contract', async () => {
@@ -12,9 +12,9 @@ describe('GET /health', () => {
     expect(body.version).toBe('test');
   });
 
-  it('sets CORS headers for the web origin', async () => {
-    const res = await app.request('/health', { headers: { origin: 'http://localhost:3000' } });
-    expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
+  it('sets CORS headers for the Expo web origin', async () => {
+    const res = await app.request('/health', { headers: { origin: 'http://localhost:8081' } });
+    expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:8081');
   });
 });
 

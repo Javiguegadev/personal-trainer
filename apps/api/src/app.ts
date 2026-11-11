@@ -4,7 +4,8 @@ import { logger } from 'hono/logger';
 import { healthRoutes } from './routes/health';
 
 export interface AppConfig {
-  webOrigin: string;
+  /** Browser origins allowed by CORS (Expo web, landing). Native apps send no Origin header. */
+  webOrigins: string[];
   version: string;
 }
 
@@ -12,7 +13,7 @@ export function createApp(config: AppConfig) {
   const app = new OpenAPIHono();
 
   app.use('*', logger());
-  app.use('*', cors({ origin: config.webOrigin, credentials: true }));
+  app.use('*', cors({ origin: config.webOrigins, credentials: true }));
 
   app.route('/', healthRoutes(config));
 

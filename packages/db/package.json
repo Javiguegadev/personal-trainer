@@ -10,9 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate",
-    "studio": "drizzle-kit studio"
+    "generate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs generate",
+    "migrate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs migrate",
+    "studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio"
   },
   "devDependencies": {
     "@pt/config": "workspace:*",
