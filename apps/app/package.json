@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "doctor": "expo-doctor"
+    "doctor": "npx --yes expo-doctor"
   },
   "dependencies": {
     "@pt/api-client": "workspace:*",

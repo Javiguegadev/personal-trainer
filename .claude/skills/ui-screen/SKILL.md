@@ -23,6 +23,6 @@ you use.
 8. **Accessibility**: `accessibilityLabel`/`accessibilityRole` on controls, color never the only signal,
    respect reduced motion.
 9. **Platform differences** in `*.web.tsx` / `*.native.tsx`. If you add a native library, add it with
-   `expo install`, run `pnpm --filter @pt/app doctor`, and check it works on web or add a fallback.
+   `expo install`, run `pnpm --filter @pt/app run doctor`, and check it works on web or add a fallback.
 10. **Verify**: run `pnpm --filter @pt/app web` and check with the Playwright MCP at 390 px (light and
     dark) and 1280 px, with no console errors. List what the human must check on a phone in Expo Go.

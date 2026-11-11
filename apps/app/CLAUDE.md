@@ -18,7 +18,7 @@
 - Web differences go in `*.web.tsx` files. Check that new native libraries support web, or provide a
   web fallback.
 - Add dependencies with `pnpm --filter @pt/app exec expo install <pkg>`, then run
-  `pnpm --filter @pt/app doctor`.
+  `pnpm --filter @pt/app run doctor`.
 - Verify UI on web with the Playwright MCP (`pnpm --filter @pt/app web`, port 8081) at 390 px wide, in
   light and dark mode. Ask the human to check native behavior in Expo Go when the change touches
   gestures, the camera, haptics or keyboard handling.

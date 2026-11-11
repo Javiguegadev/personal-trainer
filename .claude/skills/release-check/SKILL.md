@@ -13,7 +13,7 @@ Run each step and report a ✅/❌ table. Don't fix things silently: list them.
 4. RLS: every user-owned table has policies (query the dev DB with the Supabase MCP, read-only).
 5. Secrets: grep the app bundle (`apps/app/dist` after `pnpm --filter @pt/app build`) and every
    `EXPO_PUBLIC_*` value for `sk_`, `sk-ant-`, `service_role`, `sb_secret_`.
-6. Expo: `pnpm --filter @pt/app exec expo install --check` and `pnpm --filter @pt/app doctor` pass;
+6. Expo: `pnpm --filter @pt/app exec expo install --check` and `pnpm --filter @pt/app run doctor` pass;
    `app.json` version/build numbers bumped for store releases.
 7. Run `/security-review` on the diff since the last release if it touches auth, payments, webhooks or AI.
 8. AI: evals for every changed prompt/model pass their gates; the average cost per call is within target.

@@ -12,7 +12,7 @@ pnpm build                        # API bundle + Expo web export
 pnpm --filter @pt/app dev         # Expo only: press w (web), scan QR with Expo Go (phone)
 pnpm --filter @pt/core test -- --watch
 pnpm --filter @pt/app exec expo install <pkg>   # ALWAYS add app deps this way (SDK-compatible versions)
-pnpm --filter @pt/app doctor      # expo-doctor
+pnpm --filter @pt/app run doctor  # expo-doctor
 pnpm db:generate                  # after changing packages/db/src/schema (then REVIEW the SQL)
 pnpm db:migrate                   # apply to the DEV database only
 pnpm format
