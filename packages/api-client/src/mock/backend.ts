@@ -5,6 +5,7 @@
  * Never use it in production builds: the app enables it only with `__DEV__` and an explicit flag.
  */
 import {
+  CONSENT_VERSION,
   ConsentRequestSchema,
   ProfileInputSchema,
   type ApiErrorCode,
@@ -131,8 +132,10 @@ export function createMockApiClient({
     return { user, record };
   }
 
-  const hasConsent = (record: UserRecord) =>
-    record.consents.some((c) => c.kind === 'health_data' && c.revokedAt === null);
+  const activeConsent = (record: UserRecord) =>
+    record.consents.findLast((c) => c.kind === 'health_data' && c.revokedAt === null);
+  // A consent given to an older version of the text does not count (spec 002 AC14).
+  const hasConsent = (record: UserRecord) => activeConsent(record)?.version === CONSENT_VERSION;
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -141,13 +144,11 @@ export function createMockApiClient({
   }
 
   function toMe(userId: string, record: UserRecord): MeResponse {
-    const consent = record.consents.findLast(
-      (c) => c.kind === 'health_data' && c.revokedAt === null,
-    );
+    const consent = activeConsent(record);
     const current = record.targets.find((t) => t.validTo === null);
     return {
       userId,
-      consent: { healthData: consent !== undefined, version: consent?.version ?? null },
+      consent: { healthData: hasConsent(record), version: consent?.version ?? null },
       onboardingCompleted: record.profile?.onboardingCompletedAt != null,
       profile: record.profile,
       dietaryPrefs: record.dietaryPrefs,

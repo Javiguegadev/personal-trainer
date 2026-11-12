@@ -78,6 +78,51 @@ describe('GET /me + POST /me/consent (AC6)', () => {
   });
 });
 
+describe('consent version (spec 002 AC14)', () => {
+  const OLD_VERSION = '2026-11';
+  const grantOld = () =>
+    t.store.grantConsent(USER_ID, 'health_data', OLD_VERSION, new Date('2026-11-01T10:00:00Z'));
+
+  it('rejects a consent for a version that is not the current one with 400', async () => {
+    const res = await t.call('POST', '/me/consent', { kind: 'health_data', version: OLD_VERSION });
+    expect(res.status).toBe(400);
+    expect(await errorOf(res)).toMatchObject({ code: 'validation_error' });
+    expect(t.store.rows(USER_ID).consents).toEqual([]);
+  });
+
+  it('does not count a consent given to an older version, and keeps the stored data', async () => {
+    await consent();
+    await t.call('PUT', '/me/profile', profileInput());
+    // The account as it was before the text changed: its only consent is for the old version.
+    t.store.rows(USER_ID).consents = [];
+    await grantOld();
+
+    const me = MeResponseSchema.parse(await (await t.call('GET', '/me')).json());
+    expect(me.consent).toEqual({ healthData: false, version: OLD_VERSION });
+    expect(me.onboardingCompleted).toBe(true);
+    expect(me.profile).not.toBeNull();
+    expect(me.targets).not.toBeNull();
+
+    for (const [method, path] of [
+      ['PUT', '/me/profile'],
+      ['POST', '/onboarding/targets-preview'],
+    ] as const) {
+      const res = await t.call(method, path, profileInput());
+      expect(res.status).toBe(403);
+      expect((await errorOf(res)).code).toBe('consent_required');
+    }
+  });
+
+  it('counts again once the current version is accepted', async () => {
+    await grantOld();
+    expect((await consent()).status).toBe(204);
+    const me = MeResponseSchema.parse(await (await t.call('GET', '/me')).json());
+    expect(me.consent).toEqual({ healthData: true, version: CONSENT_VERSION });
+    expect((await t.call('PUT', '/me/profile', profileInput())).status).toBe(200);
+    expect(t.store.rows(USER_ID).consents).toHaveLength(2);
+  });
+});
+
 describe('PUT /me/profile', () => {
   it('requires consent (AC7) and stores nothing', async () => {
     const res = await t.call('PUT', '/me/profile', profileInput());
@@ -365,13 +410,25 @@ describe('PUT /me/profile', () => {
 describe('GET /me/export (AC23)', () => {
   it('returns every row as a JSON attachment', async () => {
     await consent();
-    await t.call('PUT', '/me/profile', profileInput());
+    const football = {
+      kind: 'sport',
+      label: 'fútbol',
+      sessionsPerWeek: 2,
+      minutesPerSession: 90,
+      intensity: 'moderate',
+    } as const;
+    await t.call(
+      'PUT',
+      '/me/profile',
+      profileInput({ jobActivity: 'standing', plannedActivities: [football] }),
+    );
     const res = await t.call('GET', '/me/export');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename=".+\.json"$/);
     const body = ExportResponseSchema.parse(await res.json());
     expect(body).toMatchObject({ userId: USER_ID, email: 'ana@example.com' });
-    expect(body.profile).not.toBeNull();
+    // Spec 002 AC16: the job and the training list are part of the file.
+    expect(body.profile).toMatchObject({ jobActivity: 'standing', plannedActivities: [football] });
     expect(body.dietaryPrefs).not.toBeNull();
     expect(body.targets).toHaveLength(1);
     expect(body.consents).toHaveLength(1);

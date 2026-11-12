@@ -38,8 +38,8 @@ export type ExportRecord = Omit<ExportResponse, 'exportedAt' | 'userId' | 'email
 /** Persistence port. Real implementation: `store/drizzle-store.ts`; tests use an in-memory fake. */
 export interface Store {
   getMe(userId: string): Promise<MeRecord>;
-  /** Active (not revoked) consent of this kind. */
-  hasConsent(userId: string, kind: ConsentKind): Promise<boolean>;
+  /** Whether the latest active (not revoked) consent of this kind is for this version of the text. */
+  hasConsent(userId: string, kind: ConsentKind, version: string): Promise<boolean>;
   grantConsent(userId: string, kind: ConsentKind, version: string, at: Date): Promise<void>;
   /** Flags stored on the profile (empty when there is no profile yet). */
   getSafetyFlags(userId: string): Promise<SafetyFlag[]>;

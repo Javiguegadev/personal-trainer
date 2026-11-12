@@ -126,8 +126,9 @@ export function createDrizzleStore(db: Db): Store {
       };
     },
 
-    async hasConsent(userId, kind) {
-      return (await activeConsent(userId, kind)).length > 0;
+    async hasConsent(userId, kind, version) {
+      const [latest] = await activeConsent(userId, kind);
+      return latest?.version === version;
     },
 
     async grantConsent(userId, kind, version, at) {

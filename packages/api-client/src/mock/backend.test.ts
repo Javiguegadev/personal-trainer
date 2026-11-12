@@ -1,4 +1,4 @@
-import type { ProfileInput } from '@pt/contracts';
+import { CONSENT_VERSION, type ProfileInput } from '@pt/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { isApiError } from '../client';
 import { profileInput } from '../test/fixtures';
@@ -64,17 +64,51 @@ describe('mock backend: auth and consent', () => {
 
   it('records consent and reports it in /me (AC6)', async () => {
     const { api } = setup();
-    await api.grantConsent({ kind: 'health_data', version: '2026-11' });
+    await api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
     await expect(api.me()).resolves.toMatchObject({
-      consent: { healthData: true, version: '2026-11' },
+      consent: { healthData: true, version: CONSENT_VERSION },
     });
+  });
+});
+
+describe('mock backend: consent version (spec 002 AC14)', () => {
+  it('rejects a consent for an older version of the text', async () => {
+    const { api } = setup();
+    const error = await api
+      .grantConsent({ kind: 'health_data', version: '2026-11' } as never)
+      .catch((e: unknown) => e);
+    expect(isApiError(error, 'validation_error')).toBe(true);
+    await expect(api.me()).resolves.toMatchObject({ consent: { healthData: false } });
+  });
+
+  it('asks again when the stored consent is for an older version, keeping the data', async () => {
+    const storage = memoryStorage();
+    const { api } = setup({ storage });
+    await api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    await api.updateProfile(input());
+    // Rewrite the stored consent as if it had been given to the previous text.
+    storage.setItem(
+      MOCK_DB_KEY,
+      (storage.getItem(MOCK_DB_KEY) ?? '').replaceAll(CONSENT_VERSION, '2026-11'),
+    );
+
+    const reloaded = setup({ storage }).api;
+    await expect(reloaded.me()).resolves.toMatchObject({
+      consent: { healthData: false, version: '2026-11' },
+      onboardingCompleted: true,
+    });
+    const error = await reloaded.updateProfile(input()).catch((e: unknown) => e);
+    expect(isApiError(error, 'consent_required')).toBe(true);
+
+    await reloaded.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    await expect(reloaded.me()).resolves.toMatchObject({ consent: { healthData: true } });
   });
 });
 
 describe('mock backend: profile and targets', () => {
   async function consented(opts: Parameters<typeof setup>[0] = {}) {
     const s = setup(opts);
-    await s.api.grantConsent({ kind: 'health_data', version: '2026-11' });
+    await s.api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
     return s;
   }
 

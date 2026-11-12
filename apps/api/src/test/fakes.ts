@@ -44,8 +44,9 @@ export class FakeStore implements Store {
     };
   }
 
-  async hasConsent(userId: string, kind: ConsentKind) {
-    return this.rows(userId).consents.some((c) => c.kind === kind && !c.revokedAt);
+  async hasConsent(userId: string, kind: ConsentKind, version: string) {
+    const latest = this.rows(userId).consents.findLast((c) => c.kind === kind && !c.revokedAt);
+    return latest?.version === version;
   }
 
   async grantConsent(userId: string, kind: ConsentKind, version: string, at: Date) {

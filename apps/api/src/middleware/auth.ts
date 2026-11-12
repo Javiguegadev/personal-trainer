@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 import { createMiddleware } from 'hono/factory';
+import { CONSENT_VERSION } from '@pt/contracts';
 import { z } from 'zod';
 import type { Store, VerifyToken } from '../deps';
 import { apiError, type AuthEnv } from '../http';
@@ -51,7 +52,8 @@ export function requireAuth(verifyToken: VerifyToken) {
 /** Routes that store or process health data need the explicit consent (AC7). Use after `requireAuth`. */
 export function requireConsent(store: Store) {
   return createMiddleware<AuthEnv>(async (c, next) => {
-    if (!(await store.hasConsent(c.var.user.userId, 'health_data'))) {
+    // A consent given to an older version of the text does not count (spec 002 AC14).
+    if (!(await store.hasConsent(c.var.user.userId, 'health_data', CONSENT_VERSION))) {
       return apiError(c, 403, 'consent_required');
     }
     await next();

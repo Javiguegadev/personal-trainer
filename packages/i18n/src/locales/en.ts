@@ -59,9 +59,9 @@ export const en: DeepStringRecord<typeof es> = {
     intro:
       'To calculate your targets we need some health data. Before you continue, this is what we do with it:',
     points: {
-      what: 'We store your sex, date of birth, height, weight, activity level, goal, diet, allergies and injuries.',
+      what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log and, if you fill them in, your sleep and stress check-ins.',
       where: 'It is stored on servers in the European Union and only you can see it.',
-      ai: 'If you use the chat, your messages are processed by an AI provider (Anthropic, in the EU or the US) under a data processing agreement. We do not store the conversations.',
+      use: 'We use it to calculate your targets and adapt your recommendations. No AI provider processes your data right now; if that changes, we will ask for your consent again.',
       control: 'You can download or delete all your data at any time in Settings → Privacy.',
       advice: 'Recommendations are for guidance only and do not replace a healthcare professional.',
     },

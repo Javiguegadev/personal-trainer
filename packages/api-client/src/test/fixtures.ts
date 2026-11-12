@@ -1,8 +1,8 @@
-import type { MeResponse, ProfileInput } from '@pt/contracts';
+import { CONSENT_VERSION, type MeResponse, type ProfileInput } from '@pt/contracts';
 
 export const meBody: MeResponse = {
   userId: '6f1c2a9e-5b7d-4c3e-9a1f-2d8b7e6c5a40',
-  consent: { healthData: true, version: '2026-11' },
+  consent: { healthData: true, version: CONSENT_VERSION },
   onboardingCompleted: false,
   profile: null,
   dietaryPrefs: null,

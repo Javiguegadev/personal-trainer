@@ -43,7 +43,7 @@ export function meRoutes(deps: Deps) {
     request: { body: { content: { 'application/json': { schema: ConsentRequestSchema } } } },
     responses: {
       204: { description: 'Consent recorded' },
-      400: error('Invalid body'),
+      400: error('Invalid body, or a version of the consent text that is not the current one'),
       401: error('Unauthenticated'),
     },
   });

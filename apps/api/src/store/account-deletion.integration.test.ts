@@ -7,6 +7,7 @@
  * Skipped unless DATABASE_URL, SUPABASE_URL (or EXPO_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY
  * are set. Never point it at production.
  */
+import { CONSENT_VERSION } from '@pt/contracts';
 import { createDb, eq, schema, sql } from '@pt/db';
 import { afterAll, describe, expect, it } from 'vitest';
 import { profileInput } from '../test/fakes';
@@ -60,7 +61,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     const store = createDrizzleStore(db);
     const now = new Date();
     const input = profileInput();
-    await store.grantConsent(id, 'health_data', '2026-11', now);
+    await store.grantConsent(id, 'health_data', CONSENT_VERSION, now);
     await store.saveProfile(
       id,
       {

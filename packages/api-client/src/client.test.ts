@@ -1,3 +1,4 @@
+import { CONSENT_VERSION } from '@pt/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, createApiClient, isApiError } from './client';
 import { meBody, profileInput } from './test/fixtures';
@@ -50,10 +51,10 @@ describe('createApiClient', () => {
     const cases = [
       { run: (a: Api) => a.me(), method: 'GET', path: '/me', res: () => Response.json(meBody) },
       {
-        run: (a: Api) => a.grantConsent({ kind: 'health_data', version: '2026-11' }),
+        run: (a: Api) => a.grantConsent({ kind: 'health_data', version: CONSENT_VERSION }),
         method: 'POST',
         path: '/me/consent',
-        body: { kind: 'health_data', version: '2026-11' },
+        body: { kind: 'health_data', version: CONSENT_VERSION },
         res: () => new Response(null, { status: 204 }),
       },
       {

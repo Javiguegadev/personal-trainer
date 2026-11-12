@@ -1,4 +1,4 @@
-import type { MeResponse, ProfileInput } from '@pt/contracts';
+import { CONSENT_VERSION, type MeResponse, type ProfileInput } from '@pt/contracts';
 import type { ProfileEvaluation } from '@pt/core';
 import type { Deps, MeRecord } from '../deps';
 
@@ -38,7 +38,11 @@ export async function saveProfile(
 export function toMeResponse(userId: string, record: MeRecord): MeResponse {
   return {
     userId,
-    consent: { healthData: record.consentVersion !== null, version: record.consentVersion },
+    // An older version of the consent text no longer counts: the app asks again (spec 002 AC14).
+    consent: {
+      healthData: record.consentVersion === CONSENT_VERSION,
+      version: record.consentVersion,
+    },
     onboardingCompleted: record.profile?.onboardingCompletedAt != null,
     profile: record.profile,
     dietaryPrefs: record.dietaryPrefs,

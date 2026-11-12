@@ -12,7 +12,10 @@ import { useGrantConsent } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { signOut } from '@/lib/session';
 
-/** AC6: explicit health-data consent before anything is collected. */
+/**
+ * Explicit health-data consent before anything is collected (spec 001 AC6). It is also shown again to
+ * an account whose consent is for an older version of the text (spec 002 AC13, AC14).
+ */
 export default function ConsentScreen() {
   const { t } = useI18n();
   const [checked, setChecked] = useState(false);
@@ -20,7 +23,7 @@ export default function ConsentScreen() {
   const points = [
     t.consent.points.what,
     t.consent.points.where,
-    t.consent.points.ai,
+    t.consent.points.use,
     t.consent.points.control,
     t.consent.points.advice,
   ];

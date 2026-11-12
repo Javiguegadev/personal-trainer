@@ -56,9 +56,9 @@ export const es = {
     intro:
       'Para calcular tus objetivos necesitamos algunos datos de salud. Antes de seguir, esto es lo que hacemos con ellos:',
     points: {
-      what: 'Guardamos tu sexo, fecha de nacimiento, altura, peso, nivel de actividad, objetivo, dieta, alergias y lesiones.',
+      what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso y, si los rellenas, tus registros de sueño y estrés.',
       where: 'Se guardan en servidores de la Unión Europea y solo tú puedes verlos.',
-      ai: 'Si usas el chat, tus mensajes los procesa un proveedor de IA (Anthropic, en la UE o en EE. UU.) con un contrato de encargo de tratamiento. No guardamos las conversaciones.',
+      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Ahora mismo ningún proveedor de IA procesa tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
       control: 'Puedes descargar o borrar todos tus datos cuando quieras en Ajustes → Privacidad.',
       advice:
         'Las recomendaciones son orientativas y no sustituyen el consejo de un profesional sanitario.',
