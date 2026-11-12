@@ -82,6 +82,9 @@ pnpm format
 ## Status
 
 - E0 Accounts ✅ · E1 Foundation ✅ (monorepo, CI, Expo universal app, typed API).
-- E2 auth + AI onboarding: in progress (`docs/specs/001-auth-onboarding.md`, see its "Progress").
-- Next (ADR 003): E2b logging & context foundations → E4 food logging → E5 workout logging & daily
+- E2 auth + onboarding: in progress (`docs/specs/001-auth-onboarding.md`, see its "Progress"). Only the
+  Supabase auth adapter is left; it waits for dashboard settings.
+- E2b logging & context foundations: spec 002 done (job, weekly training, `targets-v2`, user context,
+  consent version, chat retired). Spec 003 is next (tab shell, "Today", weight log, offline-safe writes).
+- Next (ADR 003): E4 food logging → E5 workout logging & daily
   context → E5b adaptive loop → beta without paywall → E7 premium AI → E6 payments.

@@ -233,11 +233,45 @@ ships a chat that ADR 004 retires.
 
 - Who reviews the job factors, the MET table and the thresholds (blueprint §10)? Until then,
   `domain-reviewer`.
-- Should heavy manual labour be a fourth job option (factor 2.0)? The domain review notes that 1.8 is low
-  for it, which makes a "lose" deficit larger than intended. Three options keep the form simple.
+- Heavy manual labour as a fourth job option (factor 2.0): the human decided on 2026-11-12 to keep three
+  options. The domain review notes that 1.8 is low for it, which makes a "lose" deficit larger than
+  intended, so the question goes to the professional reviewer.
 - Final legal wording of the consent text (stage E9).
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
+- AC1–AC17 are covered by tests: `contracts/profile.test.ts` (AC1–AC4), `core/nutrition/*.test.ts`
+  (AC6, AC9–AC11), `core/context/snapshot.test.ts` (AC12), `core/profile/*.test.ts` (AC1–AC4, notices),
+  `api/routes/me/me.test.ts` and `routes/onboarding/onboarding.test.ts` (AC4, AC5, AC10, AC11, AC14–AC17),
+  `api-client/mock/backend.test.ts`, `api/store/account-deletion.integration.test.ts` (AC16, on the dev
+  database) and `apps/e2e` (AC2, AC3, AC5–AC8).
+- Commits: `a805f64` retires the chat (AC15) · `33de79f` job, training and `targets-v2` ·
+  `9b43957` consent (AC13, AC14).
+- Verified on 2026-11-12: `pnpm check` green, 4 E2E journeys green on the mock backend, the form and the
+  summary checked on web at 390 px in light and dark mode, migrations `0001` and `0002` applied to the dev
+  database, and the account-deletion integration test green on it.
 - Decisions taken during implementation:
+  - **Commits follow dependencies, not layers.** Changing `ProfileInput` breaks every layer at once, so
+    one commit per layer could not stay green. The work is three green commits instead.
+  - **Two migrations instead of one.** `drizzle-kit generate` asks interactively whether a dropped enum
+    was renamed, which fails without a terminal. `0001` adds the tables and enums; `0002` drops
+    `activity_level` and clears `onboarding_completed_at` (AC17).
+  - **`profile.jobActivity` is nullable in `ProfileSchema`** (never in `ProfileInputSchema`): an account
+    from before this spec has no job until it fills in the form again. `onboarding_completed_at` is set
+    again on that save.
+  - **The job and the training list travel inside `profile`** in `GET /me` and in the export, so
+    `ExportResponseSchema` itself did not change.
+  - **The high-training-load flag is raised by the safety rules** (`evaluateProfileSafety`), so the notice
+    comes with the preview; the smaller deficit is applied by `computeTargets` from the snapshot.
+  - **When the calorie floor and the activity ceiling both apply**, `clamped_reason` is `calorie_floor`.
+  - **The breakdown shows the factors rounded to 3 decimals**; the calculation uses them unrounded.
+  - **`ConsentRequestSchema.version` is a literal of the current version**, which gives the 400 of AC14.
+    The consent text now says that no AI provider processes the data and that consent is asked again if
+    that changes (the new `consent.points.use` replaces `consent.points.ai`).
+  - **The mock database key changed** (`pt.mock-db.v2`): demo data stored by an older build is ignored.
+  - **`@pt/ai` has no feature left**: `FEATURES` is empty and `AiFeature` is a string until the questions
+    assistant (stage E5b) adds the first one.
+  - **The onboarding form of an existing account is prefilled** from its stored profile (AC17).
+- Left for the human: check the form on a phone with Expo Go (the steppers and chips are new touch
+  controls), and apply the migrations to any other environment.
