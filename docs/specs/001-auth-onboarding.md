@@ -245,7 +245,7 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 ## Progress
 
-- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [x] ui (on the mock backend) · [ ] e2e · [ ] Supabase auth adapter
+- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [x] ui (on the mock backend) · [x] e2e (on the mock backend) · [ ] Supabase auth adapter
 - API (2026-11-11): all 7 routes; 47 route tests (AC5, AC7, AC12, AC14, AC16–AC25 at the API level);
   AC24 integration test passed against pt-dev (`pnpm --filter @pt/api test:integration`). The pt-dev
   JWKS publishes an ES256 key, which the verifier expects.
@@ -267,9 +267,28 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
     settings/profile, settings/privacy. ACs exercised by hand: AC1–AC4 (mock), AC6, AC8–AC12, AC14–AC24.
   - New @pt/core: `evaluateProfileInput` (moved from the API), profile form parsing and unit switching,
     `profileNotices`, `trimTranscript`, number formatting. Tests: core 90+, api-client 36, app 8.
-- Next: E2E (step 8): Playwright tests on `web:mock` for the critical journeys (sign-in → consent → chat
-  → summary → Home; form path in imperial; 429 → form; delete account), then the Supabase auth adapter
-  (email OTP + Google with the expo-sqlite storage from the Expo guide) once the prerequisites are done.
+- Human test feedback (2026-11-12, demo mode: "el formulario va bien, pero el chat no recogía bien los
+  datos, tampoco puedo volver del formulario al chat"):
+  - The manual form works well.
+  - Chat: fixed (5ca5554). Reproduced on web: "hombre, 30" and "1,75 y 80", the formats the chat intro
+    suggests, were not understood by the scripted mock (`packages/api-client/src/mock/chat.ts`), which
+    then replaced the answers with example values. The mock now reads a number without a unit in the
+    context of the question it asked, asks only for the missing half of a question, never invents a
+    value (it asks again with an example; the `#demo` hook fills example values on purpose) and ignores
+    denied injuries, allergies and pregnancy. The real path (Haiku) was not involved; it can be tried in
+    the app once the Supabase auth adapter exists.
+  - Back from the form to the chat: **not reproduced**. On web "← Volver" returns to the chat with the
+    conversation intact in five paths (Google and email sign-in, after a reload on the form, through the
+    summary, with and without messages), and an E2E test now covers it. Open question for the human:
+    where it happened (phone or web) and after which steps. Once onboarding is completed the chat is
+    unreachable by design; in demo mode a different email starts a fresh account.
+- E2E (2026-11-12, f702304): `pnpm e2e` runs 5 Playwright journeys (package `apps/e2e`, mobile viewport,
+  es-ES) on `web:mock`; it starts the dev server or reuses a running one. First time on a machine:
+  `pnpm --filter @pt/e2e exec playwright install chromium`. Not part of `pnpm check` or CI. Covered: AC1,
+  AC3 (mock), AC4, AC6, AC8–AC12, AC24 and the form → chat back link.
+- Next: the Supabase auth adapter (email OTP + Google with the expo-sqlite storage from the Expo guide)
+  once the prerequisites are done. ADR 003 (2026-11-12): the hybrid onboarding and the activity split are
+  built in stage E2b, so this spec closes as written.
 - Pending (human, postponed 2026-11-11): the "Prerequisites" (Supabase Email OTP + template, Google OAuth
   web client, redirect URLs). The app's Supabase URL and anon key are already in the root `.env`.
 - Human checks on a phone (Expo Go, `pnpm --filter @pt/app dev:mock`): keyboard over the chat composer
