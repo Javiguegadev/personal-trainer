@@ -8,6 +8,20 @@
       "when": 1794419039634,
       "tag": "0000_auth_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794522668933,
+      "tag": "0001_job_activity_planned_training",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794522670231,
+      "tag": "0002_drop_activity_level",
+      "breakpoints": true
     }
   ]
 }

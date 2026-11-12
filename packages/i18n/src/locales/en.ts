@@ -89,21 +89,41 @@ export const en: DeepStringRecord<typeof es> = {
       weightLb: 'Weight (lb)',
       targetWeightKg: 'Target weight (kg, optional)',
       targetWeightLb: 'Target weight (lb, optional)',
-      activity: 'Activity level',
-      activityOptions: {
-        sedentary: 'Sedentary',
-        light: 'Light',
-        moderate: 'Moderate',
-        active: 'Active',
-        very_active: 'Very active',
+      job: 'Your job',
+      jobHint: 'How you spend most of your working day. Training is asked separately.',
+      jobOptions: {
+        sedentary: 'Seated',
+        standing: 'On your feet or walking',
+        physical: 'Physical work',
       },
-      activityHints: {
-        sedentary: 'Desk job and little or no exercise.',
-        light: 'You walk daily or train 1–2 days a week.',
-        moderate: 'You train 3–5 days a week.',
-        active: 'You train 6–7 days a week or have a physical job.',
-        very_active: 'You train twice a day or do hard physical work.',
+      jobHints: {
+        sedentary: 'Office, driving, studying.',
+        standing: 'Shop, hospitality, teaching, nursing.',
+        physical: 'Construction, warehouse, farming, cleaning.',
       },
+      training: 'Training and sport outside work',
+      trainingHint: 'What you do in a normal week. Count the whole session, rests included.',
+      trainingEmpty: "I don't train. Your targets use your job only.",
+      trainingSummary: '{sessions} sessions · {minutes} min per week',
+      trainingMax: 'You can add up to 6 activities.',
+      trainingTooMuch:
+        'That is more than 20 hours of training per week. Check the times per week and the duration.',
+      addActivity: 'Add activity',
+      removeActivity: 'Remove this activity',
+      activityTitle: 'Activity {number}',
+      kind: 'Type',
+      kindOptions: { strength: 'Strength', cardio: 'Cardio', sport: 'Sport', other: 'Other' },
+      activityName: 'Name (optional)',
+      activityNamePlaceholder: 'Football, padel, yoga…',
+      sessions: 'Times per week',
+      sessionsDecrease: 'One less per week',
+      sessionsIncrease: 'One more per week',
+      duration: 'Length of each session',
+      durationValue: '{minutes} min',
+      intensity: 'Intensity',
+      intensityOptions: { light: 'Light', moderate: 'Moderate', hard: 'Hard' },
+      intensityHint:
+        'Light: you can talk easily. Moderate: holding a conversation is hard. Hard: you can barely talk.',
       goal: 'Goal',
       goalOptions: { lose: 'Lose fat', maintain: 'Maintain', gain: 'Build muscle' },
       diet: 'Diet',
@@ -166,7 +186,9 @@ export const en: DeepStringRecord<typeof es> = {
     hideCalculation: 'Hide the calculation',
     breakdown: {
       bmr: 'Resting metabolism (Mifflin-St Jeor, age {age}): {value} kcal',
-      tdee: 'Daily expenditure: {bmr} × {factor} (activity) = {value} kcal',
+      activity: 'Activity factor: {job} (job) + {training} (training) = {factor}',
+      activityCapped: 'Activity factor: {job} (job) + {training} (training), limited to {factor}',
+      tdee: 'Daily expenditure: {bmr} × {factor} = {value} kcal',
       adjustment: 'Goal adjustment: {value} kcal',
       floor: 'Safety minimum: {value} kcal (never below your resting metabolism)',
       protein: 'Protein: {perKg} g per kg × {weight} kg reference weight',
@@ -175,7 +197,7 @@ export const en: DeepStringRecord<typeof es> = {
       fiber: 'Fibre: 14 g per 1000 kcal, at least 25 g',
       sources: 'Sources',
       sourceList:
-        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · ISSN position stand on protein and exercise · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria',
+        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · FAO/WHO/UNU (2004), human energy requirements and physical activity levels · Ainsworth BE et al. (2011), Compendium of Physical Activities · ISSN position stand on protein and exercise · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria',
       version: 'Formula {version}',
     },
   },
@@ -209,6 +231,16 @@ export const en: DeepStringRecord<typeof es> = {
       title: 'Safety minimum',
       message:
         'We raised your calories to the safe minimum ({floor} kcal) because the target was below it.',
+    },
+    high_training_load: {
+      title: 'You train a lot',
+      message:
+        'You plan 10 or more hours of training per week. Make sure you eat enough; if your goal is to lose fat, we apply a smaller deficit. If in doubt, talk to a sports nutrition professional.',
+    },
+    activity_ceiling: {
+      title: 'Limited estimate',
+      message:
+        'Your job and your training add up to a very high expenditure. We limited the estimate to the highest level considered sustainable, so it may fall short. Talk to a professional if you train at this level.',
     },
     medical_condition: {
       title: 'Injuries or medical conditions',

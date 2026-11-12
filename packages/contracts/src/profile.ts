@@ -9,17 +9,65 @@ export const PROFILE_LIMITS = {
   listItemMax: 60,
 } as const;
 
+/** Limits of the weekly training list (spec 002 AC2, AC4). */
+export const TRAINING_LIMITS = {
+  activitiesMax: 6,
+  sessionsPerWeek: { min: 1, max: 14 },
+  minutesPerSession: { min: 10, max: 240 },
+  /** Total planned minutes per week; above it the list is taken as a typing mistake. */
+  minutesPerWeekMax: 1200,
+  labelMax: 40,
+} as const;
+
 export const SexSchema = z.enum(['female', 'male', 'other']);
 export type Sex = z.infer<typeof SexSchema>;
 
-export const ActivityLevelSchema = z.enum([
-  'sedentary',
-  'light',
-  'moderate',
-  'active',
-  'very_active',
-]);
-export type ActivityLevel = z.infer<typeof ActivityLevelSchema>;
+/** What the job is like most of the day. Training is described apart, in `PlannedActivity`. */
+export const JobActivitySchema = z.enum(['sedentary', 'standing', 'physical']);
+export type JobActivity = z.infer<typeof JobActivitySchema>;
+
+export const ActivityKindSchema = z.enum(['strength', 'cardio', 'sport', 'other']);
+export type ActivityKind = z.infer<typeof ActivityKindSchema>;
+
+export const IntensitySchema = z.enum(['light', 'moderate', 'hard']);
+export type Intensity = z.infer<typeof IntensitySchema>;
+
+/** One training or sport activity the user plans to do every week, outside work. */
+export const PlannedActivitySchema = z.object({
+  kind: ActivityKindSchema,
+  /** Optional name, e.g. "fútbol". */
+  label: z.string().trim().min(1).max(TRAINING_LIMITS.labelMax).nullable(),
+  sessionsPerWeek: z
+    .number()
+    .int()
+    .min(TRAINING_LIMITS.sessionsPerWeek.min)
+    .max(TRAINING_LIMITS.sessionsPerWeek.max),
+  minutesPerSession: z
+    .number()
+    .int()
+    .min(TRAINING_LIMITS.minutesPerSession.min)
+    .max(TRAINING_LIMITS.minutesPerSession.max),
+  intensity: IntensitySchema,
+});
+export type PlannedActivity = z.infer<typeof PlannedActivitySchema>;
+
+/** The weekly training list. Empty means "I don't train". */
+export const PlannedActivitiesSchema = z
+  .array(PlannedActivitySchema)
+  .max(TRAINING_LIMITS.activitiesMax)
+  .superRefine((list, ctx) => {
+    const minutes = list.reduce((sum, a) => sum + a.sessionsPerWeek * a.minutesPerSession, 0);
+    if (minutes > TRAINING_LIMITS.minutesPerWeekMax) {
+      ctx.addIssue({
+        code: 'too_big',
+        origin: 'number',
+        maximum: TRAINING_LIMITS.minutesPerWeekMax,
+        inclusive: true,
+        input: minutes,
+        message: 'Too many training minutes per week',
+      });
+    }
+  });
 
 export const GoalSchema = z.enum(['lose', 'maintain', 'gain']);
 export type Goal = z.infer<typeof GoalSchema>;
@@ -47,6 +95,7 @@ export const SafetyFlagSchema = z.enum([
   'low_bmi',
   'low_target_bmi',
   'calorie_floor',
+  'high_training_load',
 ]);
 export type SafetyFlag = z.infer<typeof SafetyFlagSchema>;
 
@@ -100,7 +149,8 @@ export const ProfileInputSchema = z.object({
   heightCm: HeightCmSchema,
   weightKg: WeightKgSchema,
   targetWeightKg: WeightKgSchema.nullable(),
-  activityLevel: ActivityLevelSchema,
+  jobActivity: JobActivitySchema,
+  plannedActivities: PlannedActivitiesSchema,
   /** The goal the user asked for; safety rules may apply a different one. */
   goal: GoalSchema,
   injuries: z.string().trim().max(PROFILE_LIMITS.textMax).nullable(),
@@ -120,7 +170,7 @@ export const TargetsSchema = z.object({
   fatG: z.number().int(),
   fiberG: z.number().int(),
   formulaVersion: z.string(),
-  /** Why the targets were limited, if they were (e.g. `calorie_floor`). */
+  /** Why the targets were limited, if they were: `calorie_floor` or `activity_ceiling`. */
   clampedReason: z.string().nullable(),
 });
 export type Targets = z.infer<typeof TargetsSchema>;
@@ -129,7 +179,10 @@ export type Targets = z.infer<typeof TargetsSchema>;
 export const TargetsBreakdownSchema = z.object({
   ageYears: z.number().int(),
   bmrKcal: z.number().int(),
+  /** Job factor + training factor, after the ceiling. TDEE = BMR × this. */
   activityFactor: z.number(),
+  jobFactor: z.number(),
+  trainingFactor: z.number(),
   tdeeKcal: z.number().int(),
   goalAdjustmentKcal: z.number().int(),
   floorKcal: z.number().int(),
@@ -160,7 +213,9 @@ export const ProfileSchema = z.object({
   heightCm: z.number(),
   weightKg: z.number(),
   targetWeightKg: z.number().nullable(),
-  activityLevel: ActivityLevelSchema,
+  /** Null for an account created before spec 002 that has not filled in the form again. */
+  jobActivity: JobActivitySchema.nullable(),
+  plannedActivities: z.array(PlannedActivitySchema),
   requestedGoal: GoalSchema,
   goal: GoalSchema,
   safetyFlags: z.array(SafetyFlagSchema),

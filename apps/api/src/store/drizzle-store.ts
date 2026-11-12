@@ -1,12 +1,22 @@
-import type { ConsentKind, SafetyFlag } from '@pt/contracts';
+import type { ConsentKind, PlannedActivity, SafetyFlag } from '@pt/contracts';
 import { SafetyFlagSchema } from '@pt/contracts';
-import { and, desc, eq, isNull, schema, type Db } from '@pt/db';
+import { and, asc, desc, eq, isNull, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
 
-const { aiUsage, consents, dietaryPrefs, nutritionTargets, profiles } = schema;
+const {
+  aiUsage,
+  consents,
+  dietaryPrefs,
+  lifestyleProfiles,
+  nutritionTargets,
+  plannedActivities,
+  profiles,
+} = schema;
 
 type ProfileRow = typeof profiles.$inferSelect;
 type PrefsRow = typeof dietaryPrefs.$inferSelect;
+type LifestyleRow = typeof lifestyleProfiles.$inferSelect;
+type ActivityRow = typeof plannedActivities.$inferSelect;
 type TargetsRow = typeof nutritionTargets.$inferSelect;
 
 /** Unknown values (e.g. a flag removed from the contract) are dropped instead of failing the response. */
@@ -17,14 +27,30 @@ function toFlags(values: readonly string[]): SafetyFlag[] {
   });
 }
 
-function toProfile(row: ProfileRow) {
+function toActivity(row: ActivityRow): PlannedActivity {
+  return {
+    kind: row.kind,
+    label: row.label,
+    sessionsPerWeek: row.sessionsPerWeek,
+    minutesPerSession: row.minutesPerSession,
+    intensity: row.intensity,
+  };
+}
+
+function toProfile(
+  row: ProfileRow,
+  lifestyle: LifestyleRow | undefined,
+  activities: ActivityRow[],
+) {
   return {
     sex: row.sex,
     birthDate: row.birthDate,
     heightCm: row.heightCm,
     weightKg: row.weightKg,
     targetWeightKg: row.targetWeightKg,
-    activityLevel: row.activityLevel,
+    // Null for an account created before spec 002 that has not filled in the form again (AC17).
+    jobActivity: lifestyle?.jobActivity ?? null,
+    plannedActivities: activities.map(toActivity),
     requestedGoal: row.requestedGoal,
     goal: row.goal,
     safetyFlags: toFlags(row.safetyFlags),
@@ -66,22 +92,35 @@ export function createDrizzleStore(db: Db): Store {
       .orderBy(desc(consents.grantedAt))
       .limit(1);
 
+  const lifestyleOf = (userId: string) =>
+    db.select().from(lifestyleProfiles).where(eq(lifestyleProfiles.userId, userId));
+  const activitiesOf = (userId: string) =>
+    db
+      .select()
+      .from(plannedActivities)
+      .where(eq(plannedActivities.userId, userId))
+      .orderBy(asc(plannedActivities.position));
+
   return {
     async getMe(userId) {
-      const [[consent], [profile], [prefs], [targets]] = await Promise.all([
-        activeConsent(userId, 'health_data'),
-        db.select().from(profiles).where(eq(profiles.id, userId)),
-        db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
-        db
-          .select()
-          .from(nutritionTargets)
-          .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)))
-          .orderBy(desc(nutritionTargets.validFrom))
-          .limit(1),
-      ]);
+      const [[consent], [profile], [lifestyle], activities, [prefs], [targets]] = await Promise.all(
+        [
+          activeConsent(userId, 'health_data'),
+          db.select().from(profiles).where(eq(profiles.id, userId)),
+          lifestyleOf(userId),
+          activitiesOf(userId),
+          db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
+          db
+            .select()
+            .from(nutritionTargets)
+            .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)))
+            .orderBy(desc(nutritionTargets.validFrom))
+            .limit(1),
+        ],
+      );
       return {
         consentVersion: consent?.version ?? null,
-        profile: profile ? toProfile(profile) : null,
+        profile: profile ? toProfile(profile, lifestyle, activities) : null,
         dietaryPrefs: prefs ? toPrefs(prefs) : null,
         targets: targets ? toTargets(targets) : null,
       };
@@ -105,12 +144,34 @@ export function createDrizzleStore(db: Db): Store {
 
     async saveProfile(userId, data, at) {
       await db.transaction(async (tx) => {
-        const values = { id: userId, ...data.profile, updatedAt: at };
+        const { jobActivity, plannedActivities: activities, ...profile } = data.profile;
+        const values = { id: userId, ...profile, updatedAt: at };
         await tx
           .insert(profiles)
           .values({ ...values, onboardingCompletedAt: at })
-          // onboarding_completed_at keeps its first value on later edits (Settings, AC16).
-          .onConflictDoUpdate({ target: profiles.id, set: values });
+          .onConflictDoUpdate({
+            target: profiles.id,
+            set: {
+              ...values,
+              // Keeps its first value on later edits (Settings, AC16); set again when a migration
+              // cleared it (spec 002 AC17).
+              onboardingCompletedAt: sql`coalesce(${profiles.onboardingCompletedAt}, ${at.toISOString()}::timestamptz)`,
+            },
+          });
+
+        const lifestyle = { userId, jobActivity, updatedAt: at };
+        await tx
+          .insert(lifestyleProfiles)
+          .values(lifestyle)
+          .onConflictDoUpdate({ target: lifestyleProfiles.userId, set: lifestyle });
+
+        // The list is small (at most 6 rows) and has no history: replace it.
+        await tx.delete(plannedActivities).where(eq(plannedActivities.userId, userId));
+        if (activities.length > 0) {
+          await tx
+            .insert(plannedActivities)
+            .values(activities.map((activity, position) => ({ userId, ...activity, position })));
+        }
 
         const prefs = { userId, ...data.dietaryPrefs, updatedAt: at };
         await tx
@@ -143,27 +204,30 @@ export function createDrizzleStore(db: Db): Store {
     },
 
     async exportUser(userId) {
-      const [[profile], [prefs], targets, consentRows, usageRows] = await Promise.all([
-        db.select().from(profiles).where(eq(profiles.id, userId)),
-        db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
-        db
-          .select()
-          .from(nutritionTargets)
-          .where(eq(nutritionTargets.userId, userId))
-          .orderBy(desc(nutritionTargets.validFrom)),
-        db
-          .select()
-          .from(consents)
-          .where(eq(consents.userId, userId))
-          .orderBy(desc(consents.grantedAt)),
-        db
-          .select()
-          .from(aiUsage)
-          .where(eq(aiUsage.userId, userId))
-          .orderBy(desc(aiUsage.createdAt)),
-      ]);
+      const [[profile], [lifestyle], activities, [prefs], targets, consentRows, usageRows] =
+        await Promise.all([
+          db.select().from(profiles).where(eq(profiles.id, userId)),
+          lifestyleOf(userId),
+          activitiesOf(userId),
+          db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
+          db
+            .select()
+            .from(nutritionTargets)
+            .where(eq(nutritionTargets.userId, userId))
+            .orderBy(desc(nutritionTargets.validFrom)),
+          db
+            .select()
+            .from(consents)
+            .where(eq(consents.userId, userId))
+            .orderBy(desc(consents.grantedAt)),
+          db
+            .select()
+            .from(aiUsage)
+            .where(eq(aiUsage.userId, userId))
+            .orderBy(desc(aiUsage.createdAt)),
+        ]);
       return {
-        profile: profile ? toProfile(profile) : null,
+        profile: profile ? toProfile(profile, lifestyle, activities) : null,
         dietaryPrefs: prefs ? toPrefs(prefs) : null,
         targets: targets.map((t) => ({
           ...toTargets(t),

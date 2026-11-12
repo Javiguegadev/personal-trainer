@@ -36,10 +36,63 @@ describe('POST /onboarding/targets-preview', () => {
     const res = await t.call('POST', '/onboarding/targets-preview', profileInput());
     expect(res.status).toBe(200);
     const body = TargetsPreviewResponseSchema.parse(await res.json());
-    expect(body.targets?.formulaVersion).toBe('targets-v1');
+    expect(body.targets?.formulaVersion).toBe('targets-v2');
     expect(body.breakdown?.ageYears).toBe(35);
     expect(body.safety).toMatchObject({ status: 'ok', appliedGoal: 'lose' });
     expect(t.store.rows(USER_ID).profile).toBeNull();
+  });
+
+  it('returns the job and training factors in the breakdown (spec 002 AC7, AC8)', async () => {
+    const t = await setup();
+    const preview = async (overrides: Parameters<typeof profileInput>[0]) => {
+      const res = await t.call('POST', '/onboarding/targets-preview', profileInput(overrides));
+      return TargetsPreviewResponseSchema.parse(await res.json());
+    };
+    const seated = await preview({});
+    const physical = await preview({
+      jobActivity: 'physical',
+      plannedActivities: [
+        {
+          kind: 'strength',
+          label: null,
+          sessionsPerWeek: 4,
+          minutesPerSession: 60,
+          intensity: 'moderate',
+        },
+      ],
+    });
+    expect(seated.breakdown).toMatchObject({
+      jobFactor: 1.4,
+      trainingFactor: 0,
+      activityFactor: 1.4,
+    });
+    expect(physical.breakdown).toMatchObject({
+      jobFactor: 1.8,
+      trainingFactor: 0.06,
+      activityFactor: 1.86,
+    });
+    expect(physical.targets?.kcal).toBeGreaterThan(seated.targets?.kcal ?? Infinity);
+  });
+
+  it('400 for a training list above the weekly limit (spec 002 AC4)', async () => {
+    const t = await setup();
+    const res = await t.call(
+      'POST',
+      '/onboarding/targets-preview',
+      profileInput({
+        plannedActivities: [
+          {
+            kind: 'cardio',
+            label: null,
+            sessionsPerWeek: 6,
+            minutesPerSession: 240,
+            intensity: 'light',
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(ApiErrorSchema.parse(await res.json()).fields).toEqual({ plannedActivities: 'too_big' });
   });
 
   it('returns no numbers for pregnancy (AC19)', async () => {

@@ -1,9 +1,12 @@
 import type { Profile } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  SESSION_MINUTES_OPTIONS,
+  canAddPlannedActivity,
   convertFormUnits,
   emptyProfileForm,
   formErrorFromApi,
+  newPlannedActivity,
   parseProfileForm,
   profileFormFromProfile,
   splitList,
@@ -20,7 +23,7 @@ const filled = (overrides: Partial<ProfileFormValues> = {}): ProfileFormValues =
   birthYear: '1990',
   heightCm: '168',
   weight: '64,5',
-  activityLevel: 'moderate',
+  jobActivity: 'sedentary',
   goal: 'lose',
   dietType: 'omnivore',
   ...overrides,
@@ -41,7 +44,8 @@ describe('parseProfileForm', () => {
         heightCm: 168,
         weightKg: 64.5,
         targetWeightKg: null,
-        activityLevel: 'moderate',
+        jobActivity: 'sedentary',
+        plannedActivities: [],
         goal: 'lose',
         injuries: 'rodilla',
         healthFlags: [],
@@ -87,7 +91,7 @@ describe('parseProfileForm', () => {
         birthDate: 'required',
         height: 'required',
         weight: 'required',
-        activityLevel: 'required',
+        jobActivity: 'required',
         goal: 'required',
         dietType: 'required',
       },
@@ -153,7 +157,23 @@ describe('profileFormFromProfile', () => {
       heightCm: 165,
       weightKg: 62,
       targetWeightKg: null,
-      activityLevel: 'light',
+      jobActivity: 'standing',
+      plannedActivities: [
+        {
+          kind: 'sport',
+          label: 'fútbol',
+          sessionsPerWeek: 2,
+          minutesPerSession: 90,
+          intensity: 'hard',
+        },
+        {
+          kind: 'strength',
+          label: null,
+          sessionsPerWeek: 3,
+          minutesPerSession: 60,
+          intensity: 'moderate',
+        },
+      ],
       requestedGoal: 'lose',
       goal: 'maintain',
       safetyFlags: ['ed_soft_stop', 'calorie_floor', 'injury'],
@@ -167,6 +187,115 @@ describe('profileFormFromProfile', () => {
       injuries: 'espalda',
       otherHealthFlags: ['ed_soft_stop'],
       dietType: null,
+    });
+  });
+});
+
+describe('job and weekly training (spec 002 AC1–AC4)', () => {
+  const gym = newPlannedActivity();
+
+  it('adds a strength activity of 3 × 60 min at moderate intensity by default (AC2)', () => {
+    expect(gym).toEqual({
+      kind: 'strength',
+      label: '',
+      sessionsPerWeek: 3,
+      minutesPerSession: 60,
+      intensity: 'moderate',
+    });
+    expect(SESSION_MINUTES_OPTIONS).toContain(gym.minutesPerSession);
+  });
+
+  it('requires a job option (AC1)', () => {
+    const result = parseProfileForm(filled({ jobActivity: null }), TODAY, 'es');
+    expect(result).toEqual({ ok: false, errors: { jobActivity: 'required' } });
+  });
+
+  it('is valid without training (AC3)', () => {
+    const result = parseProfileForm(filled(), TODAY, 'es');
+    expect(result.ok && result.input.plannedActivities).toEqual([]);
+  });
+
+  it('builds the training list, with an optional trimmed name (AC2)', () => {
+    const result = parseProfileForm(
+      filled({
+        plannedActivities: [
+          gym,
+          { ...gym, kind: 'sport', label: '  fútbol ', sessionsPerWeek: 2, minutesPerSession: 90 },
+        ],
+      }),
+      TODAY,
+      'es',
+    );
+    expect(result.ok && result.input.plannedActivities).toEqual([
+      {
+        kind: 'strength',
+        label: null,
+        sessionsPerWeek: 3,
+        minutesPerSession: 60,
+        intensity: 'moderate',
+      },
+      {
+        kind: 'sport',
+        label: 'fútbol',
+        sessionsPerWeek: 2,
+        minutesPerSession: 90,
+        intensity: 'moderate',
+      },
+    ]);
+  });
+
+  it.each([
+    ['0 sessions', { sessionsPerWeek: 0 }, 'too_small'],
+    ['15 sessions', { sessionsPerWeek: 15 }, 'too_big'],
+    ['5 minutes', { minutesPerSession: 5 }, 'too_small'],
+    ['241 minutes', { minutesPerSession: 241 }, 'too_big'],
+    ['a name of 41 characters', { label: 'x'.repeat(41) }, 'too_long'],
+  ] as const)('rejects %s (AC4)', (_name, override, code) => {
+    const result = parseProfileForm(
+      filled({ plannedActivities: [{ ...gym, ...override }] }),
+      TODAY,
+      'es',
+    );
+    expect(result).toEqual({ ok: false, errors: { plannedActivities: code } });
+  });
+
+  it('rejects more than 1200 minutes per week in total (AC4)', () => {
+    const long = { ...gym, sessionsPerWeek: 5, minutesPerSession: 240 };
+    expect(parseProfileForm(filled({ plannedActivities: [long] }), TODAY, 'es').ok).toBe(true);
+    expect(parseProfileForm(filled({ plannedActivities: [long, gym] }), TODAY, 'es')).toEqual({
+      ok: false,
+      errors: { plannedActivities: 'too_big' },
+    });
+  });
+
+  it('allows up to 6 activities (AC2)', () => {
+    const one = { ...gym, sessionsPerWeek: 1 };
+    const five = filled({ plannedActivities: Array.from({ length: 5 }, () => one) });
+    const six = filled({ plannedActivities: Array.from({ length: 6 }, () => one) });
+    expect(canAddPlannedActivity(five)).toBe(true);
+    expect(canAddPlannedActivity(six)).toBe(false);
+    expect(parseProfileForm(six, TODAY, 'es').ok).toBe(true);
+    expect(
+      parseProfileForm(
+        filled({ plannedActivities: Array.from({ length: 7 }, () => one) }),
+        TODAY,
+        'es',
+      ),
+    ).toEqual({ ok: false, errors: { plannedActivities: 'too_big' } });
+  });
+
+  it('maps API errors on the job and the training list to their form fields (AC4)', () => {
+    expect(formErrorFromApi('jobActivity', 'invalid_value')).toEqual({
+      field: 'jobActivity',
+      code: 'invalid',
+    });
+    expect(formErrorFromApi('plannedActivities', 'too_big')).toEqual({
+      field: 'plannedActivities',
+      code: 'too_big',
+    });
+    expect(formErrorFromApi('plannedActivities.0.sessionsPerWeek', 'too_big')).toEqual({
+      field: 'plannedActivities',
+      code: 'too_big',
     });
   });
 });

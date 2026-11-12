@@ -1,7 +1,7 @@
 import type { SafetyEvaluation, Targets } from '@pt/contracts';
 
 /**
- * Safety notices shown on the summary and in Settings (AC14, AC18–AC21). Each maps to the i18n key
+ * Safety notices shown on the summary and in Settings (spec 001 AC14, AC18–AC21; spec 002 AC10, AC11). Each maps to the i18n key
  * `safety.<notice>`. Ordered from most to least important.
  */
 export type ProfileNotice =
@@ -11,6 +11,8 @@ export type ProfileNotice =
   | 'low_target_bmi'
   | 'teen_limited'
   | 'calorie_floor'
+  | 'high_training_load'
+  | 'activity_ceiling'
   | 'medical_condition';
 
 const ORDER: readonly ProfileNotice[] = [
@@ -20,6 +22,8 @@ const ORDER: readonly ProfileNotice[] = [
   'low_target_bmi',
   'teen_limited',
   'calorie_floor',
+  'high_training_load',
+  'activity_ceiling',
   'medical_condition',
 ];
 
@@ -34,5 +38,6 @@ export function profileNotices(
     else notices.add(flag);
   }
   if (targets?.clampedReason === 'calorie_floor') notices.add('calorie_floor');
+  if (targets?.clampedReason === 'activity_ceiling') notices.add('activity_ceiling');
   return ORDER.filter((notice) => notices.has(notice));
 }

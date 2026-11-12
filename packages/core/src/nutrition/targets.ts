@@ -1,33 +1,32 @@
 import type {
-  ActivityLevel,
+  ContextSnapshot,
   SafetyEvaluation,
   Sex,
   Targets,
   TargetsBreakdown,
 } from '@pt/contracts';
 import { computeAge } from '../dates';
+import { roundTo } from '../units';
+import { ACTIVITY_FACTOR_CEILING, isHighTrainingLoad } from './activity';
 
 export { computeAge };
 
 /**
- * Daily calorie and macro targets, version `targets-v1` (spec 001 AC13–AC15).
- * Changing any constant here means a new formula version, new fixtures and a domain review.
+ * Daily calorie and macro targets, version `targets-v2` (spec 002 AC6, AC9–AC11; spec 001 AC13–AC15).
+ * v2 replaces the single activity level of v1 with a job factor plus a training factor
+ * (`./activity`). Changing any constant here means a new formula version, new fixtures and a domain
+ * review.
  */
-export const TARGETS_FORMULA_VERSION = 'targets-v1';
-
-export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-  very_active: 1.9,
-};
+export const TARGETS_FORMULA_VERSION = 'targets-v2';
 
 /** Minimum daily kcal by sex (AC14); the BMR is also a floor. */
 export const CALORIE_FLOOR: Record<Sex, number> = { female: 1200, male: 1500, other: 1350 };
 
 const DEFICIT_RATIO = 0.2;
 const DEFICIT_MAX_KCAL = 500;
+/** With a high training load the deficit is smaller, to lower the risk of under-fuelling (AC11). */
+const HIGH_LOAD_DEFICIT_RATIO = 0.1;
+const HIGH_LOAD_DEFICIT_MAX_KCAL = 300;
 const SURPLUS_RATIO = 0.1;
 const SURPLUS_MAX_KCAL = 300;
 const PROTEIN_G_PER_KG = { lose: 1.8, maintain: 1.6, gain: 1.6 } as const;
@@ -39,14 +38,6 @@ const PROTEIN_MAX_KCAL_RATIO = 0.35; // top of the IOM AMDR
 const REFERENCE_BMI_THRESHOLD = 30;
 const REFERENCE_BMI = 25;
 const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
-
-export interface TargetsInput {
-  sex: Sex;
-  birthDate: string;
-  heightCm: number;
-  weightKg: number;
-  activityLevel: ActivityLevel;
-}
 
 /** Mifflin-St Jeor (1990). "other" uses the mean of the male and female equations. */
 export function computeBmr(sex: Sex, weightKg: number, heightCm: number, ageYears: number): number {
@@ -62,26 +53,31 @@ const roundTo10 = (kcal: number) => Math.round(kcal / 10) * 10;
 const ceilTo10 = (kcal: number) => Math.ceil(kcal / 10) * 10;
 
 /**
- * Computes targets for the goal that safety rules applied (`safety.appliedGoal`), never the raw request.
- * `today` is the user's local date (YYYY-MM-DD).
+ * Computes targets from the user context, for the goal that safety rules applied
+ * (`safety.appliedGoal`), never the raw request.
  */
 export function computeTargets(
-  input: TargetsInput,
+  snapshot: ContextSnapshot,
   safety: SafetyEvaluation,
-  today: string,
 ): { targets: Targets; breakdown: TargetsBreakdown } {
   if (!safety.targetsAllowed) {
     throw new Error('computeTargets: safety rules do not allow numeric targets for this profile');
   }
-  const ageYears = computeAge(input.birthDate, today);
+  const input = snapshot.profile;
+  const { ageYears } = input;
   const bmr = computeBmr(input.sex, input.weightKg, input.heightCm, ageYears);
-  const activityFactor = ACTIVITY_FACTORS[input.activityLevel];
+  const uncapped = snapshot.job.factor + snapshot.training.factor;
+  const capped = uncapped > ACTIVITY_FACTOR_CEILING;
+  const activityFactor = capped ? ACTIVITY_FACTOR_CEILING : uncapped;
   const tdee = bmr * activityFactor;
   const goal = safety.appliedGoal;
+  const highLoad = isHighTrainingLoad(snapshot.training.minutesPerWeek);
 
   let adjustment = 0;
   if (goal === 'lose') {
-    adjustment = -Math.min(tdee * DEFICIT_RATIO, DEFICIT_MAX_KCAL);
+    adjustment = highLoad
+      ? -Math.min(tdee * HIGH_LOAD_DEFICIT_RATIO, HIGH_LOAD_DEFICIT_MAX_KCAL)
+      : -Math.min(tdee * DEFICIT_RATIO, DEFICIT_MAX_KCAL);
   } else if (goal === 'gain') {
     adjustment = Math.min(tdee * SURPLUS_RATIO, SURPLUS_MAX_KCAL);
     if (safety.maxSurplusRatio !== null)
@@ -126,12 +122,15 @@ export function computeTargets(
       fatG,
       fiberG: Math.max(FIBER_MIN_G, Math.round((kcal / 1000) * FIBER_G_PER_1000_KCAL)),
       formulaVersion: TARGETS_FORMULA_VERSION,
-      clampedReason: clamped ? 'calorie_floor' : null,
+      // The floor is the more important reason when both apply.
+      clampedReason: clamped ? 'calorie_floor' : capped ? 'activity_ceiling' : null,
     },
     breakdown: {
       ageYears,
       bmrKcal: Math.round(bmr),
-      activityFactor,
+      activityFactor: roundTo(activityFactor, 3),
+      jobFactor: snapshot.job.factor,
+      trainingFactor: roundTo(snapshot.training.factor, 3),
       tdeeKcal: Math.round(tdee),
       goalAdjustmentKcal: Math.round(adjustment),
       floorKcal: Math.round(floor),

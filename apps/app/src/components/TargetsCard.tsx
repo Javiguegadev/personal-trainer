@@ -22,7 +22,7 @@ export type TargetsCardProps =
       refreshing?: boolean;
     };
 
-/** Daily targets computed by @pt/core (never by the AI), with "How is this calculated?" (AC15). */
+/** Daily targets computed by @pt/core (never by the AI), with "How is this calculated?" (spec 002 AC8). */
 export function TargetsCard(props: TargetsCardProps) {
   const { t } = useI18n();
   const { colors } = useTheme();
@@ -146,9 +146,14 @@ function Breakdown({ targets, breakdown }: { targets: Targets; breakdown: Target
     value > 0 ? `+${n(value)}` : value < 0 ? `−${n(Math.abs(value))}` : n(0);
   const lines = [
     format(b.bmr, { age: breakdown.ageYears, value: n(breakdown.bmrKcal) }),
+    format(targets.clampedReason === 'activity_ceiling' ? b.activityCapped : b.activity, {
+      job: n(breakdown.jobFactor, 1),
+      training: n(breakdown.trainingFactor, 2),
+      factor: n(breakdown.activityFactor, 2),
+    }),
     format(b.tdee, {
       bmr: n(breakdown.bmrKcal),
-      factor: n(breakdown.activityFactor, 3),
+      factor: n(breakdown.activityFactor, 2),
       value: n(breakdown.tdeeKcal),
     }),
     format(b.adjustment, { value: signed(breakdown.goalAdjustmentKcal) }),

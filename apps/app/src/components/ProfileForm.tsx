@@ -1,4 +1,4 @@
-import { ActivityLevelSchema, DietTypeSchema, GoalSchema, SexSchema } from '@pt/contracts';
+import { DietTypeSchema, GoalSchema, JobActivitySchema, SexSchema } from '@pt/contracts';
 import {
   convertFormUnits,
   type FormErrorCode,
@@ -11,6 +11,7 @@ import { useI18n } from '@/hooks/useI18n';
 import { AppText } from './AppText';
 import { Checkbox } from './Checkbox';
 import { ChoiceGroup } from './ChoiceGroup';
+import { PlannedActivitiesField } from './PlannedActivitiesField';
 import { TextField } from './TextField';
 
 interface ProfileFormProps {
@@ -20,8 +21,9 @@ interface ProfileFormProps {
 }
 
 /**
- * Every profile field, editable (manual fallback AC11, summary AC10, Settings AC16). Values stay as
- * typed; @pt/core parses and validates them (decimal comma, imperial units, ranges).
+ * Every profile field, editable (onboarding form and summary, Settings). Choices, the job and the weekly
+ * training are taps (ADR 004, spec 002 AC1–AC3); typed values stay as typed and @pt/core parses and
+ * validates them (decimal comma, imperial units, ranges).
  */
 export function ProfileForm({ values, onChange, errors }: ProfileFormProps) {
   const { t, locale } = useI18n();
@@ -157,17 +159,28 @@ export function ProfileForm({ values, onChange, errors }: ProfileFormProps) {
       />
 
       <ChoiceGroup
-        label={f.activity}
+        label={f.job}
+        hint={f.jobHint}
         layout="list"
-        options={ActivityLevelSchema.options.map((value) => ({
+        options={JobActivitySchema.options.map((value) => ({
           value,
-          label: f.activityOptions[value],
-          description: f.activityHints[value],
+          label: f.jobOptions[value],
+          description: f.jobHints[value],
         }))}
-        value={values.activityLevel}
-        onChange={(value) => set('activityLevel', value)}
-        error={error(errors.activityLevel)}
-        testID="field-activity"
+        value={values.jobActivity}
+        onChange={(value) => set('jobActivity', value)}
+        error={error(errors.jobActivity)}
+        testID="field-job"
+      />
+
+      <PlannedActivitiesField
+        values={values.plannedActivities}
+        onChange={(list) => set('plannedActivities', list)}
+        error={
+          errors.plannedActivities === 'too_big'
+            ? f.trainingTooMuch
+            : error(errors.plannedActivities)
+        }
       />
 
       <ChoiceGroup

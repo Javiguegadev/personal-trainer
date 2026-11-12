@@ -46,7 +46,8 @@ interface UserRecord {
 
 type MockDb = Record<string, UserRecord>;
 
-export const MOCK_DB_KEY = 'pt.mock.db.v1';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (spec 002). */
+export const MOCK_DB_KEY = 'pt.mock-db.v2';
 
 const MESSAGES: Record<ApiErrorCode, string> = {
   unauthorized: 'A valid access token is required',
@@ -206,7 +207,8 @@ export function createMockApiClient({
         heightCm: input.heightCm,
         weightKg: input.weightKg,
         targetWeightKg: input.targetWeightKg,
-        activityLevel: input.activityLevel,
+        jobActivity: input.jobActivity,
+        plannedActivities: input.plannedActivities,
         requestedGoal: input.goal,
         goal: evaluation.safety.appliedGoal,
         safetyFlags: evaluation.flags,

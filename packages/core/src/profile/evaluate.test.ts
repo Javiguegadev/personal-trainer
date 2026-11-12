@@ -10,7 +10,8 @@ const input = (overrides: Partial<ProfileInput> = {}): ProfileInput => ({
   heightCm: 165,
   weightKg: 62,
   targetWeightKg: null,
-  activityLevel: 'moderate',
+  jobActivity: 'sedentary',
+  plannedActivities: [],
   goal: 'maintain',
   injuries: null,
   healthFlags: [],
@@ -43,7 +44,7 @@ describe('evaluateProfileInput', () => {
     const result = evaluateProfileInput(input(), [], NOW);
     expect(result.kind).toBe('ok');
     if (result.kind !== 'ok') return;
-    expect(result.targets?.formulaVersion).toBe('targets-v1');
+    expect(result.targets?.formulaVersion).toBe('targets-v2');
     expect(result.breakdown).not.toBeNull();
     expect(result.flags).toEqual([]);
   });
@@ -65,7 +66,6 @@ describe('evaluateProfileInput', () => {
         sex: 'female',
         heightCm: 150,
         weightKg: 47,
-        activityLevel: 'sedentary',
         goal: 'lose',
       }),
       [],
@@ -75,6 +75,44 @@ describe('evaluateProfileInput', () => {
     if (result.kind !== 'ok') return;
     expect(result.targets?.clampedReason).toBe('calorie_floor');
     expect(result.flags).toContain('calorie_floor');
+  });
+
+  it('counts the job and the weekly training (spec 002 AC6)', () => {
+    const kcal = (overrides: Partial<ProfileInput>) => {
+      const result = evaluateProfileInput(input(overrides), [], NOW);
+      return result.kind === 'ok' ? (result.targets?.kcal ?? 0) : 0;
+    };
+    const seated = kcal({});
+    const gym = {
+      kind: 'strength' as const,
+      label: null,
+      sessionsPerWeek: 4,
+      minutesPerSession: 60,
+      intensity: 'moderate' as const,
+    };
+    expect(kcal({ jobActivity: 'physical' })).toBeGreaterThan(seated);
+    expect(kcal({ plannedActivities: [gym] })).toBeGreaterThan(seated);
+  });
+
+  it('flags a high training load and stores it (spec 002 AC11)', () => {
+    const result = evaluateProfileInput(
+      input({
+        plannedActivities: [
+          {
+            kind: 'cardio',
+            label: null,
+            sessionsPerWeek: 5,
+            minutesPerSession: 120,
+            intensity: 'moderate',
+          },
+        ],
+      }),
+      [],
+      NOW,
+    );
+    expect(result).toMatchObject({ kind: 'ok', flags: ['high_training_load'] });
+    if (result.kind !== 'ok') return;
+    expect(result.safety.flags).toContain('high_training_load');
   });
 
   it('keeps ed_soft_stop from earlier evaluations (AC20)', () => {

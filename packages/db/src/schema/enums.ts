@@ -1,8 +1,10 @@
 import {
-  ActivityLevelSchema,
+  ActivityKindSchema,
   ConsentKindSchema,
   DietTypeSchema,
   GoalSchema,
+  IntensitySchema,
+  JobActivitySchema,
   LocaleSchema,
   SexSchema,
   UnitsSchema,
@@ -16,7 +18,9 @@ function values<T extends string>(schema: { options: readonly T[] }): [T, ...T[]
 
 // Enum values come from @pt/contracts so the DB and the API can never drift apart.
 export const sexEnum = pgEnum('sex', values(SexSchema));
-export const activityLevelEnum = pgEnum('activity_level', values(ActivityLevelSchema));
+export const jobActivityEnum = pgEnum('job_activity', values(JobActivitySchema));
+export const activityKindEnum = pgEnum('activity_kind', values(ActivityKindSchema));
+export const intensityEnum = pgEnum('intensity', values(IntensitySchema));
 export const goalEnum = pgEnum('goal', values(GoalSchema));
 export const dietTypeEnum = pgEnum('diet_type', values(DietTypeSchema));
 export const unitsEnum = pgEnum('units', values(UnitsSchema));

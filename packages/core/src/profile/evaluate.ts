@@ -5,7 +5,9 @@ import type {
   Targets,
   TargetsBreakdown,
 } from '@pt/contracts';
+import { buildContextSnapshot } from '../context/snapshot';
 import { isPlausibleClientDate } from '../dates';
+import { trainingMinutesPerWeek } from '../nutrition/activity';
 import { computeTargets } from '../nutrition/targets';
 import { evaluateProfileSafety } from '../safety/profile';
 
@@ -54,13 +56,23 @@ export function evaluateProfileInput(
       goal: input.goal,
       healthFlags: input.healthFlags,
       injuries: input.injuries,
+      trainingMinutesPerWeek: trainingMinutesPerWeek(input.plannedActivities),
       previousFlags,
     },
     input.today,
   );
   if (safety.status === 'blocked') return { kind: 'blocked' };
 
-  const computed = safety.targetsAllowed ? computeTargets(input, safety, input.today) : null;
+  const snapshot = buildContextSnapshot(
+    {
+      profile: input,
+      safetyFlags: safety.flags,
+      jobActivity: input.jobActivity,
+      plannedActivities: input.plannedActivities,
+    },
+    input.today,
+  );
+  const computed = safety.targetsAllowed ? computeTargets(snapshot, safety) : null;
   const flags = [...safety.flags];
   if (computed?.targets.clampedReason === 'calorie_floor') flags.push('calorie_floor');
 

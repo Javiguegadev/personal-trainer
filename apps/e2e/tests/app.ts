@@ -47,6 +47,38 @@ export async function acceptConsent(page: Page): Promise<Locator> {
   return screen(page, 'onboarding-form-screen');
 }
 
+/** One activity card. Unset fields keep what "Add activity" inserts: strength, 3 × 60 min, moderate. */
+export interface Activity {
+  kind?: 'strength' | 'cardio' | 'sport' | 'other';
+  name?: string;
+  timesPerWeek?: number;
+  minutes?: 30 | 45 | 60 | 90 | 120;
+  intensity?: 'light' | 'moderate' | 'hard';
+}
+
+/** Adds an activity card with taps only (spec 002 AC2); the name is the one optional typed field. */
+export async function addActivity(form: Locator, activity: Activity): Promise<void> {
+  const index = await form.locator('[data-testid^="activity-"][data-testid$="-kind"]').count();
+  await form.getByTestId('add-activity').click();
+  const card = form.getByTestId(`activity-${index}`);
+  await expect(card).toBeVisible();
+  if (activity.kind) await card.getByTestId(`activity-${index}-kind-${activity.kind}`).click();
+  if (activity.name) await card.getByTestId(`activity-${index}-name`).fill(activity.name);
+  const DEFAULT_TIMES = 3;
+  const times = activity.timesPerWeek ?? DEFAULT_TIMES;
+  const step = times > DEFAULT_TIMES ? 'increase' : 'decrease';
+  for (let i = 0; i < Math.abs(times - DEFAULT_TIMES); i++) {
+    await card.getByTestId(`activity-${index}-sessions-${step}`).click();
+  }
+  await expect(card.getByTestId(`activity-${index}-sessions-value`)).toHaveText(String(times));
+  if (activity.minutes) {
+    await card.getByTestId(`activity-${index}-duration-${activity.minutes}`).click();
+  }
+  if (activity.intensity) {
+    await card.getByTestId(`activity-${index}-intensity-${activity.intensity}`).click();
+  }
+}
+
 export interface FormAnswers {
   sex: 'female' | 'male';
   /** The birth date is 1 January, so the age is the same on any day of the year. */
@@ -54,7 +86,9 @@ export interface FormAnswers {
   height: { cm: string } | { ft: string; in: string };
   /** In kg, or in lb when the height is in feet. */
   weight: string;
-  activity: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  job: 'sedentary' | 'standing' | 'physical';
+  /** Weekly training outside work. Omitted means "I don't train". */
+  training?: Activity[];
   goal: 'lose' | 'maintain' | 'gain';
 }
 
@@ -72,7 +106,8 @@ export async function fillForm(form: Locator, answers: FormAnswers): Promise<voi
     await form.getByTestId('field-height-in').fill(answers.height.in);
   }
   await form.getByTestId('field-weight').fill(answers.weight);
-  await form.getByTestId(`field-activity-${answers.activity}`).click();
+  await form.getByTestId(`field-job-${answers.job}`).click();
+  for (const activity of answers.training ?? []) await addActivity(form, activity);
   await form.getByTestId(`field-goal-${answers.goal}`).click();
   await form.getByTestId('field-diet-omnivore').click();
 }

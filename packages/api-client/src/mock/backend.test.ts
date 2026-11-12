@@ -81,8 +81,69 @@ describe('mock backend: profile and targets', () => {
   it('previews targets without storing anything (AC10)', async () => {
     const { api } = await consented();
     const preview = await api.targetsPreview(input());
-    expect(preview.targets?.formulaVersion).toBe('targets-v1');
+    expect(preview.targets?.formulaVersion).toBe('targets-v2');
     expect((await api.me()).onboardingCompleted).toBe(false);
+  });
+
+  it('counts the job and the weekly training in the preview (spec 002 AC6, AC7)', async () => {
+    const { api } = await consented();
+    const seated = await api.targetsPreview(input());
+    const active = await api.targetsPreview(
+      input({
+        jobActivity: 'physical',
+        plannedActivities: [
+          {
+            kind: 'sport',
+            label: 'fútbol',
+            sessionsPerWeek: 2,
+            minutesPerSession: 90,
+            intensity: 'moderate',
+          },
+        ],
+      }),
+    );
+    expect(seated.breakdown).toMatchObject({ jobFactor: 1.4, trainingFactor: 0 });
+    expect(active.breakdown?.jobFactor).toBe(1.8);
+    expect(active.targets?.kcal).toBeGreaterThan(seated.targets?.kcal ?? Infinity);
+  });
+
+  it('stores the job and the training list and returns them in /me and the export (spec 002 AC5, AC16)', async () => {
+    const { api } = await consented();
+    const plannedActivities = [
+      {
+        kind: 'strength' as const,
+        label: null,
+        sessionsPerWeek: 3,
+        minutesPerSession: 60,
+        intensity: 'moderate' as const,
+      },
+    ];
+    const me = await api.updateProfile(input({ jobActivity: 'standing', plannedActivities }));
+    expect(me.profile).toMatchObject({ jobActivity: 'standing', plannedActivities });
+    expect((await api.exportData()).profile).toMatchObject({
+      jobActivity: 'standing',
+      plannedActivities,
+    });
+  });
+
+  it('returns 400 for a training list above the weekly limit (spec 002 AC4)', async () => {
+    const { api } = await consented();
+    const error = await api
+      .targetsPreview(
+        input({
+          plannedActivities: [
+            {
+              kind: 'cardio',
+              label: null,
+              sessionsPerWeek: 6,
+              minutesPerSession: 240,
+              intensity: 'light',
+            },
+          ],
+        }),
+      )
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ status: 400, fields: { plannedActivities: 'too_big' } });
   });
 
   it('returns 400 with field errors for implausible values (AC22)', async () => {

@@ -88,21 +88,42 @@ export const es = {
       weightLb: 'Peso (lb)',
       targetWeightKg: 'Peso objetivo (kg, opcional)',
       targetWeightLb: 'Peso objetivo (lb, opcional)',
-      activity: 'Nivel de actividad',
-      activityOptions: {
-        sedentary: 'Sedentario',
-        light: 'Ligero',
-        moderate: 'Moderado',
-        active: 'Activo',
-        very_active: 'Muy activo',
+      job: 'Tu trabajo',
+      jobHint: 'Cómo pasas la mayor parte de la jornada. El entrenamiento va aparte.',
+      jobOptions: {
+        sedentary: 'Sentado',
+        standing: 'De pie o caminando',
+        physical: 'Trabajo físico',
       },
-      activityHints: {
-        sedentary: 'Trabajo sentado y casi sin ejercicio.',
-        light: 'Caminas a diario o entrenas 1–2 días por semana.',
-        moderate: 'Entrenas 3–5 días por semana.',
-        active: 'Entrenas 6–7 días por semana o tu trabajo es físico.',
-        very_active: 'Entrenas dos veces al día o haces un trabajo físico intenso.',
+      jobHints: {
+        sedentary: 'Oficina, conducir, estudiar.',
+        standing: 'Tienda, hostelería, enseñanza, enfermería.',
+        physical: 'Construcción, almacén, campo, limpieza.',
       },
+      training: 'Entrenamiento y deporte fuera del trabajo',
+      trainingHint:
+        'Lo que haces en una semana normal. Cuenta la sesión entera, descansos incluidos.',
+      trainingEmpty: 'No entreno. Tus objetivos se calculan solo con tu trabajo.',
+      trainingSummary: '{sessions} sesiones · {minutes} min por semana',
+      trainingMax: 'Puedes añadir hasta 6 actividades.',
+      trainingTooMuch:
+        'Son más de 20 horas de entrenamiento por semana. Revisa las veces y la duración.',
+      addActivity: 'Añadir actividad',
+      removeActivity: 'Quitar esta actividad',
+      activityTitle: 'Actividad {number}',
+      kind: 'Tipo',
+      kindOptions: { strength: 'Fuerza', cardio: 'Cardio', sport: 'Deporte', other: 'Otra' },
+      activityName: 'Nombre (opcional)',
+      activityNamePlaceholder: 'Fútbol, pádel, yoga…',
+      sessions: 'Veces por semana',
+      sessionsDecrease: 'Una vez menos por semana',
+      sessionsIncrease: 'Una vez más por semana',
+      duration: 'Duración de cada sesión',
+      durationValue: '{minutes} min',
+      intensity: 'Intensidad',
+      intensityOptions: { light: 'Suave', moderate: 'Moderada', hard: 'Intensa' },
+      intensityHint:
+        'Suave: puedes hablar sin esfuerzo. Moderada: te cuesta mantener una conversación. Intensa: apenas puedes hablar.',
       goal: 'Objetivo',
       goalOptions: { lose: 'Perder grasa', maintain: 'Mantenerme', gain: 'Ganar músculo' },
       diet: 'Tipo de dieta',
@@ -164,7 +185,10 @@ export const es = {
     hideCalculation: 'Ocultar el cálculo',
     breakdown: {
       bmr: 'Metabolismo basal (Mifflin-St Jeor, {age} años): {value} kcal',
-      tdee: 'Gasto diario: {bmr} × {factor} (actividad) = {value} kcal',
+      activity: 'Factor de actividad: {job} (trabajo) + {training} (entrenamiento) = {factor}',
+      activityCapped:
+        'Factor de actividad: {job} (trabajo) + {training} (entrenamiento), limitado a {factor}',
+      tdee: 'Gasto diario: {bmr} × {factor} = {value} kcal',
       adjustment: 'Ajuste por objetivo: {value} kcal',
       floor: 'Mínimo de seguridad: {value} kcal (nunca por debajo de tu metabolismo basal)',
       protein: 'Proteína: {perKg} g por kg × {weight} kg de peso de referencia',
@@ -173,7 +197,7 @@ export const es = {
       fiber: 'Fibra: 14 g por cada 1000 kcal, con un mínimo de 25 g',
       sources: 'Fuentes',
       sourceList:
-        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · ISSN, postura sobre la proteína y el ejercicio · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo',
+        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · FAO/OMS/UNU (2004), necesidades de energía y niveles de actividad física · Ainsworth BE y cols. (2011), Compendio de actividades físicas · ISSN, postura sobre la proteína y el ejercicio · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo',
       version: 'Fórmula {version}',
     },
   },
@@ -207,6 +231,16 @@ export const es = {
       title: 'Mínimo de seguridad',
       message:
         'Hemos subido tus calorías al mínimo seguro ({floor} kcal), porque el objetivo quedaba por debajo.',
+    },
+    high_training_load: {
+      title: 'Entrenas mucho',
+      message:
+        'Planificas 10 horas o más de entrenamiento a la semana. Asegúrate de comer lo suficiente; si tu objetivo es perder grasa, aplicamos un déficit más pequeño. Si tienes dudas, consulta con un profesional de la nutrición deportiva.',
+    },
+    activity_ceiling: {
+      title: 'Estimación limitada',
+      message:
+        'Tu trabajo y tu entrenamiento suman un gasto muy alto. Hemos limitado la estimación al máximo que se considera sostenible, así que puede quedarse corta. Consulta con un profesional si entrenas a este nivel.',
     },
     medical_condition: {
       title: 'Lesiones o condiciones médicas',

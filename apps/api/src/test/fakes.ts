@@ -154,7 +154,7 @@ export async function createTestApp() {
   return { app, store, deleted, tokens, token, call };
 }
 
-/** A valid adult profile (35-year-old woman, 165 cm, 70 kg, moderate, lose). */
+/** A valid adult profile (35-year-old woman, 165 cm, 70 kg, seated, no training, lose). */
 export function profileInput(overrides: Partial<ProfileInput> = {}): ProfileInput {
   return {
     sex: 'female',
@@ -162,7 +162,8 @@ export function profileInput(overrides: Partial<ProfileInput> = {}): ProfileInpu
     heightCm: 165,
     weightKg: 70,
     targetWeightKg: 62,
-    activityLevel: 'moderate',
+    jobActivity: 'sedentary',
+    plannedActivities: [],
     goal: 'lose',
     injuries: null,
     healthFlags: [],

@@ -10,7 +10,7 @@ import {
   date,
 } from 'drizzle-orm/pg-core';
 import { authenticatedRole, authUid, authUsers } from 'drizzle-orm/supabase';
-import { activityLevelEnum, dietTypeEnum, goalEnum, localeEnum, sexEnum, unitsEnum } from './enums';
+import { dietTypeEnum, goalEnum, localeEnum, sexEnum, unitsEnum } from './enums';
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -35,7 +35,6 @@ export const profiles = pgTable(
     heightCm: numeric('height_cm', { precision: 5, scale: 1, mode: 'number' }).notNull(),
     weightKg: numeric('weight_kg', { precision: 5, scale: 2, mode: 'number' }).notNull(),
     targetWeightKg: numeric('target_weight_kg', { precision: 5, scale: 2, mode: 'number' }),
-    activityLevel: activityLevelEnum('activity_level').notNull(),
     /** The goal applied after safety rules. */
     goal: goalEnum('goal').notNull(),
     /** The goal the user asked for. */

@@ -1,7 +1,9 @@
 import type { Units } from '@pt/contracts';
-import { emptyProfileForm, type ProfileFormValues } from '@pt/core';
+import { emptyProfileForm, profileFormFromProfile, type ProfileFormValues } from '@pt/core';
 import { getLocales } from 'expo-localization';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useMe } from '@/lib/api';
+import { useI18n } from './useI18n';
 
 /**
  * The onboarding form, shared by the form and the summary. It lives only in memory on the device until
@@ -20,9 +22,21 @@ export function defaultUnits(): Units {
 }
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [form, setForm] = useState<ProfileFormValues>(() => emptyProfileForm(defaultUnits()));
+  const { locale } = useI18n();
+  const me = useMe();
+  const profile = me.data?.profile ?? null;
+  const prefs = me.data?.dietaryPrefs ?? null;
+  // An account that must fill in the form again (spec 002 AC17) starts from its stored values.
+  const initial = useMemo(
+    () =>
+      profile ? profileFormFromProfile(profile, prefs, locale) : emptyProfileForm(defaultUnits()),
+    [profile, prefs, locale],
+  );
+  const [edited, setEdited] = useState<ProfileFormValues | null>(null);
   return (
-    <OnboardingContext.Provider value={{ form, setForm }}>{children}</OnboardingContext.Provider>
+    <OnboardingContext.Provider value={{ form: edited ?? initial, setForm: setEdited }}>
+      {children}
+    </OnboardingContext.Provider>
   );
 }
 

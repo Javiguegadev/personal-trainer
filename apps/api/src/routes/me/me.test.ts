@@ -93,7 +93,7 @@ describe('PUT /me/profile', () => {
     const me = MeResponseSchema.parse(await res.json());
     expect(me.onboardingCompleted).toBe(true);
     expect(me.profile).toMatchObject({ requestedGoal: 'lose', goal: 'lose', heightCm: 165 });
-    expect(me.targets).toMatchObject({ formulaVersion: 'targets-v1', clampedReason: null });
+    expect(me.targets).toMatchObject({ formulaVersion: 'targets-v2', clampedReason: null });
     expect(me.targets?.kcal).toBeGreaterThan(1200);
   });
 
@@ -176,13 +176,172 @@ describe('PUT /me/profile', () => {
         heightCm: 150,
         weightKg: 50,
         targetWeightKg: null,
-        activityLevel: 'sedentary',
         birthDate: '1960-01-01',
       }),
     );
     const me = MeResponseSchema.parse(await res.json());
     expect(me.targets?.clampedReason).toBe('calorie_floor');
     expect(me.profile?.safetyFlags).toContain('calorie_floor');
+  });
+
+  it('stores the job and the weekly training, and returns them in /me (spec 002 AC1–AC3)', async () => {
+    await consent();
+    const training = [
+      {
+        kind: 'strength',
+        label: null,
+        sessionsPerWeek: 3,
+        minutesPerSession: 60,
+        intensity: 'moderate',
+      },
+      {
+        kind: 'sport',
+        label: 'fútbol',
+        sessionsPerWeek: 2,
+        minutesPerSession: 90,
+        intensity: 'hard',
+      },
+    ] as const;
+    const res = await t.call(
+      'PUT',
+      '/me/profile',
+      profileInput({ jobActivity: 'standing', plannedActivities: [...training] }),
+    );
+    expect(res.status).toBe(200);
+    const me = MeResponseSchema.parse(await res.json());
+    expect(me.profile).toMatchObject({ jobActivity: 'standing', plannedActivities: training });
+
+    const again = MeResponseSchema.parse(await (await t.call('GET', '/me')).json());
+    expect(again.profile?.plannedActivities).toEqual(training);
+  });
+
+  it('recomputes the targets when the job or the training changes (spec 002 AC5)', async () => {
+    await consent();
+    const kcalOf = async (overrides: Parameters<typeof profileInput>[0]) => {
+      const res = await t.call('PUT', '/me/profile', profileInput(overrides));
+      return MeResponseSchema.parse(await res.json()).targets?.kcal ?? 0;
+    };
+    const seated = await kcalOf({});
+    const physical = await kcalOf({ jobActivity: 'physical' });
+    const withGym = await kcalOf({
+      jobActivity: 'physical',
+      plannedActivities: [
+        {
+          kind: 'strength',
+          label: null,
+          sessionsPerWeek: 4,
+          minutesPerSession: 60,
+          intensity: 'moderate',
+        },
+      ],
+    });
+    expect(physical).toBeGreaterThan(seated);
+    expect(withGym).toBeGreaterThan(physical);
+
+    const history = t.store.rows(USER_ID).targets;
+    expect(history).toHaveLength(3);
+    expect(history.map((row) => row.validTo === null)).toEqual([false, false, true]);
+    expect(history[2]?.kcal).toBe(withGym);
+  });
+
+  it.each([
+    ['a job that is not an option', { jobActivity: 'moderate' }, 'jobActivity'],
+    [
+      '15 sessions per week',
+      { plannedActivities: [{ sessionsPerWeek: 15 }] },
+      'plannedActivities.0.sessionsPerWeek',
+    ],
+    [
+      'a session of 5 minutes',
+      { plannedActivities: [{ minutesPerSession: 5 }] },
+      'plannedActivities.0.minutesPerSession',
+    ],
+    [
+      'more than 1200 minutes per week',
+      { plannedActivities: [{ sessionsPerWeek: 6, minutesPerSession: 240 }] },
+      'plannedActivities',
+    ],
+  ])('400 for %s (spec 002 AC4)', async (_name, override, field) => {
+    await consent();
+    const gym = {
+      kind: 'strength',
+      label: null,
+      sessionsPerWeek: 3,
+      minutesPerSession: 60,
+      intensity: 'moderate',
+    };
+    const body = {
+      ...profileInput(),
+      ...override,
+      ...('plannedActivities' in override
+        ? { plannedActivities: override.plannedActivities.map((a) => ({ ...gym, ...a })) }
+        : {}),
+    };
+    const res = await t.call('PUT', '/me/profile', body);
+    expect(res.status).toBe(400);
+    expect(Object.keys((await errorOf(res)).fields ?? {})).toEqual([field]);
+    expect(t.store.rows(USER_ID).profile).toBeNull();
+  });
+
+  it('stores high_training_load from 600 planned minutes per week (spec 002 AC11)', async () => {
+    await consent();
+    const res = await t.call(
+      'PUT',
+      '/me/profile',
+      profileInput({
+        plannedActivities: [
+          {
+            kind: 'cardio',
+            label: null,
+            sessionsPerWeek: 5,
+            minutesPerSession: 120,
+            intensity: 'moderate',
+          },
+        ],
+      }),
+    );
+    const me = MeResponseSchema.parse(await res.json());
+    expect(me.profile?.safetyFlags).toContain('high_training_load');
+  });
+
+  it('records activity_ceiling when the activity factor was limited (spec 002 AC10)', async () => {
+    await consent();
+    const res = await t.call(
+      'PUT',
+      '/me/profile',
+      profileInput({
+        jobActivity: 'physical',
+        plannedActivities: [
+          {
+            kind: 'cardio',
+            label: null,
+            sessionsPerWeek: 7,
+            minutesPerSession: 120,
+            intensity: 'hard',
+          },
+        ],
+      }),
+    );
+    const me = MeResponseSchema.parse(await res.json());
+    expect(me.targets?.clampedReason).toBe('activity_ceiling');
+  });
+
+  it('lets an account from before spec 002 complete the form again (spec 002 AC17)', async () => {
+    await consent();
+    await t.call('PUT', '/me/profile', profileInput());
+    // What migration 0002 leaves behind: the profile without a job and with onboarding to redo.
+    const rows = t.store.rows(USER_ID);
+    rows.profile = { ...rows.profile!, jobActivity: null, onboardingCompletedAt: null };
+
+    const before = MeResponseSchema.parse(await (await t.call('GET', '/me')).json());
+    expect(before.onboardingCompleted).toBe(false);
+    expect(before.profile).toMatchObject({ heightCm: 165, jobActivity: null });
+
+    const res = await t.call('PUT', '/me/profile', profileInput({ jobActivity: 'standing' }));
+    const after = MeResponseSchema.parse(await res.json());
+    expect(after.onboardingCompleted).toBe(true);
+    expect(after.profile?.jobActivity).toBe('standing');
+    expect(after.targets?.formulaVersion).toBe('targets-v2');
   });
 
   it('keeps old targets with valid_to when the profile is edited (AC16)', async () => {

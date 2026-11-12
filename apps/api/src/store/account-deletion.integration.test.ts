@@ -17,6 +17,17 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE
 const { DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
 const enabled = Boolean(supabaseUrl && DATABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
+/** Every table that holds user rows. Add a table here only together with its rows in the test below. */
+const COVERED_USER_TABLES = [
+  'profiles',
+  'lifestyle_profiles',
+  'planned_activities',
+  'dietary_prefs',
+  'nutrition_targets',
+  'consents',
+  'ai_usage',
+] as const;
+
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
   const db = enabled ? createDb(DATABASE_URL as string) : (null as never);
   let userId: string | null = null;
@@ -59,7 +70,16 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
           heightCm: input.heightCm,
           weightKg: input.weightKg,
           targetWeightKg: input.targetWeightKg,
-          activityLevel: input.activityLevel,
+          jobActivity: 'standing',
+          plannedActivities: [
+            {
+              kind: 'sport',
+              label: 'fútbol',
+              sessionsPerWeek: 2,
+              minutesPerSession: 90,
+              intensity: 'moderate',
+            },
+          ],
           requestedGoal: input.goal,
           goal: input.goal,
           safetyFlags: [],
@@ -74,7 +94,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
           carbsG: 196,
           fatG: 50,
           fiberG: 25,
-          formulaVersion: 'targets-v1',
+          formulaVersion: 'targets-v2',
           clampedReason: null,
         },
       },
@@ -98,21 +118,39 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       .from(schema.aiUsage)
       .where(eq(schema.aiUsage.userId, id));
     expect(usageRow).toBeDefined();
-    expect((await store.getMe(id)).targets?.kcal).toBe(1800);
+    const me = await store.getMe(id);
+    expect(me.targets?.kcal).toBe(1800);
+    expect(me.profile).toMatchObject({
+      jobActivity: 'standing',
+      plannedActivities: [{ kind: 'sport', label: 'fútbol', sessionsPerWeek: 2 }],
+    });
+    expect((await store.exportUser(id)).profile?.plannedActivities).toHaveLength(1);
+
+    // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
+    // column that is not covered below fails this test.
+    const userTables = await db.execute<{ table_name: string; column_name: string }>(sql`
+      select c.table_name, c.column_name
+      from information_schema.columns c
+      join information_schema.tables t
+        on t.table_schema = c.table_schema and t.table_name = c.table_name
+      where c.table_schema = 'public' and t.table_type = 'BASE TABLE'
+        and (c.column_name = 'user_id' or (c.table_name = 'profiles' and c.column_name = 'id'))
+      order by c.table_name`);
+    expect(userTables.map((t) => t.table_name)).toEqual([...COVERED_USER_TABLES].sort());
 
     await createSupabaseAuthAdmin({ supabaseUrl: base, serviceRoleKey: key }).deleteUser(id);
     userId = null;
 
-    const counts = await db.execute<{ n: number }>(sql`
-      select (
-        (select count(*) from auth.users where id = ${id}) +
-        (select count(*) from profiles where id = ${id}) +
-        (select count(*) from dietary_prefs where user_id = ${id}) +
-        (select count(*) from nutrition_targets where user_id = ${id}) +
-        (select count(*) from consents where user_id = ${id}) +
-        (select count(*) from ai_usage where user_id = ${id})
-      )::int as n`);
-    expect(counts[0]?.n).toBe(0);
+    const [authUser] = await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from auth.users where id = ${id}`,
+    );
+    expect(authUser?.n).toBe(0);
+    for (const { table_name, column_name } of userTables) {
+      const [left] = await db.execute<{ n: number }>(
+        sql`select count(*)::int as n from ${sql.identifier(table_name)} where ${sql.identifier(column_name)} = ${id}`,
+      );
+      expect(left?.n, `rows left in ${table_name}`).toBe(0);
+    }
 
     const [kept] = await db
       .select({ userId: schema.aiUsage.userId })

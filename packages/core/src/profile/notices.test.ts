@@ -27,6 +27,12 @@ describe('profileNotices', () => {
     ]);
   });
 
+  it('explains the activity ceiling and the high training load (spec 002 AC10, AC11)', () => {
+    expect(
+      profileNotices({ flags: ['high_training_load'] }, { clampedReason: 'activity_ceiling' }),
+    ).toEqual(['high_training_load', 'activity_ceiling']);
+  });
+
   it('shows low_target_bmi (AC19)', () => {
     expect(profileNotices({ flags: ['low_target_bmi'] }, null)).toEqual(['low_target_bmi']);
   });

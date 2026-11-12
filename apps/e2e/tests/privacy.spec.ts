@@ -10,7 +10,7 @@ test.describe('privacy (spec 001)', () => {
       age: 34,
       height: { cm: '165' },
       weight: '62',
-      activity: 'moderate',
+      job: 'sedentary',
       goal: 'maintain',
     });
     await form.getByTestId('form-continue').click();

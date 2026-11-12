@@ -1,8 +1,9 @@
 import type { Goal, ReportedHealthFlag, SafetyEvaluation, SafetyFlag } from '@pt/contracts';
 import { computeAge } from '../dates';
+import { isHighTrainingLoad } from '../nutrition/activity';
 
 /**
- * Profile safety rules (spec 001 AC17–AC21, BLUEPRINT §8). They run on every targets preview and profile
+ * Profile safety rules (spec 001 AC17–AC21, spec 002 AC11, BLUEPRINT §8). They run on every targets preview and profile
  * save, whatever the AI said. Thresholds need a dietitian's review before launch.
  */
 export const SAFETY_RULES = {
@@ -22,6 +23,8 @@ export interface SafetyInput {
   goal: Goal;
   healthFlags: ReportedHealthFlag[];
   injuries: string | null;
+  /** Planned training per week (spec 002 AC11). Omitted means no training. */
+  trainingMinutesPerWeek?: number;
   /**
    * Flags stored on the profile from earlier evaluations. `ed_soft_stop` is sticky (AC20: no deficit is
    * ever applied), so a later Settings edit cannot switch it off.
@@ -82,6 +85,8 @@ export function evaluateProfileSafety(input: SafetyInput, today: string): Safety
   }
 
   if (input.injuries !== null && input.injuries.trim() !== '') flags.add('injury');
+  // The smaller deficit itself is applied by `computeTargets`; the flag drives the notice.
+  if (isHighTrainingLoad(input.trainingMinutesPerWeek ?? 0)) flags.add('high_training_load');
 
   const appliedGoal: Goal = noDeficit && requestedGoal === 'lose' ? 'maintain' : requestedGoal;
 

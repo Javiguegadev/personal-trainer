@@ -3,6 +3,7 @@ import type {
   ConsentKind,
   DietaryPrefs,
   ExportResponse,
+  JobActivity,
   Profile,
   SafetyFlag,
   StoredTargets,
@@ -26,7 +27,7 @@ export interface MeRecord {
 }
 
 export interface ProfileWrite {
-  profile: Omit<Profile, 'onboardingCompletedAt'>;
+  profile: Omit<Profile, 'onboardingCompletedAt' | 'jobActivity'> & { jobActivity: JobActivity };
   dietaryPrefs: DietaryPrefs;
   /** Null when safety rules do not allow numeric targets: the current row is closed, nothing is inserted. */
   targets: Targets | null;
@@ -42,7 +43,10 @@ export interface Store {
   grantConsent(userId: string, kind: ConsentKind, version: string, at: Date): Promise<void>;
   /** Flags stored on the profile (empty when there is no profile yet). */
   getSafetyFlags(userId: string): Promise<SafetyFlag[]>;
-  /** Upserts profile + prefs, closes the current targets row and inserts the new one (AC16). */
+  /**
+   * In one transaction: upserts profile, job and prefs, replaces the training list, closes the current
+   * targets row and inserts the new one (spec 001 AC16, spec 002 AC5).
+   */
   saveProfile(userId: string, data: ProfileWrite, at: Date): Promise<void>;
   recordAiUsage(userId: string, usage: AiUsage, at: Date): Promise<void>;
   exportUser(userId: string): Promise<ExportRecord>;

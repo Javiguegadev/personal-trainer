@@ -4,6 +4,7 @@
  */
 export * from './enums';
 export * from './profiles';
+export * from './lifestyle';
 export * from './nutrition';
 export * from './privacy';
 export * from './ai';

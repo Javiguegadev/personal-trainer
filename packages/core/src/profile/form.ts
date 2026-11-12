@@ -4,11 +4,15 @@
  */
 import {
   PROFILE_LIMITS,
-  type ActivityLevel,
+  TRAINING_LIMITS,
+  type ActivityKind,
   type DietaryPrefs,
   type DietType,
   type Goal,
+  type Intensity,
+  type JobActivity,
   type Locale,
+  type PlannedActivity,
   type Profile,
   type ProfileInput,
   type ReportedHealthFlag,
@@ -16,7 +20,39 @@ import {
   type Units,
 } from '@pt/contracts';
 import { formatDecimal, parseDecimal } from '../format';
+import { trainingMinutesPerWeek } from '../nutrition/activity';
 import { cmToFeetInches, kgToLb, lbToKg, roundTo, toCm } from '../units';
+
+/** One activity card of the form. Every control is a tap, so the values are already typed. */
+export interface PlannedActivityFormValue {
+  kind: ActivityKind;
+  /** Optional name; empty means none. */
+  label: string;
+  sessionsPerWeek: number;
+  minutesPerSession: number;
+  intensity: Intensity;
+}
+
+/** Duration chips of an activity card, in minutes. */
+export const SESSION_MINUTES_OPTIONS = [30, 45, 60, 90, 120] as const;
+
+/** What "Add activity" inserts: the most common case, edited with taps. */
+export function newPlannedActivity(): PlannedActivityFormValue {
+  return {
+    kind: 'strength',
+    label: '',
+    sessionsPerWeek: 3,
+    minutesPerSession: 60,
+    intensity: 'moderate',
+  };
+}
+
+/** Whether another activity card can be added (spec 002 AC2). */
+export function canAddPlannedActivity(
+  values: Pick<ProfileFormValues, 'plannedActivities'>,
+): boolean {
+  return values.plannedActivities.length < TRAINING_LIMITS.activitiesMax;
+}
 
 export interface ProfileFormValues {
   units: Units;
@@ -33,7 +69,9 @@ export interface ProfileFormValues {
   weight: string;
   /** Optional, same unit as `weight`. */
   targetWeight: string;
-  activityLevel: ActivityLevel | null;
+  jobActivity: JobActivity | null;
+  /** Weekly training outside work. Empty means "I don't train" (spec 002 AC3). */
+  plannedActivities: PlannedActivityFormValue[];
   goal: Goal | null;
   dietType: DietType | null;
   /** Comma-separated lists. */
@@ -52,7 +90,8 @@ export type ProfileFormField =
   | 'height'
   | 'weight'
   | 'targetWeight'
-  | 'activityLevel'
+  | 'jobActivity'
+  | 'plannedActivities'
   | 'goal'
   | 'dietType'
   | 'allergies'
@@ -88,7 +127,8 @@ export function emptyProfileForm(units: Units): ProfileFormValues {
     heightIn: '',
     weight: '',
     targetWeight: '',
-    activityLevel: null,
+    jobActivity: null,
+    plannedActivities: [],
     goal: null,
     dietType: null,
     allergies: '',
@@ -146,7 +186,11 @@ export function profileFormFromProfile(
     ...heightFields(profile.heightCm, profile.units, locale),
     weight: weightField(profile.weightKg, profile.units, locale),
     targetWeight: weightField(profile.targetWeightKg, profile.units, locale),
-    activityLevel: profile.activityLevel,
+    jobActivity: profile.jobActivity,
+    plannedActivities: profile.plannedActivities.map((activity) => ({
+      ...activity,
+      label: activity.label ?? '',
+    })),
     // The goal the user asked for: safety rules re-apply on every save.
     goal: profile.requestedGoal,
     dietType: prefs?.dietType ?? null,
@@ -225,6 +269,44 @@ function parseBirthDate(values: ProfileFormValues, today: string): Parsed<string
   return { value: iso };
 }
 
+/** The weekly training list (spec 002 AC2–AC4). The API checks the same limits again. */
+function parsePlannedActivities(
+  list: readonly PlannedActivityFormValue[],
+): Parsed<PlannedActivity[]> {
+  const { activitiesMax, sessionsPerWeek, minutesPerSession, minutesPerWeekMax, labelMax } =
+    TRAINING_LIMITS;
+  if (list.length > activitiesMax) return { error: 'too_big' };
+  const activities: PlannedActivity[] = [];
+  for (const item of list) {
+    const label = item.label.trim();
+    if (label.length > labelMax) return { error: 'too_long' };
+    if (!Number.isInteger(item.sessionsPerWeek) || !Number.isInteger(item.minutesPerSession)) {
+      return { error: 'invalid_number' };
+    }
+    if (
+      item.sessionsPerWeek < sessionsPerWeek.min ||
+      item.minutesPerSession < minutesPerSession.min
+    ) {
+      return { error: 'too_small' };
+    }
+    if (
+      item.sessionsPerWeek > sessionsPerWeek.max ||
+      item.minutesPerSession > minutesPerSession.max
+    ) {
+      return { error: 'too_big' };
+    }
+    activities.push({
+      kind: item.kind,
+      label: label === '' ? null : label,
+      sessionsPerWeek: item.sessionsPerWeek,
+      minutesPerSession: item.minutesPerSession,
+      intensity: item.intensity,
+    });
+  }
+  if (trainingMinutesPerWeek(activities) > minutesPerWeekMax) return { error: 'too_big' };
+  return { value: activities };
+}
+
 /** Splits a typed list on commas, semicolons or new lines. */
 export function splitList(text: string): string[] {
   return text
@@ -283,7 +365,11 @@ export function parseProfileForm(
   const heightCm = required('height', parseHeightCm(values));
   const weightKg = required('weight', parseWeightKg(values.weight, values.units));
   const targetWeightKg = optional('targetWeight', parseWeightKg(values.targetWeight, values.units));
-  const activityLevel = choice('activityLevel', values.activityLevel);
+  const jobActivity = choice('jobActivity', values.jobActivity);
+  const plannedActivities = required(
+    'plannedActivities',
+    parsePlannedActivities(values.plannedActivities),
+  );
   const goal = choice('goal', values.goal);
   const dietType = choice('dietType', values.dietType);
   const allergies = optional('allergies', parseList(values.allergies)) ?? [];
@@ -298,7 +384,8 @@ export function parseProfileForm(
     birthDate === undefined ||
     heightCm === undefined ||
     weightKg === undefined ||
-    activityLevel === undefined ||
+    jobActivity === undefined ||
+    plannedActivities === undefined ||
     goal === undefined ||
     dietType === undefined
   ) {
@@ -320,7 +407,8 @@ export function parseProfileForm(
       heightCm,
       weightKg,
       targetWeightKg,
-      activityLevel,
+      jobActivity,
+      plannedActivities,
       goal,
       injuries: injuriesText === '' ? null : injuriesText,
       healthFlags,
@@ -373,7 +461,8 @@ const API_FIELDS: Partial<Record<string, ProfileFormField>> = {
   heightCm: 'height',
   weightKg: 'weight',
   targetWeightKg: 'targetWeight',
-  activityLevel: 'activityLevel',
+  jobActivity: 'jobActivity',
+  plannedActivities: 'plannedActivities',
   goal: 'goal',
   injuries: 'injuries',
   'dietaryPrefs.dietType': 'dietType',

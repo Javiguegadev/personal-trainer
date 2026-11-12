@@ -12,10 +12,12 @@ const TONE: Record<ProfileNotice, 'danger' | 'warning' | 'info'> = {
   low_target_bmi: 'warning',
   teen_limited: 'info',
   calorie_floor: 'info',
+  high_training_load: 'warning',
+  activity_ceiling: 'info',
   medical_condition: 'info',
 };
 
-/** Why targets were limited or not shown (AC14, AC18–AC21). Copy in `safety.*`. */
+/** Why targets were limited or not shown (spec 001 AC14, AC18–AC21; spec 002 AC10, AC11). Copy in `safety.*`. */
 export function SafetyNotices({
   notices,
   floorKcal,
