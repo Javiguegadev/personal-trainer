@@ -49,6 +49,9 @@ function RootNavigator() {
 
   const loading = authState.status === 'loading' || (signedIn && me.isPending && !me.isError);
   const failed = signedIn && me.isError && !me.data;
+  // While the session or the account is still loading, no guard redirects: a deep link (or a reload
+  // on /settings/privacy) must survive until we know where the user belongs. BlockingState covers it.
+  const allow = (condition: boolean) => loading || condition;
 
   // Where the user belongs right now. Groups have no index route, so every guard redirects to a real
   // screen instead of the group itself.
@@ -63,14 +66,15 @@ function RootNavigator() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={!signedIn} redirectTo={destination}>
+        <Stack.Protected guard={allow(!signedIn)} redirectTo={destination}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && !onboarded} redirectTo={destination}>
+        <Stack.Protected guard={allow(signedIn && !onboarded)} redirectTo={destination}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && onboarded} redirectTo={destination}>
+        <Stack.Protected guard={allow(signedIn && onboarded)} redirectTo={destination}>
           <Stack.Screen name="index" />
+          <Stack.Screen name="settings" />
         </Stack.Protected>
       </Stack>
       {loading ? <BlockingState /> : null}

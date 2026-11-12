@@ -175,6 +175,7 @@ export const en: DeepStringRecord<typeof es> = {
     calculating: 'Calculating your targets…',
     previewError: "We couldn't calculate your targets.",
     incomplete: 'Complete your details to see your targets.',
+    none: "We don't show numeric targets in your case; the notice below explains why.",
     kcal: 'Calories',
     protein: 'Protein',
     carbs: 'Carbs',
@@ -246,6 +247,33 @@ export const en: DeepStringRecord<typeof es> = {
   home: {
     title: 'Today',
     welcome: 'Your targets are ready. Soon you will be able to log meals and workouts.',
+    editProfile: 'Edit my details',
+    privacy: 'Privacy and data',
+  },
+  settings: {
+    profile: {
+      title: 'Your details',
+      subtitle:
+        'If you change your height, weight, activity or goal, we recalculate your targets. The previous ones stay in your history.',
+      save: 'Save changes',
+      saved: 'Changes saved. Your targets are up to date.',
+    },
+  },
+  privacy: {
+    title: 'Privacy and data',
+    export: {
+      title: 'Download my data',
+      text: 'A JSON file with everything we store for your account: profile, preferences, targets, consents and assistant usage.',
+      button: 'Download my data',
+      done: 'File ready: {file}',
+    },
+    delete: {
+      title: 'Delete my account',
+      text: 'Your account and all your data will be deleted permanently. This cannot be undone.',
+      confirmLabel: 'Type {word} to confirm',
+      word: 'DELETE',
+      button: 'Delete my account forever',
+    },
   },
   errors: {
     unauthorized: 'Your session has expired. Please sign in again.',

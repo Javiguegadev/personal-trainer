@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { useI18n } from '@/hooks/useI18n';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useToday } from '@/hooks/useToday';
+import { signOut } from '@/lib/session';
 
 /** Manual fallback (AC11): same fields and same result as the chat, prefilled with what it collected. */
 export default function OnboardingFormScreen() {
@@ -45,6 +46,7 @@ export default function OnboardingFormScreen() {
       <AppText variant="title">{t.onboarding.form.title}</AppText>
       <AppText tone="muted">{t.onboarding.form.subtitle}</AppText>
       <ProfileForm values={form} onChange={setForm} errors={errors} />
+      <Button variant="ghost" label={t.common.signOut} onPress={() => void signOut()} />
     </Screen>
   );
 }

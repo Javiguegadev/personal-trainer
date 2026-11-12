@@ -6,13 +6,15 @@ import { useMe } from '@/lib/api';
 export default function OnboardingLayout() {
   const me = useMe();
   const consented = me.data?.consent.healthData === true;
+  // Same rule as the root guard: no redirect until the account is loaded.
+  const loading = me.isPending;
   return (
     <OnboardingProvider>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={!consented} redirectTo="/onboarding/chat">
+        <Stack.Protected guard={loading || !consented} redirectTo="/onboarding/chat">
           <Stack.Screen name="consent" />
         </Stack.Protected>
-        <Stack.Protected guard={consented} redirectTo="/onboarding/consent">
+        <Stack.Protected guard={loading || consented} redirectTo="/onboarding/consent">
           <Stack.Screen name="chat" />
           <Stack.Screen name="form" />
           <Stack.Screen name="summary" />

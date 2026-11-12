@@ -173,6 +173,7 @@ export const es = {
     calculating: 'Calculando tus objetivos…',
     previewError: 'No hemos podido calcular tus objetivos.',
     incomplete: 'Completa tus datos para ver tus objetivos.',
+    none: 'En tu caso no mostramos objetivos numéricos; el aviso de abajo explica por qué.',
     kcal: 'Calorías',
     protein: 'Proteína',
     carbs: 'Carbohidratos',
@@ -244,6 +245,33 @@ export const es = {
   home: {
     title: 'Hoy',
     welcome: 'Ya tienes tus objetivos. Pronto podrás registrar comidas y entrenamientos.',
+    editProfile: 'Editar mis datos',
+    privacy: 'Privacidad y datos',
+  },
+  settings: {
+    profile: {
+      title: 'Tus datos',
+      subtitle:
+        'Si cambias la altura, el peso, la actividad o el objetivo, recalculamos tus objetivos. Los anteriores se guardan en tu historial.',
+      save: 'Guardar cambios',
+      saved: 'Cambios guardados. Tus objetivos están actualizados.',
+    },
+  },
+  privacy: {
+    title: 'Privacidad y datos',
+    export: {
+      title: 'Descargar mis datos',
+      text: 'Un archivo JSON con todo lo que guardamos de tu cuenta: perfil, preferencias, objetivos, consentimientos y uso del asistente.',
+      button: 'Descargar mis datos',
+      done: 'Archivo preparado: {file}',
+    },
+    delete: {
+      title: 'Borrar mi cuenta',
+      text: 'Se borrarán tu cuenta y todos tus datos de forma permanente. No se puede deshacer.',
+      confirmLabel: 'Escribe {word} para confirmar',
+      word: 'ELIMINAR',
+      button: 'Borrar mi cuenta para siempre',
+    },
   },
   errors: {
     unauthorized: 'Tu sesión ha caducado. Vuelve a entrar.',

@@ -61,7 +61,11 @@ function TargetsBody(props: TargetsCardProps) {
     case 'ready':
       return props.targets ? (
         <TargetNumbers targets={props.targets} breakdown={props.breakdown} />
-      ) : null;
+      ) : (
+        <AppText tone="muted" testID="targets-none">
+          {t.targets.none}
+        </AppText>
+      );
   }
 }
 
