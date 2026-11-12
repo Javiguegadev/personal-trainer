@@ -22,6 +22,8 @@ import { useOnboardingChat } from '@/lib/api';
  * Conversational onboarding (AC8): the AI fills the draft and asks only for what is missing. Keyboard
  * dictation works in the text field. "Use a form instead" is always available (AC11), and the form is
  * the way out when the AI is down or the daily cap is reached (AC12).
+ *
+ * Since ADR 004 the form is the onboarding entry: nothing links to this screen and stage E2b retires it.
  */
 export default function OnboardingChatScreen() {
   const { t, locale } = useI18n();

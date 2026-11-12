@@ -20,6 +20,10 @@ of my health data (consent, export, delete).
 - **After the domain review (2026-11-11):** protein on a BMI-25 reference weight when BMI ≥ 30 (capped at
   35 % of kcal); pregnancy/breastfeeding → no numeric targets, refer to a professional; ESPEN/GLIM low-BMI
   thresholds by age; fibre max(25 g, 14 g/1000 kcal). `ed_soft_stop` is sticky once stored.
+- **2026-11-12 (ADR 004, touch first):** the form is the onboarding entry. The conversational onboarding
+  (AC8, AC12, the chat side of AC9 and AC20) stays in the code and in the API, but nothing in the UI
+  links to it, and stage E2b retires it. Until the questions assistant exists (stage E5b) nothing raises
+  the eating-disorder soft stop; the other safety rules do not depend on the chat.
 
 ## Acceptance criteria
 
@@ -46,6 +50,9 @@ of my health data (consent, export, delete).
   that stores health data, then the API returns 403 `consent_required`. _(free)_
 
 ### Conversational onboarding
+
+> Since ADR 004 (2026-11-12) the form of AC11 is the onboarding entry and the chat is not linked from
+> the UI. AC10 and AC11 apply to the form; AC8, AC9 and AC12 describe the chat that stage E2b retires.
 
 - **AC8** — Given a consented user, when they chat (text or keyboard dictation) about themselves, then
   the AI fills a profile draft (sex, birth date, height, weight, activity level, goal, diet type,
@@ -195,7 +202,8 @@ Routes (`apps/app/src/app/`), mobile-first (360–430 px), light/dark:
 - `onboarding/consent` — plain-language text, checkbox, links to privacy policy (placeholder until E9).
 - `onboarding/chat` — chat with text input (keyboard dictation works), typing indicator, live draft
   chips, "Use a form instead"; states: loading, AI error (retry + form), rate limited (form).
-- `onboarding/form` — manual fallback; metric/imperial toggle.
+- `onboarding/form` — the onboarding entry since ADR 004 (first screen after consent, no back link);
+  metric/imperial toggle. `onboarding/chat` above is still served but nothing links to it.
 - `onboarding/summary` — editable fields, targets card, "How is this calculated?", limited-mode / safety
   notices, disclaimer, "Confirm".
 - `settings/profile` (edit → recompute) and `settings/privacy` (download data, delete account with
@@ -279,16 +287,19 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
     the app once the Supabase auth adapter exists.
   - Back from the form to the chat: **not reproduced**. On web "← Volver" returns to the chat with the
     conversation intact in five paths (Google and email sign-in, after a reload on the form, through the
-    summary, with and without messages), and an E2E test now covers it. Open question for the human:
-    where it happened (phone or web) and after which steps. Once onboarding is completed the chat is
-    unreachable by design; in demo mode a different email starts a fresh account.
-- E2E (2026-11-12, f702304): `pnpm e2e` runs 5 Playwright journeys (package `apps/e2e`, mobile viewport,
-  es-ES) on `web:mock`; it starts the dev server or reuses a running one. First time on a machine:
-  `pnpm --filter @pt/e2e exec playwright install chromium`. Not part of `pnpm check` or CI. Covered: AC1,
-  AC3 (mock), AC4, AC6, AC8–AC12, AC24 and the form → chat back link.
+    summary, with and without messages). Moot since ADR 004: the form is the first screen and has no
+    chat to go back to.
+- E2E (2026-11-12, f702304): `pnpm e2e` runs the Playwright journeys (package `apps/e2e`, mobile
+  viewport, es-ES) on `web:mock`; it starts the dev server or reuses a running one. First time on a
+  machine: `pnpm --filter @pt/e2e exec playwright install chromium`. Not part of `pnpm check` or CI.
+- ADR 004 (2026-11-12, decided by the human): touch first, so the form is the onboarding entry
+  (consent → form → summary → Home). The form lost its back link and the summary goes back to the form.
+  The chat screen is still served at `/onboarding/chat`, unlinked, until stage E2b retires it; it keeps
+  its unit tests (mock) and API tests. E2E now covers the reachable journeys in 3 tests: form in metric
+  units with summary ↔ form and a reload, form in imperial units, delete account (AC1, AC3 on the mock,
+  AC4, AC6, AC9–AC11, AC24).
 - Next: the Supabase auth adapter (email OTP + Google with the expo-sqlite storage from the Expo guide)
-  once the prerequisites are done. ADR 003 (2026-11-12): the hybrid onboarding and the activity split are
-  built in stage E2b, so this spec closes as written.
+  once the prerequisites are done. The activity split (ADR 003) is built in stage E2b.
 - Pending (human, postponed 2026-11-11): the "Prerequisites" (Supabase Email OTP + template, Google OAuth
   web client, redirect URLs). The app's Supabase URL and anon key are already in the root `.env`.
 - Human checks on a phone (Expo Go, `pnpm --filter @pt/app dev:mock`): keyboard over the chat composer

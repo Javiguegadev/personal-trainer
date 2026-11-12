@@ -45,7 +45,7 @@ export default function OnboardingSummaryScreen() {
         </>
       }
     >
-      <BackLink fallback="/onboarding/chat" />
+      <BackLink fallback="/onboarding/form" />
       <AppText variant="title">{s.title}</AppText>
       <AppText tone="muted">{s.subtitle}</AppText>
       {editor.ageBlocked ? (

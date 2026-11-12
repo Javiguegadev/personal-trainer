@@ -60,7 +60,7 @@ function RootNavigator() {
     : onboarded
       ? '/'
       : consented
-        ? '/onboarding/chat'
+        ? '/onboarding/form'
         : '/onboarding/consent';
 
   return (

@@ -38,21 +38,43 @@ export async function signInWithGoogle(page: Page): Promise<void> {
   await signIn.getByTestId('google-sign-in').click();
 }
 
-/** AC6: nothing continues without the explicit checkbox. */
+/** AC6: nothing continues without the explicit checkbox. The form is the onboarding entry (ADR 004). */
 export async function acceptConsent(page: Page): Promise<Locator> {
   const consent = await screen(page, 'consent-screen');
   await expect(consent.getByTestId('accept-consent')).toBeDisabled();
   await consent.getByTestId('consent-checkbox').click();
   await consent.getByTestId('accept-consent').click();
-  return screen(page, 'onboarding-chat-screen');
+  return screen(page, 'onboarding-form-screen');
 }
 
-/** Sends one chat message and waits for a reply that contains `reply`. */
-export async function say(chat: Locator, message: string, reply: string | RegExp): Promise<void> {
-  await chat.getByTestId('chat-input').fill(message);
-  await chat.getByTestId('chat-send').click();
-  await expect(chat.getByTestId('chat-user').last()).toHaveText(message);
-  await expect(chat.getByTestId('chat-assistant').last()).toContainText(reply);
+export interface FormAnswers {
+  sex: 'female' | 'male';
+  /** The birth date is 1 January, so the age is the same on any day of the year. */
+  age: number;
+  height: { cm: string } | { ft: string; in: string };
+  /** In kg, or in lb when the height is in feet. */
+  weight: string;
+  activity: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  goal: 'lose' | 'maintain' | 'gain';
+}
+
+/** Fills the profile form with taps and fields; imperial units when the height is in feet. */
+export async function fillForm(form: Locator, answers: FormAnswers): Promise<void> {
+  await form.getByTestId(`field-sex-${answers.sex}`).click();
+  await form.getByTestId('field-birth-day').fill('1');
+  await form.getByTestId('field-birth-month').fill('1');
+  await form.getByTestId('field-birth-year').fill(String(new Date().getFullYear() - answers.age));
+  if ('cm' in answers.height) {
+    await form.getByTestId('field-height-cm').fill(answers.height.cm);
+  } else {
+    await form.getByTestId('field-units-imperial').click();
+    await form.getByTestId('field-height-ft').fill(answers.height.ft);
+    await form.getByTestId('field-height-in').fill(answers.height.in);
+  }
+  await form.getByTestId('field-weight').fill(answers.weight);
+  await form.getByTestId(`field-activity-${answers.activity}`).click();
+  await form.getByTestId(`field-goal-${answers.goal}`).click();
+  await form.getByTestId('field-diet-omnivore').click();
 }
 
 /** AC10: nothing is saved until the summary is confirmed; the root guard then opens Home. */

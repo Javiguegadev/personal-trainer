@@ -1,13 +1,19 @@
 import { expect, test } from '@playwright/test';
-import { acceptConsent, confirmSummary, say, screen, signInWithGoogle } from './app';
+import { acceptConsent, confirmSummary, fillForm, screen, signInWithGoogle } from './app';
 
 test.describe('privacy (spec 001)', () => {
   test('deleting the account removes the profile and ends the session (AC24)', async ({ page }) => {
     await signInWithGoogle(page);
-    const chat = await acceptConsent(page);
-    // "#demo" is the mock's hook that fills the profile with example values.
-    await say(chat, '#demo', 'ya lo tengo todo');
-    await chat.getByTestId('review-summary').click();
+    const form = await acceptConsent(page);
+    await fillForm(form, {
+      sex: 'female',
+      age: 34,
+      height: { cm: '165' },
+      weight: '62',
+      activity: 'moderate',
+      goal: 'maintain',
+    });
+    await form.getByTestId('form-continue').click();
     const home = await confirmSummary(page);
 
     await home.getByTestId('open-privacy').click();

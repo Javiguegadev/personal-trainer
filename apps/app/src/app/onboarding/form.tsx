@@ -2,7 +2,6 @@ import { parseProfileForm } from '@pt/core';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { AppText } from '@/components/AppText';
-import { BackLink } from '@/components/BackLink';
 import { Button } from '@/components/Button';
 import { ProfileForm } from '@/components/ProfileForm';
 import { Screen } from '@/components/Screen';
@@ -11,7 +10,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { useToday } from '@/hooks/useToday';
 import { signOut } from '@/lib/session';
 
-/** Manual fallback (AC11): same fields and same result as the chat, prefilled with what it collected. */
+/** The onboarding entry (AC11, ADR 004): taps and fields, reviewed in the summary before saving. */
 export default function OnboardingFormScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -42,7 +41,6 @@ export default function OnboardingFormScreen() {
         </>
       }
     >
-      <BackLink fallback="/onboarding/chat" />
       <AppText variant="title">{t.onboarding.form.title}</AppText>
       <AppText tone="muted">{t.onboarding.form.subtitle}</AppText>
       <ProfileForm values={form} onChange={setForm} errors={errors} />
