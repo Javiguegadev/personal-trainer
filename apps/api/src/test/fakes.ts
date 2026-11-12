@@ -2,7 +2,7 @@ import type { AiUsage } from '@pt/ai';
 import type { ConsentKind, ProfileInput } from '@pt/contracts';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { createApp } from '../app';
-import type { AuthAdmin, Deps, ExportRecord, MeRecord, OnboardingAi, Store } from '../deps';
+import type { AuthAdmin, Deps, ExportRecord, MeRecord, Store } from '../deps';
 import { createJwtVerifier } from '../middleware/auth';
 
 export const NOW = new Date('2026-11-11T10:00:00Z');
@@ -73,12 +73,6 @@ export class FakeStore implements Store {
     if (data.targets) rows.targets.push({ ...data.targets, validFrom: iso, validTo: null });
   }
 
-  async countAiCalls(userId: string, feature: string, since: Date) {
-    return this.rows(userId).aiUsage.filter(
-      (u) => u.feature === feature && u.createdAt >= since.toISOString(),
-    ).length;
-  }
-
   async recordAiUsage(userId: string, usage: AiUsage, at: Date) {
     this.rows(userId).aiUsage.push({ ...usage, createdAt: at.toISOString() });
   }
@@ -126,7 +120,7 @@ export async function createTestTokens() {
   return { verifyToken, sign };
 }
 
-export async function createTestApp(overrides: { onboardingAi?: OnboardingAi } = {}) {
+export async function createTestApp() {
   const store = new FakeStore();
   const deleted: string[] = [];
   const authAdmin: AuthAdmin = {
@@ -141,7 +135,6 @@ export async function createTestApp(overrides: { onboardingAi?: OnboardingAi } =
     verifyToken: tokens.verifyToken,
     store,
     authAdmin,
-    onboardingAi: overrides.onboardingAi ?? null,
     now: () => NOW,
   };
   const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test', deps });

@@ -1,13 +1,11 @@
 /**
- * In-memory implementation of `ApiClient` for development and E2E tests (no Supabase, no AI, no cost).
+ * In-memory implementation of `ApiClient` for development and E2E tests (no Supabase, no cost).
  * It applies the same rules as apps/api: auth (401), consent (403), Zod validation (400 with `fields`),
- * @pt/core safety and targets (422 `age_blocked`), the onboarding daily cap (429) and scripted AI turns.
+ * and @pt/core safety and targets (422 `age_blocked`).
  * Never use it in production builds: the app enables it only with `__DEV__` and an explicit flag.
  */
 import {
   ConsentRequestSchema,
-  ONBOARDING_LIMITS,
-  OnboardingChatRequestSchema,
   ProfileInputSchema,
   type ApiErrorCode,
   type DietaryPrefs,
@@ -15,10 +13,9 @@ import {
   type MeResponse,
   type Profile,
 } from '@pt/contracts';
-import { checkClientDates, evaluateProfileInput, missingDraftFields } from '@pt/core';
+import { evaluateProfileInput } from '@pt/core';
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
-import { mockOnboardingTurn } from './chat';
 import { parseMockToken, type MockUser } from './identity';
 
 export interface KeyValueStorage {
@@ -50,7 +47,6 @@ interface UserRecord {
 type MockDb = Record<string, UserRecord>;
 
 export const MOCK_DB_KEY = 'pt.mock.db.v1';
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const MESSAGES: Record<ApiErrorCode, string> = {
   unauthorized: 'A valid access token is required',
@@ -225,37 +221,6 @@ export function createMockApiClient({
         record.targets.push({ ...evaluation.targets, validFrom: at, validTo: null });
       persist();
       return toMe(user.userId, record);
-    },
-
-    onboardingChat: async (body) => {
-      const { record } = await authenticateWithConsent();
-      const request = parse(OnboardingChatRequestSchema, body);
-      const invalid = checkClientDates({ today: request.today }, now());
-      if (invalid) throw fail('validation_error', invalid);
-
-      const since = now().getTime() - DAY_MS;
-      const used = record.aiUsage.filter(
-        (u) => u.feature === 'onboarding' && Date.parse(u.createdAt) > since,
-      ).length;
-      if (used >= ONBOARDING_LIMITS.messagesPerDay) throw fail('rate_limited');
-
-      record.aiUsage.push({
-        feature: 'onboarding',
-        model: 'mock',
-        inputTokens: 0,
-        outputTokens: 0,
-        createdAt: now().toISOString(),
-      });
-      persist();
-
-      const turn = mockOnboardingTurn(request);
-      if (turn.kind !== 'ok') throw fail(turn.kind);
-      return {
-        reply: turn.reply,
-        draft: turn.draft,
-        missing: missingDraftFields(turn.draft),
-        softStop: turn.softStop,
-      };
     },
 
     targetsPreview: async (body) => {

@@ -3,15 +3,12 @@ import {
   ExportResponseSchema,
   HealthResponseSchema,
   MeResponseSchema,
-  OnboardingChatResponseSchema,
   TargetsPreviewResponseSchema,
   type ApiErrorCode,
   type ConsentRequest,
   type ExportResponse,
   type HealthResponse,
   type MeResponse,
-  type OnboardingChatRequest,
-  type OnboardingChatResponse,
   type ProfileInput,
   type TargetsPreviewResponse,
 } from '@pt/contracts';
@@ -112,10 +109,6 @@ export function createApiClient({
     /** `PUT /me/profile`: stores profile + prefs + new targets (AC10, AC11, AC16). */
     updateProfile: (body: ProfileInput): Promise<MeResponse> =>
       request('/me/profile', MeResponseSchema, { method: 'PUT', json: body }),
-
-    /** `POST /onboarding/chat` (AC8). The client keeps the transcript; the server stores nothing. */
-    onboardingChat: (body: OnboardingChatRequest): Promise<OnboardingChatResponse> =>
-      request('/onboarding/chat', OnboardingChatResponseSchema, { method: 'POST', json: body }),
 
     /** `POST /onboarding/targets-preview`: targets + safety, nothing stored (AC10, AC13–AC19). */
     targetsPreview: (body: ProfileInput): Promise<TargetsPreviewResponse> =>

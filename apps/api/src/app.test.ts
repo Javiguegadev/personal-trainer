@@ -38,7 +38,6 @@ describe('user routes', () => {
       '/me/consent',
       '/me/profile',
       '/me/export',
-      '/onboarding/chat',
       '/onboarding/targets-preview',
     ]) {
       expect(doc.paths).toHaveProperty([path]);

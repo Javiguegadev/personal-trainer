@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { OnboardingChatRequestSchema, OnboardingDraftSchema } from './onboarding';
 import { LengthMeasurementSchema, ProfileInputSchema, type ProfileInput } from './profile';
 
 const valid: ProfileInput = {
@@ -39,23 +38,8 @@ describe('ProfileInputSchema (AC22)', () => {
   });
 });
 
-describe('onboarding schemas', () => {
-  it('accepts an empty draft', () => {
-    expect(OnboardingDraftSchema.parse({})).toEqual({});
-  });
-
+describe('LengthMeasurementSchema', () => {
   it('accepts feet + inches', () => {
     expect(LengthMeasurementSchema.parse({ unit: 'ft_in', feet: 5, inches: 10 })).toBeTruthy();
-  });
-
-  it('caps a chat request at 40 messages', () => {
-    const messages = Array.from({ length: 41 }, () => ({ role: 'user' as const, content: 'hola' }));
-    const result = OnboardingChatRequestSchema.safeParse({
-      messages,
-      draft: {},
-      locale: 'es',
-      today: '2026-11-11',
-    });
-    expect(result.success).toBe(false);
   });
 });

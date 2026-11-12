@@ -33,7 +33,7 @@ export type Units = z.infer<typeof UnitsSchema>;
 export const LocaleSchema = z.enum(['es', 'en']);
 export type Locale = z.infer<typeof LocaleSchema>;
 
-/** Health facts the user reports (form checkbox or AI `flag_safety` tool). */
+/** Health facts the user reports (a form checkbox today; the questions assistant later). */
 export const ReportedHealthFlagSchema = z.enum(['pregnancy', 'ed_soft_stop', 'medical_condition']);
 export type ReportedHealthFlag = z.infer<typeof ReportedHealthFlagSchema>;
 
@@ -93,7 +93,7 @@ export const DietaryPrefsSchema = z.object({
 });
 export type DietaryPrefs = z.infer<typeof DietaryPrefsSchema>;
 
-/** What the user confirms (form or chat summary). Metric only. */
+/** What the user confirms in the form. Metric only. */
 export const ProfileInputSchema = z.object({
   sex: SexSchema,
   birthDate: IsoDateSchema,

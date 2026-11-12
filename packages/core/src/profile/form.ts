@@ -1,7 +1,6 @@
 /**
  * The manual profile form (spec 001 AC10, AC11, AC16, AC22): values as typed, unit switching and
- * validation into a metric `ProfileInput`. Shared by onboarding (form + summary) and Settings, so the
- * chat and the form reach exactly the same result.
+ * validation into a metric `ProfileInput`. Shared by onboarding (form + summary) and Settings.
  */
 import {
   PROFILE_LIMITS,
@@ -10,7 +9,6 @@ import {
   type DietType,
   type Goal,
   type Locale,
-  type OnboardingDraft,
   type Profile,
   type ProfileInput,
   type ReportedHealthFlag,
@@ -44,7 +42,7 @@ export interface ProfileFormValues {
   restrictions: string;
   injuries: string;
   pregnancy: boolean;
-  /** Reported flags without a form control (e.g. `ed_soft_stop` from the chat). Never dropped. */
+  /** Reported flags without a form control (e.g. a stored `ed_soft_stop`). Never dropped. */
   otherHealthFlags: ReportedHealthFlag[];
 }
 
@@ -130,30 +128,6 @@ function healthFields(flags: readonly ReportedHealthFlag[] | undefined) {
 }
 
 const joinList = (items: readonly string[] | undefined) => (items ?? []).join(', ');
-
-/** Prefills the form with what the chat collected (AC10). */
-export function profileFormFromDraft(
-  draft: OnboardingDraft,
-  units: Units,
-  locale: Locale,
-): ProfileFormValues {
-  return {
-    ...emptyProfileForm(units),
-    sex: draft.sex ?? null,
-    ...birthFields(draft.birthDate),
-    ...heightFields(draft.heightCm, units, locale),
-    weight: weightField(draft.weightKg, units, locale),
-    targetWeight: weightField(draft.targetWeightKg, units, locale),
-    activityLevel: draft.activityLevel ?? null,
-    goal: draft.goal ?? null,
-    dietType: draft.dietType ?? null,
-    allergies: joinList(draft.allergies),
-    dislikes: joinList(draft.dislikes),
-    restrictions: joinList(draft.restrictions),
-    injuries: draft.injuries ?? '',
-    ...healthFields(draft.healthFlags),
-  };
-}
 
 /** Prefills the form with a stored profile (Settings, AC16). */
 export function profileFormFromProfile(

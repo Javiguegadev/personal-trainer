@@ -5,8 +5,8 @@ import type {
   Targets,
   TargetsBreakdown,
 } from '@pt/contracts';
+import { isPlausibleClientDate } from '../dates';
 import { computeTargets } from '../nutrition/targets';
-import { isPlausibleClientDate } from '../onboarding/draft';
 import { evaluateProfileSafety } from '../safety/profile';
 
 export type ProfileEvaluation =
@@ -35,7 +35,7 @@ export function checkClientDates(
 
 /**
  * Safety rules + targets for a confirmed profile (AC13–AC22). Runs on both the preview and the save, so
- * nothing the client or the AI sends can bypass these rules. `now` is the server clock.
+ * nothing the client sends can bypass these rules. `now` is the server clock.
  */
 export function evaluateProfileInput(
   input: ProfileInput,

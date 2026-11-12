@@ -70,27 +70,6 @@ export const en: DeepStringRecord<typeof es> = {
     accept: 'Accept and continue',
   },
   onboarding: {
-    chat: {
-      title: 'Tell me about yourself',
-      intro:
-        'Hi! I\'ll ask you a few questions to calculate your targets: sex, age, height, weight, activity, goal and diet. Write it however you like: "1.75 m", "80 kg", "5 ft 10" or "180 lb" all work.',
-      inputLabel: 'Your message',
-      placeholder: 'Type, or dictate with the keyboard microphone…',
-      send: 'Send',
-      typing: 'The assistant is typing…',
-      you: 'You',
-      assistant: 'Assistant',
-      collected: "What I've noted so far",
-      ageYears: '{age} years old',
-      useForm: 'Use a form instead',
-      review: 'Review the summary',
-      retry: 'Try again',
-      aiUnavailable:
-        "The assistant isn't responding right now. Try again, or continue with the form: the result is the same.",
-      rateLimited:
-        "You've reached today's chat message limit. Continue with the form: the result is the same.",
-      continueMaintenance: 'Continue with maintenance targets',
-    },
     form: {
       title: 'Your details',
       subtitle: "Fill in the form. You'll review everything before saving.",

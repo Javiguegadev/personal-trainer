@@ -2,12 +2,7 @@
  * TanStack Query bindings. Query options are plain factories (testable without React);
  * `createApiHooks(api)` binds them to one client so every screen and platform reuses them.
  */
-import type {
-  ConsentRequest,
-  MeResponse,
-  OnboardingChatRequest,
-  ProfileInput,
-} from '@pt/contracts';
+import type { ConsentRequest, MeResponse, ProfileInput } from '@pt/contracts';
 import {
   keepPreviousData,
   skipToken,
@@ -88,10 +83,6 @@ export function createApiHooks(api: ApiClient) {
         onSuccess: (me) => afterProfileSaved(queryClient, me),
       });
     },
-
-    /** No retries: a failed turn is shown with "retry" and "use the form" (AC11, AC12). */
-    useOnboardingChat: () =>
-      useMutation({ mutationFn: (body: OnboardingChatRequest) => api.onboardingChat(body) }),
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),
 

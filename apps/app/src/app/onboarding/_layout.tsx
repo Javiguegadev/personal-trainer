@@ -4,7 +4,7 @@ import { useMe } from '@/lib/api';
 
 /**
  * Consent comes first (AC6); the onboarding screens exist only once it is given. The form is the entry
- * (ADR 004). The chat is no longer linked from the UI and is retired in stage E2b.
+ * (ADR 004).
  */
 export default function OnboardingLayout() {
   const me = useMe();
@@ -20,7 +20,6 @@ export default function OnboardingLayout() {
         <Stack.Protected guard={loading || consented} redirectTo="/onboarding/consent">
           <Stack.Screen name="form" />
           <Stack.Screen name="summary" />
-          <Stack.Screen name="chat" />
         </Stack.Protected>
       </Stack>
     </OnboardingProvider>

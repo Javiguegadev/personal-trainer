@@ -14,18 +14,20 @@ export const PRICING_USD_PER_MTOK: Record<ModelId, { input: number; output: numb
   'claude-opus-5-5': { input: 4, output: 20 },
 };
 
-export const FEATURES = {
-  onboarding: {
-    model: MODELS.haiku,
-    /** Chat turns are short; low effort keeps latency down. Thinking stays adaptive (Haiku 5.5 default). */
-    effort: 'low',
-    /** Includes adaptive thinking tokens. */
-    maxTokens: 4000,
-    /** Tool round-trips per user message before we give up. */
-    maxToolRounds: 3,
-  },
-} as const;
-export type AiFeature = keyof typeof FEATURES;
+/** Settings of one AI feature. */
+export interface FeatureConfig {
+  model: ModelId;
+  effort: 'low' | 'medium' | 'high';
+  /** Includes adaptive thinking tokens. */
+  maxTokens: number;
+  /** Tool round-trips per user message before we give up. */
+  maxToolRounds: number;
+}
+
+/** No feature ships today (the onboarding chat was retired by ADR 004). Add each new one here. */
+export const FEATURES = {} as const satisfies Record<string, FeatureConfig>;
+/** The name stored in `ai_usage.feature`. */
+export type AiFeature = string;
 
 export function costUsd(model: ModelId, inputTokens: number, outputTokens: number): number {
   const p = PRICING_USD_PER_MTOK[model];

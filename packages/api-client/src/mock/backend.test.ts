@@ -1,4 +1,4 @@
-import type { OnboardingChatRequest, OnboardingDraft, ProfileInput } from '@pt/contracts';
+import type { ProfileInput } from '@pt/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { isApiError } from '../client';
 import { profileInput } from '../test/fixtures';
@@ -30,13 +30,6 @@ function setup(opts: { token?: string | null; storage?: KeyValueStorage; now?: (
   return { api, onUnauthorized };
 }
 
-const chatRequest = (messages: string[], draft: OnboardingDraft = {}): OnboardingChatRequest => ({
-  messages: messages.map((content) => ({ role: 'user' as const, content })),
-  draft,
-  locale: 'es',
-  today: '2026-11-11',
-});
-
 const input = (overrides: Partial<ProfileInput> = {}): ProfileInput => ({
   ...profileInput,
   ...overrides,
@@ -63,11 +56,7 @@ describe('mock backend: auth and consent', () => {
 
   it('requires consent for health-data routes (AC7)', async () => {
     const { api } = setup();
-    for (const call of [
-      () => api.onboardingChat(chatRequest(['hola'])),
-      () => api.targetsPreview(input()),
-      () => api.updateProfile(input()),
-    ]) {
+    for (const call of [() => api.targetsPreview(input()), () => api.updateProfile(input())]) {
       const error = await call().catch((e: unknown) => e);
       expect(isApiError(error, 'consent_required')).toBe(true);
     }
@@ -159,77 +148,5 @@ describe('mock backend: profile and targets', () => {
     await api.updateProfile(input());
     const reloaded = setup({ storage }).api;
     await expect(reloaded.me()).resolves.toMatchObject({ onboardingCompleted: true });
-  });
-});
-
-describe('mock backend: onboarding chat', () => {
-  async function chatApi(now: () => Date = () => NOW) {
-    const s = setup({ now });
-    await s.api.grantConsent({ kind: 'health_data', version: '2026-11' });
-    return s.api;
-  }
-
-  it('reaches a complete draft from a natural conversation (AC8, AC9)', async () => {
-    const api = await chatApi();
-    const messages = [
-      'Hola',
-      'Soy mujer y tengo 34 años',
-      'Mido 1,68 m y peso 64,5 kilos',
-      'Moderadamente activa',
-      'Quiero perder peso',
-      'Como de todo, soy alérgica a los cacahuetes',
-    ];
-    let draft: OnboardingDraft = {};
-    let response = await api.onboardingChat(chatRequest(messages.slice(0, 1), draft));
-    for (let i = 2; i <= messages.length; i++) {
-      draft = response.draft;
-      response = await api.onboardingChat(chatRequest(messages.slice(0, i), draft));
-    }
-    expect(response.missing).toEqual([]);
-    expect(response.draft).toMatchObject({
-      sex: 'female',
-      birthDate: '1992-11-11',
-      heightCm: 168,
-      weightKg: 64.5,
-      activityLevel: 'moderate',
-      goal: 'lose',
-      dietType: 'omnivore',
-      allergies: ['cacahuetes'],
-    });
-  });
-
-  it('converts imperial units with @pt/core (AC9)', async () => {
-    const api = await chatApi();
-    const response = await api.onboardingChat(chatRequest(['hello', "I'm 5 ft 10 and 180 lb"]));
-    expect(response.draft.heightCm).toBe(177.8);
-    expect(response.draft.weightKg).toBe(81.6);
-  });
-
-  it('raises the eating-disorder soft stop (AC20)', async () => {
-    const api = await chatApi();
-    const response = await api.onboardingChat(
-      chatRequest(['hola', 'a veces me provoco el vómito']),
-    );
-    expect(response.softStop).toBe(true);
-    expect(response.draft.healthFlags).toContain('ed_soft_stop');
-  });
-
-  it('simulates an AI outage with #503 (AC11)', async () => {
-    const api = await chatApi();
-    const error = await api.onboardingChat(chatRequest(['#503'])).catch((e: unknown) => e);
-    expect(isApiError(error, 'ai_unavailable')).toBe(true);
-  });
-
-  it('caps onboarding messages at 40 per 24 h (AC12)', async () => {
-    let now = NOW;
-    const api = await chatApi(() => now);
-    for (let i = 0; i < 40; i++) await api.onboardingChat(chatRequest(['hola']));
-    const error = await api.onboardingChat(chatRequest(['hola'])).catch((e: unknown) => e);
-    expect(isApiError(error, 'rate_limited')).toBe(true);
-
-    now = new Date(NOW.getTime() + 24 * 60 * 60 * 1000 + 1000);
-    await expect(
-      api.onboardingChat({ ...chatRequest(['hola']), today: '2026-11-12' }),
-    ).resolves.toBeDefined();
   });
 });

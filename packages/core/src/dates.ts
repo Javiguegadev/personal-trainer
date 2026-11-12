@@ -42,3 +42,11 @@ export function toLocalIsoDate(date: Date): string {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+/**
+ * The client sends its local date; accept it only within ±1 day of the server's UTC date, which covers
+ * every time zone.
+ */
+export function isPlausibleClientDate(clientDate: string, nowIso: string): boolean {
+  return Math.abs(daysBetween(nowIso.slice(0, 10), clientDate)) <= 1;
+}

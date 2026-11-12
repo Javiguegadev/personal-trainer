@@ -1,9 +1,8 @@
-import type { AiUsage, OnboardingTurnResult } from '@pt/ai';
+import type { AiUsage } from '@pt/ai';
 import type {
   ConsentKind,
   DietaryPrefs,
   ExportResponse,
-  OnboardingChatRequest,
   Profile,
   SafetyFlag,
   StoredTargets,
@@ -45,7 +44,6 @@ export interface Store {
   getSafetyFlags(userId: string): Promise<SafetyFlag[]>;
   /** Upserts profile + prefs, closes the current targets row and inserts the new one (AC16). */
   saveProfile(userId: string, data: ProfileWrite, at: Date): Promise<void>;
-  countAiCalls(userId: string, feature: string, since: Date): Promise<number>;
   recordAiUsage(userId: string, usage: AiUsage, at: Date): Promise<void>;
   exportUser(userId: string): Promise<ExportRecord>;
 }
@@ -55,14 +53,9 @@ export interface AuthAdmin {
   deleteUser(userId: string): Promise<void>;
 }
 
-/** One onboarding chat turn. Null when the AI is not configured (no API key): the API answers 503. */
-export type OnboardingAi =
-  ((request: OnboardingChatRequest) => Promise<OnboardingTurnResult>) | null;
-
 export interface Deps {
   verifyToken: VerifyToken;
   store: Store;
   authAdmin: AuthAdmin;
-  onboardingAi: OnboardingAi;
   now: () => Date;
 }

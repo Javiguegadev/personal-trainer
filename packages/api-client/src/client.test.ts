@@ -47,12 +47,6 @@ describe('createApiClient', () => {
   });
 
   it('maps each method to its route, verb and JSON body', async () => {
-    const chatBody = {
-      messages: [{ role: 'user' as const, content: 'Hola' }],
-      draft: {},
-      locale: 'es' as const,
-      today: '2026-11-11',
-    };
     const cases = [
       { run: (a: Api) => a.me(), method: 'GET', path: '/me', res: () => Response.json(meBody) },
       {
@@ -68,13 +62,6 @@ describe('createApiClient', () => {
         path: '/me/profile',
         body: profileInput,
         res: () => Response.json(meBody),
-      },
-      {
-        run: (a: Api) => a.onboardingChat(chatBody),
-        method: 'POST',
-        path: '/onboarding/chat',
-        body: chatBody,
-        res: () => Response.json({ reply: 'Hola', draft: {}, missing: ['sex'], softStop: false }),
       },
       {
         run: (a: Api) => a.targetsPreview(profileInput),

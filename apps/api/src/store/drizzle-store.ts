@@ -1,6 +1,6 @@
 import type { ConsentKind, SafetyFlag } from '@pt/contracts';
 import { SafetyFlagSchema } from '@pt/contracts';
-import { and, count, desc, eq, gte, isNull, schema, type Db } from '@pt/db';
+import { and, desc, eq, isNull, schema, type Db } from '@pt/db';
 import type { Store } from '../deps';
 
 const { aiUsage, consents, dietaryPrefs, nutritionTargets, profiles } = schema;
@@ -126,20 +126,6 @@ export function createDrizzleStore(db: Db): Store {
           await tx.insert(nutritionTargets).values({ userId, ...data.targets, validFrom: at });
         }
       });
-    },
-
-    async countAiCalls(userId, feature, since) {
-      const [row] = await db
-        .select({ n: count() })
-        .from(aiUsage)
-        .where(
-          and(
-            eq(aiUsage.userId, userId),
-            eq(aiUsage.feature, feature),
-            gte(aiUsage.createdAt, since),
-          ),
-        );
-      return row?.n ?? 0;
     },
 
     async recordAiUsage(userId, usage, at) {

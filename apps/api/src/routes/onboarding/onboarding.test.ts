@@ -1,147 +1,21 @@
-import { AiUnavailableError, type AiUsage, type OnboardingTurnResult } from '@pt/ai';
-import {
-  ApiErrorSchema,
-  CONSENT_VERSION,
-  OnboardingChatResponseSchema,
-  TargetsPreviewResponseSchema,
-  type OnboardingChatRequest,
-} from '@pt/contracts';
-import { describe, expect, it, vi } from 'vitest';
-import { NOW, TODAY, USER_ID, createTestApp, profileInput } from '../../test/fakes';
+import { ApiErrorSchema, CONSENT_VERSION, TargetsPreviewResponseSchema } from '@pt/contracts';
+import { describe, expect, it } from 'vitest';
+import { USER_ID, createTestApp, profileInput } from '../../test/fakes';
 
-const usage = (status: AiUsage['status'] = 'ok'): AiUsage => ({
-  feature: 'onboarding',
-  model: 'claude-haiku-5-5',
-  inputTokens: 900,
-  outputTokens: 120,
-  costUsd: 0.00015,
-  latencyMs: 800,
-  status,
-});
-
-const chatRequest = (overrides: Partial<OnboardingChatRequest> = {}): OnboardingChatRequest => ({
-  messages: [{ role: 'user', content: 'Soy mujer, 35 años, mido 1,65 y peso 70 kilos' }],
-  draft: {},
-  locale: 'es',
-  today: TODAY,
-  ...overrides,
-});
-
-async function setup(ai?: (req: OnboardingChatRequest) => Promise<OnboardingTurnResult>) {
-  const onboardingAi = ai ? vi.fn(ai) : null;
-  const t = await createTestApp({ onboardingAi });
+async function setup() {
+  const t = await createTestApp();
   await t.call('POST', '/me/consent', { kind: 'health_data', version: CONSENT_VERSION });
-  return { ...t, onboardingAi };
+  return t;
 }
-
-const okTurn = async (): Promise<OnboardingTurnResult> => ({
-  reply: '¡Gracias! ¿Cuánta actividad física haces?',
-  draft: { sex: 'female', birthDate: '1991-01-01', heightCm: 165, weightKg: 70 },
-  softStop: false,
-  usage: usage(),
-});
 
 async function codeOf(res: Response) {
   return ApiErrorSchema.parse(await res.json()).code;
 }
 
-describe('POST /onboarding/chat', () => {
-  it('401 without a token (AC5)', async () => {
-    const t = await setup(okTurn);
-    expect((await t.call('POST', '/onboarding/chat', chatRequest(), null)).status).toBe(401);
-  });
-
-  it('403 consent_required without consent (AC7)', async () => {
-    const t = await createTestApp({ onboardingAi: okTurn });
-    const res = await t.call('POST', '/onboarding/chat', chatRequest());
-    expect(res.status).toBe(403);
-    expect(await codeOf(res)).toBe('consent_required');
-  });
-
-  it('400 for an invalid body', async () => {
-    const t = await setup(okTurn);
-    const tooMany = Array.from({ length: 41 }, () => ({ role: 'user', content: 'hola' }));
-    const res = await t.call('POST', '/onboarding/chat', { ...chatRequest(), messages: tooMany });
-    expect(res.status).toBe(400);
-    expect(await codeOf(res)).toBe('validation_error');
-  });
-
-  it('400 for an implausible draft value (AC22)', async () => {
-    const t = await setup(okTurn);
-    const res = await t.call('POST', '/onboarding/chat', chatRequest({ draft: { heightCm: 500 } }));
-    expect(res.status).toBe(400);
-  });
-
-  it('returns the reply, the draft and the missing fields, and meters the call (AC8)', async () => {
-    const t = await setup(okTurn);
-    const res = await t.call('POST', '/onboarding/chat', chatRequest());
-    expect(res.status).toBe(200);
-    const body = OnboardingChatResponseSchema.parse(await res.json());
-    expect(body.missing).toEqual(['activityLevel', 'goal', 'dietType']);
-    expect(body.softStop).toBe(false);
-    expect(t.store.rows(USER_ID).aiUsage).toEqual([{ ...usage(), createdAt: NOW.toISOString() }]);
-  });
-
-  it('never sends the email or user id to the AI and stores no transcript (AC25)', async () => {
-    const t = await setup(okTurn);
-    await t.call('POST', '/onboarding/chat', chatRequest());
-    const sent = JSON.stringify(t.onboardingAi?.mock.calls[0]?.[0]);
-    expect(sent).not.toContain('ana@example.com');
-    expect(sent).not.toContain(USER_ID);
-    expect(JSON.stringify(t.store.rows(USER_ID))).not.toContain('mido 1,65');
-  });
-
-  it('passes the soft stop through (AC20)', async () => {
-    const t = await setup(async () => ({
-      ...(await okTurn()),
-      draft: { healthFlags: ['ed_soft_stop'] },
-      softStop: true,
-    }));
-    const body = OnboardingChatResponseSchema.parse(
-      await (await t.call('POST', '/onboarding/chat', chatRequest())).json(),
-    );
-    expect(body.softStop).toBe(true);
-  });
-
-  it('429 after 40 calls in 24 h, without calling the AI (AC12)', async () => {
-    const t = await setup(okTurn);
-    const rows = t.store.rows(USER_ID).aiUsage;
-    const recent = new Date(NOW.getTime() - 60 * 60 * 1000).toISOString();
-    const old = new Date(NOW.getTime() - 25 * 60 * 60 * 1000).toISOString();
-    for (let i = 0; i < 39; i++) rows.push({ ...usage(), createdAt: recent });
-    rows.push({ ...usage(), createdAt: old });
-
-    expect((await t.call('POST', '/onboarding/chat', chatRequest())).status).toBe(200);
-    const res = await t.call('POST', '/onboarding/chat', chatRequest());
-    expect(res.status).toBe(429);
-    expect(await codeOf(res)).toBe('rate_limited');
-    expect(t.onboardingAi).toHaveBeenCalledTimes(1);
-  });
-
-  it('503 when the AI is not configured (AC11)', async () => {
+describe('POST /onboarding/chat (spec 002 AC15)', () => {
+  it('no longer exists', async () => {
     const t = await setup();
-    const res = await t.call('POST', '/onboarding/chat', chatRequest());
-    expect(res.status).toBe(503);
-    expect(await codeOf(res)).toBe('ai_unavailable');
-  });
-
-  it('503 and metered usage when the model fails (AC11)', async () => {
-    const t = await setup(async () => {
-      throw new AiUnavailableError('refusal', usage('refusal'), 'declined');
-    });
-    const res = await t.call('POST', '/onboarding/chat', chatRequest());
-    expect(res.status).toBe(503);
-    expect(t.store.rows(USER_ID).aiUsage[0]?.status).toBe('refusal');
-  });
-
-  it('503 and an error row on network failures', async () => {
-    const t = await setup(async () => {
-      throw new Error('ECONNRESET');
-    });
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const res = await t.call('POST', '/onboarding/chat', chatRequest());
-    expect(res.status).toBe(503);
-    expect(t.store.rows(USER_ID).aiUsage[0]).toMatchObject({ status: 'error', inputTokens: 0 });
+    expect((await t.call('POST', '/onboarding/chat', {})).status).toBe(404);
   });
 });
 

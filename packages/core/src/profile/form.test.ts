@@ -1,11 +1,10 @@
-import type { OnboardingDraft, Profile } from '@pt/contracts';
+import type { Profile } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   convertFormUnits,
   emptyProfileForm,
   formErrorFromApi,
   parseProfileForm,
-  profileFormFromDraft,
   profileFormFromProfile,
   splitList,
   type ProfileFormValues,
@@ -143,52 +142,6 @@ describe('parseProfileForm', () => {
       'es',
     );
     expect(result.ok && result.input.healthFlags).toEqual(['pregnancy', 'ed_soft_stop']);
-  });
-});
-
-describe('profileFormFromDraft', () => {
-  const draft: OnboardingDraft = {
-    sex: 'male',
-    birthDate: '1992-03-09',
-    heightCm: 177.8,
-    weightKg: 81.6,
-    activityLevel: 'active',
-    goal: 'gain',
-    dietType: 'vegan',
-    allergies: ['soja'],
-    healthFlags: ['ed_soft_stop'],
-  };
-
-  it('prefills metric fields with the locale decimal separator (AC10)', () => {
-    expect(profileFormFromDraft(draft, 'metric', 'es')).toMatchObject({
-      sex: 'male',
-      birthDay: '9',
-      birthMonth: '3',
-      birthYear: '1992',
-      heightCm: '177,8',
-      weight: '81,6',
-      allergies: 'soja',
-      otherHealthFlags: ['ed_soft_stop'],
-      pregnancy: false,
-    });
-  });
-
-  it('prefills imperial fields', () => {
-    expect(profileFormFromDraft(draft, 'imperial', 'en')).toMatchObject({
-      heightFt: '5',
-      heightIn: '10',
-      weight: '180',
-    });
-  });
-
-  it('round-trips through parseProfileForm to the same metric values (chat = form, AC11)', () => {
-    const result = parseProfileForm(profileFormFromDraft(draft, 'metric', 'es'), TODAY, 'es');
-    expect(result.ok && result.input).toMatchObject({
-      birthDate: '1992-03-09',
-      heightCm: 177.8,
-      weightKg: 81.6,
-      healthFlags: ['ed_soft_stop'],
-    });
   });
 });
 

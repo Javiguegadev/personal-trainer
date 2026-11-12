@@ -12,7 +12,7 @@ export interface AppConfig {
   /** Browser origins allowed by CORS (Expo web, landing). Native apps send no Origin header. */
   webOrigins: string[];
   version: string;
-  /** DB, auth and AI. Without them (missing env in dev) only `/health` is served. */
+  /** DB and auth. Without them (missing env in dev) only `/health` is served. */
   deps?: Deps;
 }
 

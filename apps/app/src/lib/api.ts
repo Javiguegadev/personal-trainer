@@ -28,7 +28,6 @@ export const {
   useTargetsPreview,
   useGrantConsent,
   useUpdateProfile,
-  useOnboardingChat,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

@@ -69,27 +69,6 @@ export const es = {
     accept: 'Aceptar y continuar',
   },
   onboarding: {
-    chat: {
-      title: 'Cuéntame sobre ti',
-      intro:
-        '¡Hola! Te haré unas preguntas para calcular tus objetivos: sexo, edad, altura, peso, actividad, objetivo y dieta. Escribe como quieras: también vale "1,75", "80 kilos", "5 ft 10" o "180 lb".',
-      inputLabel: 'Tu mensaje',
-      placeholder: 'Escribe o dicta con el micrófono del teclado…',
-      send: 'Enviar',
-      typing: 'El asistente está escribiendo…',
-      you: 'Tú',
-      assistant: 'Asistente',
-      collected: 'Lo que llevo apuntado',
-      ageYears: '{age} años',
-      useForm: 'Usar un formulario',
-      review: 'Revisar el resumen',
-      retry: 'Reintentar',
-      aiUnavailable:
-        'El asistente no responde ahora mismo. Puedes reintentar o seguir con el formulario: el resultado es el mismo.',
-      rateLimited:
-        'Has llegado al límite de mensajes del chat por hoy. Sigue con el formulario: el resultado es el mismo.',
-      continueMaintenance: 'Seguir con objetivos de mantenimiento',
-    },
     form: {
       title: 'Tus datos',
       subtitle: 'Rellena el formulario. Podrás revisarlo todo antes de guardar.',

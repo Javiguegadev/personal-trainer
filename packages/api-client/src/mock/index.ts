@@ -8,7 +8,6 @@ export {
   type KeyValueStorage,
   type MockApiClientOptions,
 } from './backend';
-export { extractFromMessage, mockOnboardingTurn, type MockChatTurn } from './chat';
 export {
   MOCK_TOKEN_PREFIX,
   mockAccessToken,
