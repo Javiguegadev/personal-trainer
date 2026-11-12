@@ -132,7 +132,7 @@ export function PlannedActivitiesField({ values, onChange, error }: PlannedActiv
             />
             <ChoiceGroup
               label={f.intensity}
-              hint={f.intensityHint}
+              hint={activity.kind === 'strength' ? f.intensityHintStrength : f.intensityHint}
               options={IntensitySchema.options.map((value) => ({
                 value,
                 label: f.intensityOptions[value],

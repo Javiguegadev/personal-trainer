@@ -1,4 +1,4 @@
-import { formatNumber, type ProfileNotice } from '@pt/core';
+import { HIGH_TRAINING_LOAD_MINUTES, formatNumber, type ProfileNotice } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { StyleSheet, View } from 'react-native';
 import { useI18n } from '@/hooks/useI18n';
@@ -36,6 +36,7 @@ export function SafetyNotices({
           title={t.safety[notice].title}
           message={format(t.safety[notice].message, {
             floor: floorKcal === undefined ? '' : formatNumber(floorKcal, locale),
+            hours: formatNumber(HIGH_TRAINING_LOAD_MINUTES / 60, locale),
           })}
           testID={`notice-${notice}`}
         >

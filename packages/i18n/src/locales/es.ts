@@ -123,7 +123,9 @@ export const es = {
       intensity: 'Intensidad',
       intensityOptions: { light: 'Suave', moderate: 'Moderada', hard: 'Intensa' },
       intensityHint:
-        'Suave: puedes hablar sin esfuerzo. Moderada: te cuesta mantener una conversación. Intensa: apenas puedes hablar.',
+        'Suave: puedes hablar con normalidad. Moderada: puedes hablar, pero no cantar. Intensa: solo puedes decir unas pocas palabras seguidas.',
+      intensityHintStrength:
+        'Suave: lejos del fallo y con descansos largos. Moderada: series exigentes. Intensa: cerca del fallo y con descansos cortos.',
       goal: 'Objetivo',
       goalOptions: { lose: 'Perder grasa', maintain: 'Mantenerme', gain: 'Ganar músculo' },
       diet: 'Tipo de dieta',
@@ -197,7 +199,7 @@ export const es = {
       fiber: 'Fibra: 14 g por cada 1000 kcal, con un mínimo de 25 g',
       sources: 'Fuentes',
       sourceList:
-        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · FAO/OMS/UNU (2004), necesidades de energía y niveles de actividad física · Ainsworth BE y cols. (2011), Compendio de actividades físicas · ISSN, postura sobre la proteína y el ejercicio · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo',
+        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · FAO/OMS/UNU (2004), necesidades de energía y niveles de actividad física · Valores por sesión adaptados de Ainsworth BE y cols. (2011), Compendio de actividades físicas · ISSN, postura sobre la proteína y el ejercicio · IOM (2005), ingestas dietéticas de referencia (fibra y máximo de proteína) · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo',
       version: 'Fórmula {version}',
     },
   },
@@ -235,7 +237,7 @@ export const es = {
     high_training_load: {
       title: 'Entrenas mucho',
       message:
-        'Planificas 10 horas o más de entrenamiento a la semana. Asegúrate de comer lo suficiente; si tu objetivo es perder grasa, aplicamos un déficit más pequeño. Si tienes dudas, consulta con un profesional de la nutrición deportiva.',
+        'Planificas {hours} horas o más de entrenamiento a la semana. Asegúrate de comer lo suficiente para sostenerlo. Si tienes dudas, consulta con un profesional de la nutrición deportiva.',
     },
     activity_ceiling: {
       title: 'Estimación limitada',

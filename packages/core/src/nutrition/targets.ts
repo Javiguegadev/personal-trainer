@@ -67,7 +67,8 @@ export function computeTargets(
   const { ageYears } = input;
   const bmr = computeBmr(input.sex, input.weightKg, input.heightCm, ageYears);
   const uncapped = snapshot.job.factor + snapshot.training.factor;
-  const capped = uncapped > ACTIVITY_FACTOR_CEILING;
+  // Tolerance: 1.8 + 0.6 is 2.4000000000000004 in floating point, which is not above the ceiling.
+  const capped = uncapped - ACTIVITY_FACTOR_CEILING > 1e-9;
   const activityFactor = capped ? ACTIVITY_FACTOR_CEILING : uncapped;
   const tdee = bmr * activityFactor;
   const goal = safety.appliedGoal;

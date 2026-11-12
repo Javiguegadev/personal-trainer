@@ -321,6 +321,16 @@ describe('activity-factor ceiling (spec 002 AC10)', () => {
     expect(targets.clampedReason).toBe('activity_ceiling');
   });
 
+  it('does not report a factor of exactly 2.4 as limited', () => {
+    // Physical job 1.8 + 8 hard sport sessions of 108 min: 14.4 h × 7 / 168 = 0.6 → exactly 2.4.
+    const { targets, breakdown } = targetsFor(
+      { ...man, job: 'physical', training: [activity('sport', 8, 108, 'hard')] },
+      safety('maintain'),
+    );
+    expect(breakdown.activityFactor).toBe(2.4);
+    expect(targets.clampedReason).toBeNull();
+  });
+
   it('does not touch a factor of 2.4 or less', () => {
     // 1.4 + 0.625 = 2.025
     const { targets, breakdown } = targetsFor(

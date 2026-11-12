@@ -123,7 +123,9 @@ export const en: DeepStringRecord<typeof es> = {
       intensity: 'Intensity',
       intensityOptions: { light: 'Light', moderate: 'Moderate', hard: 'Hard' },
       intensityHint:
-        'Light: you can talk easily. Moderate: holding a conversation is hard. Hard: you can barely talk.',
+        'Light: you can talk normally. Moderate: you can talk, but not sing. Hard: you can only say a few words at a time.',
+      intensityHintStrength:
+        'Light: far from failure, with long rests. Moderate: demanding sets. Hard: close to failure, with short rests.',
       goal: 'Goal',
       goalOptions: { lose: 'Lose fat', maintain: 'Maintain', gain: 'Build muscle' },
       diet: 'Diet',
@@ -197,7 +199,7 @@ export const en: DeepStringRecord<typeof es> = {
       fiber: 'Fibre: 14 g per 1000 kcal, at least 25 g',
       sources: 'Sources',
       sourceList:
-        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · FAO/WHO/UNU (2004), human energy requirements and physical activity levels · Ainsworth BE et al. (2011), Compendium of Physical Activities · ISSN position stand on protein and exercise · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria',
+        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · FAO/WHO/UNU (2004), human energy requirements and physical activity levels · Session values adapted from Ainsworth BE et al. (2011), Compendium of Physical Activities · ISSN position stand on protein and exercise · IOM (2005), dietary reference intakes (fibre and protein ceiling) · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria',
       version: 'Formula {version}',
     },
   },
@@ -235,7 +237,7 @@ export const en: DeepStringRecord<typeof es> = {
     high_training_load: {
       title: 'You train a lot',
       message:
-        'You plan 10 or more hours of training per week. Make sure you eat enough; if your goal is to lose fat, we apply a smaller deficit. If in doubt, talk to a sports nutrition professional.',
+        'You plan {hours} or more hours of training per week. Make sure you eat enough to sustain it. If in doubt, talk to a sports nutrition professional.',
     },
     activity_ceiling: {
       title: 'Limited estimate',

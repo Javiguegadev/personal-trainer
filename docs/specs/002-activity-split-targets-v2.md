@@ -246,7 +246,7 @@ ships a chat that ADR 004 retires.
   `api/routes/me/me.test.ts` and `routes/onboarding/onboarding.test.ts` (AC4, AC5, AC10, AC11, AC14–AC17),
   `api-client/mock/backend.test.ts`, `api/store/account-deletion.integration.test.ts` (AC16, on the dev
   database) and `apps/e2e` (AC2, AC3, AC5–AC8).
-- Commits: `a805f64` retires the chat (AC15) · `33de79f` job, training and `targets-v2` ·
+- Commits: `58746ad` retires the chat (AC15) · `33de79f` job, training and `targets-v2` ·
   `9b43957` consent (AC13, AC14).
 - Verified on 2026-11-12: `pnpm check` green, 4 E2E journeys green on the mock backend, the form and the
   summary checked on web at 390 px in light and dark mode, migrations `0001` and `0002` applied to the dev
@@ -273,5 +273,16 @@ ships a chat that ADR 004 retires.
   - **`@pt/ai` has no feature left**: `FEATURES` is empty and `AiFeature` is a string until the questions
     assistant (stage E5b) adds the first one.
   - **The onboarding form of an existing account is prefilled** from its stored profile (AC17).
+- Domain review of the code (`domain-reviewer`, 2026-11-12): no defect in the calculation or the safety
+  rules; the 10 fixtures were recalculated by hand. Fixed from it: the intensity hint followed a shifted
+  talk test (it now reads talk / talk but not sing / a few words, with its own hint for strength), the
+  high-training-load notice no longer mentions a deficit (it also shows when no deficit applies), the
+  sources say the MET values are adapted and cite the IOM, the notice takes its hours from the constant,
+  and a factor of exactly 2.4 is no longer reported as limited.
+- Notes for the professional reviewer, not changed: the step at 600 minutes (599 minutes keep the full
+  deficit) and the fact that it counts minutes, not intensity; whether any deficit should apply when the
+  ceiling limited the estimate; 1 MET taken as BMR / 24, about 9 % below 1 kcal/kg/h; Mifflin-St Jeor at
+  16–17; and the "below the recommended range" wording of the low-BMI notice of spec 001 (it shows below
+  BMI 20).
 - Left for the human: check the form on a phone with Expo Go (the steppers and chips are new touch
   controls), and apply the migrations to any other environment.
