@@ -2,6 +2,7 @@ import {
   HeightCmSchema,
   REQUIRED_DRAFT_FIELDS,
   WeightKgSchema,
+  type ChatMessage,
   type OnboardingDraft,
   type ProfileDraftToolInput,
   type RequiredDraftField,
@@ -24,7 +25,8 @@ export function applyDraftToolInput(
   const next: OnboardingDraft = { ...draft };
   const invalid: DraftField[] = [];
 
-  const { height, weight, targetWeight, birthDate, ageYears, allergies, restrictions, ...plain } = input;
+  const { height, weight, targetWeight, birthDate, ageYears, allergies, restrictions, ...plain } =
+    input;
   Object.assign(next, plain);
   // Allergies and restrictions only ever grow from the chat: an AI call that omits an item must not
   // silently drop it (allergen safety). Removing items happens in the summary/form.
@@ -78,4 +80,14 @@ export function missingDraftFields(draft: OnboardingDraft): RequiredDraftField[]
  */
 export function isPlausibleClientDate(clientDate: string, nowIso: string): boolean {
   return Math.abs(daysBetween(nowIso.slice(0, 10), clientDate)) <= 1;
+}
+
+/**
+ * The part of the conversation sent to the API: the last `max` messages, starting with a user message
+ * (the Claude API rejects a conversation that starts with the assistant).
+ */
+export function trimTranscript(messages: readonly ChatMessage[], max: number): ChatMessage[] {
+  const recent = messages.slice(-max);
+  const firstUser = recent.findIndex((message) => message.role === 'user');
+  return firstUser === -1 ? [] : recent.slice(firstUser);
 }

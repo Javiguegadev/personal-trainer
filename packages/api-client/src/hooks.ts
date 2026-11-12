@@ -41,7 +41,11 @@ export function targetsPreviewQueryOptions(api: ApiClient, input: ProfileInput |
     queryFn: input ? () => api.targetsPreview(input) : skipToken,
     retry: shouldRetry,
     placeholderData: keepPreviousData,
+    // The preview depends only on the input: never refetch it on its own. A refetch of a failed query
+    // would also clear its error (e.g. 422 age_blocked) while it runs, making the UI flicker.
     staleTime: Infinity,
+    retryOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 

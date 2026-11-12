@@ -108,10 +108,15 @@ describe('evaluateProfileSafety — ESPEN/GLIM low BMI by age', () => {
   });
   it('70+: BMI 23 keeps the goal', () => {
     // 66.5 / 1.70² = 23.0
-    expect(evaluateProfileSafety({ ...adult, birthDate: '1950-01-01', weightKg: 66.5 }, TODAY).appliedGoal).toBe('lose');
+    expect(
+      evaluateProfileSafety({ ...adult, birthDate: '1950-01-01', weightKg: 66.5 }, TODAY)
+        .appliedGoal,
+    ).toBe('lose');
   });
   it('pregnancy → no numeric targets', () => {
-    expect(evaluateProfileSafety({ ...adult, healthFlags: ['pregnancy'] }, TODAY).targetsAllowed).toBe(false);
+    expect(
+      evaluateProfileSafety({ ...adult, healthFlags: ['pregnancy'] }, TODAY).targetsAllowed,
+    ).toBe(false);
   });
 });
 

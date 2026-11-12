@@ -34,3 +34,11 @@ export function birthDateFromAge(ageYears: number, today: string): string {
   const day = m === 2 && d === 29 && !isLeap ? 28 : d;
   return `${year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
+
+/** The calendar date of `date` in the device's time zone, as `YYYY-MM-DD` (the client's "today"). */
+export function toLocalIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

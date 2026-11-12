@@ -69,7 +69,177 @@ export const es = {
     accept: 'Aceptar y continuar',
   },
   onboarding: {
-    placeholder: 'El chat de bienvenida llega en el siguiente paso.',
+    chat: {
+      title: 'Cuéntame sobre ti',
+      intro:
+        '¡Hola! Te haré unas preguntas para calcular tus objetivos: sexo, edad, altura, peso, actividad, objetivo y dieta. Escribe como quieras: también vale "1,75", "80 kilos", "5 ft 10" o "180 lb".',
+      inputLabel: 'Tu mensaje',
+      placeholder: 'Escribe o dicta con el micrófono del teclado…',
+      send: 'Enviar',
+      typing: 'El asistente está escribiendo…',
+      you: 'Tú',
+      assistant: 'Asistente',
+      collected: 'Lo que llevo apuntado',
+      ageYears: '{age} años',
+      useForm: 'Usar un formulario',
+      review: 'Revisar el resumen',
+      retry: 'Reintentar',
+      aiUnavailable:
+        'El asistente no responde ahora mismo. Puedes reintentar o seguir con el formulario: el resultado es el mismo.',
+      rateLimited:
+        'Has llegado al límite de mensajes del chat por hoy. Sigue con el formulario: el resultado es el mismo.',
+      continueMaintenance: 'Seguir con objetivos de mantenimiento',
+    },
+    form: {
+      title: 'Tus datos',
+      subtitle: 'Rellena el formulario. Podrás revisarlo todo antes de guardar.',
+      sex: 'Sexo',
+      sexOptions: { female: 'Mujer', male: 'Hombre', other: 'Otro / prefiero no decirlo' },
+      sexHint: 'Se usa en la fórmula del metabolismo basal. "Otro" usa la media de ambas.',
+      birthDate: 'Fecha de nacimiento',
+      day: 'Día',
+      month: 'Mes',
+      year: 'Año',
+      units: 'Unidades',
+      unitOptions: { metric: 'Métrico (cm, kg)', imperial: 'Imperial (ft, lb)' },
+      heightCm: 'Altura (cm)',
+      heightFt: 'Altura (pies)',
+      heightIn: 'Pulgadas',
+      weightKg: 'Peso (kg)',
+      weightLb: 'Peso (lb)',
+      targetWeightKg: 'Peso objetivo (kg, opcional)',
+      targetWeightLb: 'Peso objetivo (lb, opcional)',
+      activity: 'Nivel de actividad',
+      activityOptions: {
+        sedentary: 'Sedentario',
+        light: 'Ligero',
+        moderate: 'Moderado',
+        active: 'Activo',
+        very_active: 'Muy activo',
+      },
+      activityHints: {
+        sedentary: 'Trabajo sentado y casi sin ejercicio.',
+        light: 'Caminas a diario o entrenas 1–2 días por semana.',
+        moderate: 'Entrenas 3–5 días por semana.',
+        active: 'Entrenas 6–7 días por semana o tu trabajo es físico.',
+        very_active: 'Entrenas dos veces al día o haces un trabajo físico intenso.',
+      },
+      goal: 'Objetivo',
+      goalOptions: { lose: 'Perder grasa', maintain: 'Mantenerme', gain: 'Ganar músculo' },
+      diet: 'Tipo de dieta',
+      dietOptions: {
+        omnivore: 'Omnívora',
+        vegetarian: 'Vegetariana',
+        vegan: 'Vegana',
+        pescatarian: 'Pescetariana',
+        other: 'Otra',
+      },
+      allergies: 'Alergias o intolerancias',
+      dislikes: 'Alimentos que no te gustan',
+      restrictions: 'Otras restricciones (religiosas, éticas…)',
+      listHint: 'Opcional. Sepáralos con comas.',
+      injuries: 'Lesiones o condiciones médicas',
+      injuriesHint: 'Opcional. Solo se usa para avisarte; no damos consejo médico.',
+      pregnancy: 'Estoy embarazada o en periodo de lactancia',
+      continue: 'Ver el resumen',
+      fixErrors: 'Revisa los campos marcados.',
+      errors: {
+        required: 'Este dato es obligatorio.',
+        invalid_number: 'Escribe un número válido.',
+        too_small: 'El valor es demasiado bajo.',
+        too_big: 'El valor es demasiado alto.',
+        invalid_date: 'La fecha no es válida.',
+        in_future: 'La fecha no puede ser futura.',
+        too_long: 'Es demasiado largo.',
+        invalid: 'Revisa este dato.',
+      },
+    },
+    summary: {
+      title: 'Tu resumen',
+      subtitle: 'Revisa tus datos y cambia lo que quieras. No se guarda nada hasta que confirmes.',
+      confirm: 'Confirmar y guardar',
+      editDetails: 'Tus datos',
+      ageBlocked: {
+        title: 'Lo sentimos',
+        message:
+          'Esta app no está disponible para menores de 16 años. No hemos guardado tus datos de salud. Si quieres, puedes borrar tu cuenta ahora.',
+        deleteAccount: 'Borrar mi cuenta',
+        fixDate: 'Si te has equivocado al escribir la fecha de nacimiento, corrígela más abajo.',
+      },
+    },
+  },
+  targets: {
+    title: 'Tus objetivos diarios',
+    calculating: 'Calculando tus objetivos…',
+    previewError: 'No hemos podido calcular tus objetivos.',
+    incomplete: 'Completa tus datos para ver tus objetivos.',
+    kcal: 'Calorías',
+    protein: 'Proteína',
+    carbs: 'Carbohidratos',
+    fat: 'Grasa',
+    fiber: 'Fibra',
+    kcalValue: '{value} kcal',
+    gramsValue: '{value} g',
+    howCalculated: '¿Cómo se calcula?',
+    hideCalculation: 'Ocultar el cálculo',
+    breakdown: {
+      bmr: 'Metabolismo basal (Mifflin-St Jeor, {age} años): {value} kcal',
+      tdee: 'Gasto diario: {bmr} × {factor} (actividad) = {value} kcal',
+      adjustment: 'Ajuste por objetivo: {value} kcal',
+      floor: 'Mínimo de seguridad: {value} kcal (nunca por debajo de tu metabolismo basal)',
+      protein: 'Proteína: {perKg} g por kg × {weight} kg de peso de referencia',
+      fat: 'Grasa: 25 % de las calorías, con un mínimo de 0,6 g por kg',
+      carbs: 'Carbohidratos: las calorías restantes',
+      fiber: 'Fibra: 14 g por cada 1000 kcal, con un mínimo de 25 g',
+      sources: 'Fuentes',
+      sourceList:
+        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · ISSN, postura sobre la proteína y el ejercicio · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo',
+      version: 'Fórmula {version}',
+    },
+  },
+  safety: {
+    pregnancy: {
+      title: 'Embarazo o lactancia',
+      message:
+        'No calculamos objetivos numéricos durante el embarazo o la lactancia. Tu matrona o tu médico son quienes mejor pueden orientarte.',
+    },
+    ed_soft_stop: {
+      title: 'Tu bienestar es lo primero',
+      message:
+        'No aplicaremos ningún déficit calórico. Te recomendamos hablar con un profesional sanitario; si quieres, puedes seguir con objetivos de mantenimiento.',
+    },
+    low_bmi: {
+      title: 'Sin déficit calórico',
+      message:
+        'Tu IMC está por debajo del rango recomendado, así que no aplicamos déficit. Consulta con un profesional antes de intentar perder peso.',
+    },
+    low_target_bmi: {
+      title: 'Revisa tu peso objetivo',
+      message:
+        'Tu peso objetivo daría un IMC por debajo del rango recomendado, así que no aplicamos déficit. Consulta con un profesional.',
+    },
+    teen_limited: {
+      title: 'Modo limitado (16–17 años)',
+      message:
+        'A tu edad no aplicamos déficit calórico y el superávit máximo es del 10 %, para proteger tu crecimiento.',
+    },
+    calorie_floor: {
+      title: 'Mínimo de seguridad',
+      message:
+        'Hemos subido tus calorías al mínimo seguro ({floor} kcal), porque el objetivo quedaba por debajo.',
+    },
+    medical_condition: {
+      title: 'Lesiones o condiciones médicas',
+      message:
+        'Consulta con un profesional antes de entrenar con dolor. Esta app no da consejo médico.',
+    },
+    support: {
+      title: 'Si necesitas hablar con alguien',
+      doctor: 'Habla con tu médico de cabecera o con un profesional de salud mental.',
+      emergency: 'Si estás en peligro, llama al 112.',
+      associations:
+        'Hay asociaciones de apoyo para los trastornos de la conducta alimentaria; añadiremos sus teléfonos antes del lanzamiento.',
+    },
   },
   home: {
     title: 'Hoy',

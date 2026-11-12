@@ -70,7 +70,178 @@ export const en: DeepStringRecord<typeof es> = {
     accept: 'Accept and continue',
   },
   onboarding: {
-    placeholder: 'The welcome chat comes in the next step.',
+    chat: {
+      title: 'Tell me about yourself',
+      intro:
+        'Hi! I\'ll ask you a few questions to calculate your targets: sex, age, height, weight, activity, goal and diet. Write it however you like: "1.75 m", "80 kg", "5 ft 10" or "180 lb" all work.',
+      inputLabel: 'Your message',
+      placeholder: 'Type, or dictate with the keyboard microphone…',
+      send: 'Send',
+      typing: 'The assistant is typing…',
+      you: 'You',
+      assistant: 'Assistant',
+      collected: "What I've noted so far",
+      ageYears: '{age} years old',
+      useForm: 'Use a form instead',
+      review: 'Review the summary',
+      retry: 'Try again',
+      aiUnavailable:
+        "The assistant isn't responding right now. Try again, or continue with the form: the result is the same.",
+      rateLimited:
+        "You've reached today's chat message limit. Continue with the form: the result is the same.",
+      continueMaintenance: 'Continue with maintenance targets',
+    },
+    form: {
+      title: 'Your details',
+      subtitle: "Fill in the form. You'll review everything before saving.",
+      sex: 'Sex',
+      sexOptions: { female: 'Female', male: 'Male', other: 'Other / prefer not to say' },
+      sexHint: 'Used in the resting-metabolism formula. "Other" uses the average of both.',
+      birthDate: 'Date of birth',
+      day: 'Day',
+      month: 'Month',
+      year: 'Year',
+      units: 'Units',
+      unitOptions: { metric: 'Metric (cm, kg)', imperial: 'Imperial (ft, lb)' },
+      heightCm: 'Height (cm)',
+      heightFt: 'Height (feet)',
+      heightIn: 'Inches',
+      weightKg: 'Weight (kg)',
+      weightLb: 'Weight (lb)',
+      targetWeightKg: 'Target weight (kg, optional)',
+      targetWeightLb: 'Target weight (lb, optional)',
+      activity: 'Activity level',
+      activityOptions: {
+        sedentary: 'Sedentary',
+        light: 'Light',
+        moderate: 'Moderate',
+        active: 'Active',
+        very_active: 'Very active',
+      },
+      activityHints: {
+        sedentary: 'Desk job and little or no exercise.',
+        light: 'You walk daily or train 1–2 days a week.',
+        moderate: 'You train 3–5 days a week.',
+        active: 'You train 6–7 days a week or have a physical job.',
+        very_active: 'You train twice a day or do hard physical work.',
+      },
+      goal: 'Goal',
+      goalOptions: { lose: 'Lose fat', maintain: 'Maintain', gain: 'Build muscle' },
+      diet: 'Diet',
+      dietOptions: {
+        omnivore: 'Omnivore',
+        vegetarian: 'Vegetarian',
+        vegan: 'Vegan',
+        pescatarian: 'Pescatarian',
+        other: 'Other',
+      },
+      allergies: 'Allergies or intolerances',
+      dislikes: "Foods you don't like",
+      restrictions: 'Other restrictions (religious, ethical…)',
+      listHint: 'Optional. Separate them with commas.',
+      injuries: 'Injuries or medical conditions',
+      injuriesHint: "Optional. Only used to warn you; we don't give medical advice.",
+      pregnancy: "I'm pregnant or breastfeeding",
+      continue: 'See the summary',
+      fixErrors: 'Please check the highlighted fields.',
+      errors: {
+        required: 'This field is required.',
+        invalid_number: 'Enter a valid number.',
+        too_small: 'The value is too low.',
+        too_big: 'The value is too high.',
+        invalid_date: "That date isn't valid.",
+        in_future: "The date can't be in the future.",
+        too_long: "It's too long.",
+        invalid: 'Please check this field.',
+      },
+    },
+    summary: {
+      title: 'Your summary',
+      subtitle:
+        'Check your details and change anything you like. Nothing is saved until you confirm.',
+      confirm: 'Confirm and save',
+      editDetails: 'Your details',
+      ageBlocked: {
+        title: "We're sorry",
+        message:
+          "This app isn't available under 16. We haven't stored your health data. If you like, you can delete your account now.",
+        deleteAccount: 'Delete my account',
+        fixDate: 'If you mistyped your date of birth, correct it below.',
+      },
+    },
+  },
+  targets: {
+    title: 'Your daily targets',
+    calculating: 'Calculating your targets…',
+    previewError: "We couldn't calculate your targets.",
+    incomplete: 'Complete your details to see your targets.',
+    kcal: 'Calories',
+    protein: 'Protein',
+    carbs: 'Carbs',
+    fat: 'Fat',
+    fiber: 'Fibre',
+    kcalValue: '{value} kcal',
+    gramsValue: '{value} g',
+    howCalculated: 'How is this calculated?',
+    hideCalculation: 'Hide the calculation',
+    breakdown: {
+      bmr: 'Resting metabolism (Mifflin-St Jeor, age {age}): {value} kcal',
+      tdee: 'Daily expenditure: {bmr} × {factor} (activity) = {value} kcal',
+      adjustment: 'Goal adjustment: {value} kcal',
+      floor: 'Safety minimum: {value} kcal (never below your resting metabolism)',
+      protein: 'Protein: {perKg} g per kg × {weight} kg reference weight',
+      fat: 'Fat: 25% of calories, at least 0.6 g per kg',
+      carbs: 'Carbs: the remaining calories',
+      fiber: 'Fibre: 14 g per 1000 kcal, at least 25 g',
+      sources: 'Sources',
+      sourceList:
+        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · ISSN position stand on protein and exercise · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria',
+      version: 'Formula {version}',
+    },
+  },
+  safety: {
+    pregnancy: {
+      title: 'Pregnancy or breastfeeding',
+      message:
+        "We don't calculate numeric targets during pregnancy or breastfeeding. Your midwife or doctor can guide you best.",
+    },
+    ed_soft_stop: {
+      title: 'Your wellbeing comes first',
+      message:
+        "We won't apply any calorie deficit. We recommend talking to a healthcare professional; if you like, you can continue with maintenance targets.",
+    },
+    low_bmi: {
+      title: 'No calorie deficit',
+      message:
+        "Your BMI is below the recommended range, so we don't apply a deficit. Talk to a professional before trying to lose weight.",
+    },
+    low_target_bmi: {
+      title: 'Check your target weight',
+      message:
+        "Your target weight would mean a BMI below the recommended range, so we don't apply a deficit. Talk to a professional.",
+    },
+    teen_limited: {
+      title: 'Limited mode (ages 16–17)',
+      message:
+        "At your age we don't apply a calorie deficit and the maximum surplus is 10%, to protect your growth.",
+    },
+    calorie_floor: {
+      title: 'Safety minimum',
+      message:
+        'We raised your calories to the safe minimum ({floor} kcal) because the target was below it.',
+    },
+    medical_condition: {
+      title: 'Injuries or medical conditions',
+      message:
+        "See a professional before training through pain. This app doesn't give medical advice.",
+    },
+    support: {
+      title: 'If you need to talk to someone',
+      doctor: 'Talk to your GP or a mental health professional.',
+      emergency: 'If you are in danger, call 112 (EU) or your local emergency number.',
+      associations:
+        "There are support organisations for eating disorders; we'll add their helplines before launch.",
+    },
   },
   home: {
     title: 'Today',

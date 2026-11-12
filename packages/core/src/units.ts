@@ -43,3 +43,9 @@ export function toCm(m: LengthMeasurement): number {
 export function toKg(m: WeightMeasurement): number {
   return m.unit === 'kg' ? m.value : lbToKg(m.value);
 }
+
+/** Centimetres as whole feet and rounded inches (178 cm → 5 ft 10 in), for imperial display. */
+export function cmToFeetInches(cm: number): { feet: number; inches: number } {
+  const totalInches = Math.round(cmToInch(cm));
+  return { feet: Math.floor(totalInches / 12), inches: totalInches % 12 };
+}

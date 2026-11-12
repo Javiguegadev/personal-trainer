@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyDraftToolInput, isPlausibleClientDate, missingDraftFields } from './draft';
+import {
+  applyDraftToolInput,
+  isPlausibleClientDate,
+  missingDraftFields,
+  trimTranscript,
+} from './draft';
 
 const T = '2026-11-11';
 
@@ -78,7 +83,11 @@ describe('applyDraftToolInput — age instead of birth date', () => {
     expect(draft.birthDate).toBe('2009-11-11');
   });
   it('prefers an explicit birth date over an age', () => {
-    const { draft } = applyDraftToolInput({}, { ageYears: 30, birthDate: '1990-05-05' }, '2026-11-11');
+    const { draft } = applyDraftToolInput(
+      {},
+      { ageYears: 30, birthDate: '1990-05-05' },
+      '2026-11-11',
+    );
     expect(draft.birthDate).toBe('1990-05-05');
   });
 });
@@ -95,5 +104,20 @@ describe('applyDraftToolInput — allergies never shrink from the chat (allergen
   it('an empty list from the AI does not erase allergies', () => {
     const { draft } = applyDraftToolInput({ allergies: ['gluten'] }, { allergies: [] }, T);
     expect(draft.allergies).toEqual(['gluten']);
+  });
+});
+
+describe('trimTranscript', () => {
+  const user = (content: string) => ({ role: 'user' as const, content });
+  const assistant = (content: string) => ({ role: 'assistant' as const, content });
+
+  it('keeps the last messages, starting with a user message', () => {
+    const messages = [user('1'), assistant('2'), user('3'), assistant('4'), user('5')];
+    expect(trimTranscript(messages, 4)).toEqual([user('3'), assistant('4'), user('5')]);
+    expect(trimTranscript(messages, 10)).toEqual(messages);
+  });
+
+  it('returns nothing when there is no user message', () => {
+    expect(trimTranscript([assistant('hola')], 40)).toEqual([]);
   });
 });

@@ -149,8 +149,7 @@ const fixtures: {
       activityLevel: 'very_active',
     },
     safety: safety('lose'),
-    expected: { kcal: 3460, proteinG: 154,
-      carbsG: 495, fatG: 96, fiberG: 48, clampedReason: null },
+    expected: { kcal: 3460, proteinG: 154, carbsG: 495, fatG: 96, fiberG: 48, clampedReason: null },
   },
 ];
 
@@ -224,8 +223,22 @@ describe('computeTargets — targets-v1 (AC13, AC14)', () => {
 });
 
 describe('safety → targets, end to end', () => {
-  const base = { birthDate: '1990-01-01', heightCm: 170, weightKg: 70, targetWeightKg: null, goal: 'lose' as const, healthFlags: [], injuries: null };
-  const targetsInput: TargetsInput = { sex: 'female', birthDate: '1990-01-01', heightCm: 170, weightKg: 70, activityLevel: 'moderate' };
+  const base = {
+    birthDate: '1990-01-01',
+    heightCm: 170,
+    weightKg: 70,
+    targetWeightKg: null,
+    goal: 'lose' as const,
+    healthFlags: [],
+    injuries: null,
+  };
+  const targetsInput: TargetsInput = {
+    sex: 'female',
+    birthDate: '1990-01-01',
+    heightCm: 170,
+    weightKg: 70,
+    activityLevel: 'moderate',
+  };
 
   it.each([
     ['low BMI', { weightKg: 50 }],
@@ -233,7 +246,11 @@ describe('safety → targets, end to end', () => {
     ['teen', { birthDate: '2009-06-01' }],
   ])('%s with goal "lose" gets no deficit', (_name, override) => {
     const s = evaluateProfileSafety({ ...base, ...override }, TODAY);
-    const { breakdown } = computeTargets({ ...targetsInput, ...override } as TargetsInput, s, TODAY);
+    const { breakdown } = computeTargets(
+      { ...targetsInput, ...override } as TargetsInput,
+      s,
+      TODAY,
+    );
     expect(breakdown.goalAdjustmentKcal).toBe(0);
   });
 
@@ -252,7 +269,13 @@ describe('safety → targets, end to end', () => {
 describe('reference weight for BMI ≥ 30', () => {
   it('keeps protein ≤ 35 % of kcal and macros consistent even at 300 kg', () => {
     const { targets } = computeTargets(
-      { sex: 'male', birthDate: '1980-01-01', heightCm: 175, weightKg: 300, activityLevel: 'sedentary' },
+      {
+        sex: 'male',
+        birthDate: '1980-01-01',
+        heightCm: 175,
+        weightKg: 300,
+        activityLevel: 'sedentary',
+      },
       safety('lose'),
       TODAY,
     );
@@ -267,7 +290,13 @@ describe('calorie floor rounding', () => {
     // Search a range of profiles: kcal must always be >= the unrounded floor.
     for (let w = 40; w <= 120; w += 0.7) {
       const { targets, breakdown } = computeTargets(
-        { sex: 'male', birthDate: '1960-01-01', heightCm: 175, weightKg: Math.round(w * 10) / 10, activityLevel: 'sedentary' },
+        {
+          sex: 'male',
+          birthDate: '1960-01-01',
+          heightCm: 175,
+          weightKg: Math.round(w * 10) / 10,
+          activityLevel: 'sedentary',
+        },
         safety('lose'),
         TODAY,
       );

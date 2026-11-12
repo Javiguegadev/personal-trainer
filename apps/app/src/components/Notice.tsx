@@ -38,7 +38,11 @@ export function Notice({ tone, title, message, children, testID }: NoticeProps) 
           {title}
         </AppText>
       ) : null}
-      {message ? <AppText variant="label">{message}</AppText> : null}
+      {message ? (
+        <AppText variant="label" weight="regular">
+          {message}
+        </AppText>
+      ) : null}
       {children}
     </View>
   );
