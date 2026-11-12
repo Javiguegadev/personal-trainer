@@ -13,6 +13,7 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "check": "turbo typecheck lint test",
+    "e2e": "pnpm --filter @pt/e2e e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @pt/db generate",
