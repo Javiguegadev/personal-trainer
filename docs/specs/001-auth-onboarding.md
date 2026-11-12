@@ -245,7 +245,7 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 ## Progress
 
-- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [x] ui (on the mock backend) · [ ] e2e · [ ] Supabase auth adapter
 - API (2026-11-11): all 7 routes; 47 route tests (AC5, AC7, AC12, AC14, AC16–AC25 at the API level);
   AC24 integration test passed against pt-dev (`pnpm --filter @pt/api test:integration`). The pt-dev
   JWKS publishes an ES256 key, which the verifier expects.
@@ -254,12 +254,26 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
   TanStack Query v5: query-option factories + `createApiHooks(api)` (the app binds them in `src/lib/api.ts`);
   4xx errors are never retried; `/me` is invalidated after consent, overwritten after `PUT /me/profile`,
   and the whole cache is cleared after `DELETE /me`. 18 tests.
-- Next: UI (skill `ui-screen`): Supabase auth in the app (email OTP + Google), pass `getAccessToken` and
-  `onUnauthorized` to the client, root guard, then the screens listed in "UI".
+- UI (2026-11-12, commits 28820fb…c365210), verified on web with the Playwright MCP at 390 px (light and
+  dark) and 1280 px, no console errors:
+  - Demo mode: `pnpm --filter @pt/app web:mock` (or `dev:mock` for Expo Go) → `@pt/api-client/mock`
+    (in-memory API with the same rules: 401/403/400/422/429, @pt/core targets, scripted chat with
+    `#503`/`#429` hooks, ED and pregnancy keywords) + mock auth (code 123456, 000000 = expired, Google
+    demo account). Only when `__DEV__`; a banner marks every screen.
+  - Auth port `AuthAdapter` (`apps/app/src/lib/auth`); outside demo mode sign-in says `not_configured`.
+  - Root guard: `Stack.Protected` + `redirectTo` to a real screen; no redirects while the session or
+    `/me` loads (deep links survive reloads), a blocking cover hides the wait.
+  - Screens: sign-in, verify (one-field OTP, 60 s resend), consent, chat, form, summary, Home,
+    settings/profile, settings/privacy. ACs exercised by hand: AC1–AC4 (mock), AC6, AC8–AC12, AC14–AC24.
+  - New @pt/core: `evaluateProfileInput` (moved from the API), profile form parsing and unit switching,
+    `profileNotices`, `trimTranscript`, number formatting. Tests: core 90+, api-client 36, app 8.
+- Next: E2E (step 8): Playwright tests on `web:mock` for the critical journeys (sign-in → consent → chat
+  → summary → Home; form path in imperial; 429 → form; delete account), then the Supabase auth adapter
+  (email OTP + Google with the expo-sqlite storage from the Expo guide) once the prerequisites are done.
 - Pending (human, postponed 2026-11-11): the "Prerequisites" (Supabase Email OTP + template, Google OAuth
-  web client, redirect URLs, app `.env.local`). Until they are done, build the UI against a **mock auth**
-  adapter (same interface as the real Supabase one, selected by an env flag, dev only) so screens can be
-  built and tested; wire the real adapter once the prerequisites exist.
+  web client, redirect URLs). The app's Supabase URL and anon key are already in the root `.env`.
+- Human checks on a phone (Expo Go, `pnpm --filter @pt/app dev:mock`): keyboard over the chat composer
+  and forms (KeyboardAvoidingView), OTP autofill, share sheet for "Download my data", dark mode.
 - Eval (2026-11-11, Haiku 5.5, effort low): 22/22 cases and 5/5 safety flags in 3 consecutive runs,
   about $0.0035 per run. Fixed on the way: append-only tool loop (thinking blocks are bound to the prefix),
   coeliac/intolerances recorded as allergies, ordered values from prompt injection ignored.
@@ -275,3 +289,10 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
   - The AC12 cap counts every onboarding `ai_usage` row, failures included (one row per chat request).
   - `calorie_floor` is added to `profiles.safety_flags` when targets were clamped (AC14).
   - The API does not mount user routes when the Supabase env is missing (dev runs with `/health` only).
+  - Under 16 (AC17) is shown inside the summary, not as a dead end: no targets, Confirm disabled, the
+    birth date stays editable (typos) and "Delete my account" is offered.
+  - The targets preview never refetches on its own (no retry on mount or focus): a refetch would clear
+    a 422 while it runs.
+  - Delete confirmation accepts DELETE or ELIMINAR in any case. Spanish numbers group from five digits
+    (1690 kcal, 12.140), per RAE/CLDR.
+  - AC20 support resources: generic text + 112 until the helplines are confirmed (open question).
