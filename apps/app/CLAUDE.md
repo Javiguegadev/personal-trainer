@@ -14,7 +14,8 @@
 - Mobile-first layouts: design for 360–430 px wide first, and cap content width on large screens
   (web/tablet).
 - Every data screen has loading, empty (with a call to action), error (with retry) and success states.
-- AI inputs (text, camera, dictation) always have a manual fallback.
+- Touch first: taps and forms are the primary input. AI inputs (camera, a typed or spoken sentence) are
+  shortcuts and always produce an editable draft.
 - Web differences go in `*.web.tsx` files. Check that new native libraries support web, or provide a
   web fallback.
 - Add dependencies with `pnpm --filter @pt/app exec expo install <pkg>`, then run

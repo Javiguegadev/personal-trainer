@@ -1,6 +1,6 @@
 ---
 name: ui-screen
-description: Build a screen or component in the Expo universal app (apps/app) that works on iOS, Android and web, mobile-first, with shared hooks, tokens, i18n, all states and an AI input path. Use for any UI work.
+description: Build a screen or component in the Expo universal app (apps/app) that works on iOS, Android and web, mobile-first and touch-first, with shared hooks, tokens, i18n and all states. Use for any UI work.
 ---
 
 # UI screen (Expo Router, universal)
@@ -14,8 +14,9 @@ you use.
 3. **Derived values** (totals, percentages, formatting) are pure functions in `@pt/core` with a test.
 4. **Copy** in `@pt/i18n` (`es` first, then `en`; the type system enforces parity). **Styles** from
    `@pt/ui` tokens. No ad-hoc hex colors.
-5. **AI-first input**: if the screen captures data, provide the natural-language path (text field with
-   dictation, camera for photos) as the primary action and a manual form as the fallback.
+5. **Touch-first input** (ADR 004): if the screen captures data, the primary path is taps and form
+   controls (choice chips, steppers, pickers, search, recents). Add an AI shortcut (camera, or a typed or
+   spoken sentence) only where it is faster, and make it produce an editable draft.
 6. **States**: loading (skeleton), empty (with a call to action), error (retry), success. Light and dark
    mode.
 7. **Mobile-first layout**: 360–430 px first; safe areas; keyboard avoidance on inputs; hit targets

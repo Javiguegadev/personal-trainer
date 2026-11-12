@@ -1,7 +1,8 @@
 # Personal Trainer: AI nutrition & fitness app (freemium)
 
-Mobile-first, AI-first. One Expo universal app (iOS, Android, web) plus a Hono API. Full plan:
-`docs/BLUEPRINT.md` (v2, see ADR 002). Current stage: see "Status" at the bottom of this file.
+Mobile-first, touch-first, with AI where it is faster. One Expo universal app (iOS, Android, web) plus a
+Hono API. Full plan: `docs/BLUEPRINT.md` (v4, see ADR 002 to 004). Current stage: see "Status" at the
+bottom of this file.
 
 **Language: always answer the human in Spanish** (explanations, summaries, questions), even after
 `/clear` and even when the prompt or a skill is in English. Code, docs, specs and commits stay in English.
@@ -43,8 +44,9 @@ pnpm format
 
 - TypeScript strict; no `any`; `import type` for types. Workspace packages export TS source (no build step).
 - New payload → schema in `contracts` first, then API route, then client, then UI.
-- AI-first: every logging/planning feature has a natural-language path (text, photo or dictation) **and**
-  a manual fallback.
+- Touch first (ADR 004): taps and forms are the primary input of every feature. An AI input (a photo, or
+  a typed or spoken sentence) is a shortcut, added only where it is faster, and it always produces an
+  editable draft. The chat is for questions about the recommendations, not for data entry.
 - The AI chooses, the code computes: Claude returns catalog IDs + quantities; `core` computes and validates.
   AI answers are grounded in the knowledge base and cite sources (see BLUEPRINT §4).
 - Models: Claude Haiku 5.5 for high-volume/fast tasks, Claude Opus 5.5 for planning, coaching and
@@ -79,6 +81,7 @@ pnpm format
 
 ## Status
 
-- E1 Foundation: ✅ monorepo, CI, Expo universal app (web verified), typed API.
-- Next: E0 accounts (Supabase EU, Vercel, Expo, Anthropic) → E2 auth + conversational onboarding
-  (`docs/specs/001-auth-onboarding.md`, to be written).
+- E0 Accounts ✅ · E1 Foundation ✅ (monorepo, CI, Expo universal app, typed API).
+- E2 auth + AI onboarding: in progress (`docs/specs/001-auth-onboarding.md`, see its "Progress").
+- Next (ADR 003): E2b logging & context foundations → E4 food logging → E5 workout logging & daily
+  context → E5b adaptive loop → beta without paywall → E7 premium AI → E6 payments.
