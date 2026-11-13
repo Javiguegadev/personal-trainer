@@ -1,7 +1,14 @@
-import { createApiClient, createApiHooks, type ApiClient } from '@pt/api-client';
+import {
+  createApiClient,
+  createApiHooks,
+  registerWeightMutations,
+  type ApiClient,
+} from '@pt/api-client';
 import { createMockApiClient } from '@pt/api-client/mock';
 import { auth } from './auth';
 import { MOCK_BACKEND } from './backend';
+import { setupOnlineManager } from './online';
+import { queryClient } from './query';
 import { signOut } from './session';
 import { storage } from './storage';
 
@@ -23,11 +30,21 @@ export const api: ApiClient = MOCK_BACKEND
       ...session,
     });
 
+// Before any saved write is restored (lib/offline.ts): a restored write finds its function by key.
+registerWeightMutations(queryClient, api);
+setupOnlineManager();
+
 export const {
   useMe,
   useTargetsPreview,
   useGrantConsent,
   useUpdateProfile,
+  useWeights,
+  useSaveWeight,
+  useDeleteWeight,
+  usePendingWeightDates,
+  useWeightTargetsChange,
+  useRejectedWeightWrite,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

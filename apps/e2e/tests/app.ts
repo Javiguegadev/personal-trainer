@@ -112,10 +112,24 @@ export async function fillForm(form: Locator, answers: FormAnswers): Promise<voi
   await form.getByTestId('field-diet-omnivore').click();
 }
 
-/** AC10: nothing is saved until the summary is confirmed; the root guard then opens Home. */
+/** AC10: nothing is saved until the summary is confirmed; the root guard then opens "Today". */
 export async function confirmSummary(page: Page): Promise<Locator> {
   const summary = await screen(page, 'onboarding-summary-screen');
   await expect(summary.getByTestId('targets-kcal')).toBeVisible();
   await summary.getByTestId('confirm-profile').click();
-  return screen(page, 'home-screen');
+  return screen(page, 'today-screen');
+}
+
+const TAB_SCREENS = {
+  today: 'today-screen',
+  progress: 'progress-screen',
+  profile: 'profile-tab-screen',
+} as const;
+
+/** Spec 003 AC1: the tab bar (role "tab"). Returns the screen of that tab. */
+export async function openTab(page: Page, tab: keyof typeof TAB_SCREENS): Promise<Locator> {
+  const button = page.getByTestId(`tab-${tab}`);
+  await button.click();
+  await expect(button).toHaveAttribute('aria-selected', 'true');
+  return screen(page, TAB_SCREENS[tab]);
 }

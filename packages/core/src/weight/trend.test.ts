@@ -5,6 +5,7 @@ import {
   isWeightTrendHidden,
   targetWeightProgress,
   weightAverageSeries,
+  weightNotices,
   weightTrend,
   type WeightPoint,
 } from './trend';
@@ -181,6 +182,21 @@ describe('protected profiles (AC4, AC15)', () => {
     expect(invitesWeighIn(['pregnancy'])).toBe(false);
     expect(invitesWeighIn(['teen_limited'])).toBe(false);
   });
+});
+
+describe('weightNotices (AC24)', () => {
+  it('shows the fast-loss notice, also at 16–17', () => {
+    expect(weightNotices({ fastLoss: true }, [])).toEqual(['fast_loss']);
+    expect(weightNotices({ fastLoss: true }, ['teen_limited'])).toEqual(['fast_loss']);
+    expect(weightNotices({ fastLoss: false }, [])).toEqual([]);
+  });
+
+  it.each(['ed_soft_stop', 'pregnancy'] as const)(
+    'says nothing about the trend with %s',
+    (flag) => {
+      expect(weightNotices({ fastLoss: true }, [flag])).toEqual([]);
+    },
+  );
 });
 
 describe('targetWeightProgress (AC16)', () => {

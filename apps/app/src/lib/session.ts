@@ -1,8 +1,16 @@
 import { auth } from './auth';
+import { stopOfflineCache } from './offline';
 import { queryClient } from './query';
 
-/** Signs out and drops every cached query, so the next account never sees the previous one's data. */
+/**
+ * Signs out and removes everything cached on the device, the queue of writes included, so the next
+ * account never sees the previous one's data (spec 003 AC22). The caller asks first when writes are
+ * still waiting to sync.
+ */
 export async function signOut(): Promise<void> {
+  const removeSavedCache = stopOfflineCache();
   await auth.signOut();
+  // Clears the queries and the mutations (the queue).
   queryClient.clear();
+  await removeSavedCache();
 }

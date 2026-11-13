@@ -1,5 +1,6 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { IsRestoringProvider, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { BlockingState } from '@/components/BlockingState';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,11 +8,18 @@ import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useMe } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
+import { startOfflineCache, useOfflineCacheRestored } from '@/lib/offline';
 import { queryClient } from '@/lib/query';
 import { signOut } from '@/lib/session';
 
 export default function RootLayout() {
   const { scheme, colors } = useTheme();
+  const authState = useAuth();
+  const userId = authState.status === 'signedIn' ? authState.session.userId : null;
+  const restored = useOfflineCacheRestored(userId);
+  useEffect(() => {
+    if (userId) startOfflineCache(userId);
+  }, [userId]);
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = {
     ...base,
@@ -26,17 +34,20 @@ export default function RootLayout() {
   };
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={theme}>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      {/* Queries wait for the user's saved cache, so offline they show it instead of an error (AC5). */}
+      <IsRestoringProvider value={userId !== null && !restored}>
+        <ThemeProvider value={theme}>
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </IsRestoringProvider>
     </QueryClientProvider>
   );
 }
 
 /**
  * Root guard (spec 001): signed out → (auth); signed in without a completed onboarding → onboarding
- * (consent first, see onboarding/_layout); otherwise Home. Guards are client-side only: the API enforces
+ * (consent first, see onboarding/_layout); otherwise the tabs (spec 003). Guards are client-side only: the API enforces
  * auth and consent on every request.
  */
 function RootNavigator() {
@@ -73,7 +84,8 @@ function RootNavigator() {
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
         <Stack.Protected guard={allow(signedIn && onboarded)} redirectTo={destination}>
-          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="weight" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" />
         </Stack.Protected>
       </Stack>

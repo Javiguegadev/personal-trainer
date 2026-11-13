@@ -52,7 +52,7 @@ function ProfileSettings({ profile, prefs }: { profile: Profile; prefs: DietaryP
         </>
       }
     >
-      <BackLink fallback="/" />
+      <BackLink fallback="/profile" />
       <AppText variant="title">{s.title}</AppText>
       <AppText tone="muted">{s.subtitle}</AppText>
       {editor.ageBlocked ? (

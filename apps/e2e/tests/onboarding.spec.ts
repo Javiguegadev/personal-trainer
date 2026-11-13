@@ -3,6 +3,7 @@ import {
   acceptConsent,
   confirmSummary,
   fillForm,
+  openTab,
   screen,
   signInWithEmail,
   signInWithGoogle,
@@ -11,7 +12,7 @@ import {
 // Mifflin-St Jeor for a man of 30, 175 cm and 80 kg: 10·80 + 6.25·175 − 5·30 + 5 = 1748.75 kcal.
 
 test.describe('onboarding (spec 001, spec 002)', () => {
-  test('email code → consent → form with a job and two activities → summary → Home', async ({
+  test('email code → consent → form with a job and two activities → summary → Today', async ({
     page,
   }) => {
     await signInWithEmail(page, 'form@example.com');
@@ -61,12 +62,15 @@ test.describe('onboarding (spec 001, spec 002)', () => {
     await expect(back.getByTestId('activity-0-sessions-value')).toHaveText('3');
     await back.getByTestId('form-continue').click();
 
-    const home = await confirmSummary(page);
-    await expect(home.getByTestId('targets-kcal')).toContainText('2530');
+    const today = await confirmSummary(page);
+    await expect(today.getByTestId('targets-kcal')).toContainText('2530');
+    // Spec 003 AC3: the planned training of the week, under the targets.
+    await expect(today.getByTestId('training-line')).toContainText('3 sesiones');
+    await expect(today.getByTestId('training-line')).toContainText('180');
 
     // AC4: the session and the profile survive a reload.
     await page.reload();
-    await expect((await screen(page, 'home-screen')).getByTestId('targets-kcal')).toContainText(
+    await expect((await screen(page, 'today-screen')).getByTestId('targets-kcal')).toContainText(
       '2530',
     );
   });
@@ -87,11 +91,11 @@ test.describe('onboarding (spec 001, spec 002)', () => {
     await form.getByTestId('form-continue').click();
 
     // 5 ft 5 = 165.1 cm, 137 lb = 62.1 kg: BMR 1321.9; × 1.6 (on her feet) = 2115; − 20 % = 1692 → 1690.
-    const home = await confirmSummary(page);
-    await expect(home.getByTestId('targets-kcal')).toContainText('1690');
+    const today = await confirmSummary(page);
+    await expect(today.getByTestId('targets-kcal')).toContainText('1690');
   });
 
-  test('changing the job in Settings changes the targets on Home (spec 002 AC5, AC7)', async ({
+  test('changing the job in the profile changes the targets on Today (spec 002 AC5, AC7)', async ({
     page,
   }) => {
     await signInWithEmail(page, 'settings@example.com');
@@ -107,10 +111,11 @@ test.describe('onboarding (spec 001, spec 002)', () => {
     await form.getByTestId('form-continue').click();
 
     // Seated, no training: 1748.75 × 1.4 = 2448.3 → 2450 kcal.
-    const home = await confirmSummary(page);
-    await expect(home.getByTestId('targets-kcal')).toContainText('2450');
+    const today = await confirmSummary(page);
+    await expect(today.getByTestId('targets-kcal')).toContainText('2450');
 
-    await home.getByTestId('open-profile').click();
+    // Spec 003 AC2: "My details" lives in the Profile tab.
+    await (await openTab(page, 'profile')).getByTestId('open-profile').click();
     const profile = await screen(page, 'settings-profile-screen');
     await expect(profile.getByTestId('field-job-sedentary')).toHaveAttribute(
       'aria-checked',
@@ -124,8 +129,6 @@ test.describe('onboarding (spec 001, spec 002)', () => {
     await expect(profile.getByTestId('profile-saved')).toBeVisible();
 
     await profile.getByTestId('back-link').click();
-    await expect((await screen(page, 'home-screen')).getByTestId('targets-kcal')).toContainText(
-      '3150',
-    );
+    await expect((await openTab(page, 'today')).getByTestId('targets-kcal')).toContainText('3150');
   });
 });

@@ -98,6 +98,20 @@ export function invitesWeighIn(flags: readonly SafetyFlag[]): boolean {
   return !has(flags, 'ed_soft_stop', 'pregnancy', 'teen_limited');
 }
 
+/** Notices that come from the weight log (spec 003 AC24). */
+export type WeightNotice = 'fast_loss';
+
+/**
+ * The "losing fast" notice, unless the profile has an eating-disorder signal or pregnancy: then only the
+ * professional-advice notice of spec 001 applies.
+ */
+export function weightNotices(
+  trend: Pick<WeightTrend, 'fastLoss'>,
+  flags: readonly SafetyFlag[],
+): WeightNotice[] {
+  return trend.fastLoss && !isWeightTrendHidden(flags) ? ['fast_loss'] : [];
+}
+
 export type TargetWeightProgress =
   | { kind: 'hidden' }
   | { kind: 'reached' }

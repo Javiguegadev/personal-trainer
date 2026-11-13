@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { acceptConsent, confirmSummary, fillForm, screen, signInWithGoogle } from './app';
+import { acceptConsent, confirmSummary, fillForm, openTab, screen, signInWithGoogle } from './app';
 
 test.describe('privacy (spec 001)', () => {
   test('deleting the account removes the profile and ends the session (AC24)', async ({ page }) => {
@@ -14,9 +14,9 @@ test.describe('privacy (spec 001)', () => {
       goal: 'maintain',
     });
     await form.getByTestId('form-continue').click();
-    const home = await confirmSummary(page);
+    await confirmSummary(page);
 
-    await home.getByTestId('open-privacy').click();
+    await (await openTab(page, 'profile')).getByTestId('open-privacy').click();
     const privacy = await screen(page, 'settings-privacy-screen');
     await expect(privacy.getByTestId('delete-account')).toBeDisabled();
     await privacy.getByTestId('delete-confirmation').fill('ELIMINAR');

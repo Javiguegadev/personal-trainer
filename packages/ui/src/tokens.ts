@@ -67,6 +67,14 @@ export const tokens = {
     calories: '#16a34a',
   },
   palette: { light, dark },
+  /**
+   * Weight chart (spec 003): entries as dots, the 7-day average as a line. Checked with the dataviz palette
+   * validator against both surfaces (lightness, chroma, colour-blind separation, contrast).
+   */
+  chart: {
+    light: { entries: '#2a78d6', average: '#15803d' },
+    dark: { entries: '#3987e5', average: '#16a34a' },
+  },
   radius: { sm: 6, md: 10, lg: 16, full: 999 },
   space: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
   fontSize: { caption: 13, body: 16, label: 15, subtitle: 18, title: 28, display: 34 },

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatDecimal, formatNumber, parseDecimal } from './format';
+import {
+  formatDecimal,
+  formatLongDate,
+  formatNumber,
+  formatShortDate,
+  formatWeekdayDay,
+  parseDecimal,
+} from './format';
 
 describe('parseDecimal', () => {
   it('accepts a decimal comma or point (AC9: Spanish formats)', () => {
@@ -31,5 +38,16 @@ describe('formatNumber', () => {
     expect(formatNumber(1690, 'es')).toBe('1690');
     expect(formatNumber(12140, 'es')).toBe('12.140');
     expect(formatNumber(1.65, 'es', 2)).toBe('1,65');
+  });
+});
+
+describe('date labels', () => {
+  // 13 November 2026 is a Friday.
+  it('formats a day in the user language without moving it to another day', () => {
+    expect(formatLongDate('2026-11-13', 'es')).toMatch(/viernes.*13.*noviembre/);
+    expect(formatLongDate('2026-11-13', 'en')).toMatch(/Friday.*13.*November/);
+    expect(formatShortDate('2026-11-01', 'es')).toMatch(/^1 nov/);
+    expect(formatShortDate('2025-11-13', 'en', true)).toMatch(/13 Nov.*2025/);
+    expect(formatWeekdayDay('2026-11-13', 'es')).toMatch(/vie.*13/);
   });
 });

@@ -41,7 +41,7 @@ export default function PrivacySettingsScreen() {
 
   return (
     <Screen testID="settings-privacy-screen">
-      <BackLink fallback="/" />
+      <BackLink fallback="/profile" />
       <AppText variant="title">{p.title}</AppText>
 
       <View
