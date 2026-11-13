@@ -28,11 +28,18 @@ interface Dated extends WeightPoint {
   age: number;
 }
 
-/** Change per week between two sets of entries, normalised by the distance between their mean days. */
-function changePerWeek(recent: readonly Dated[], before: readonly Dated[]): number | null {
+/**
+ * Change per week between two sets of entries, normalised by the distance between their mean days. Null
+ * when the mean days are closer than `minSpan` days.
+ */
+function changePerWeek(
+  recent: readonly Dated[],
+  before: readonly Dated[],
+  minSpan: number = WEIGHT_TREND_RULES.minSpanDays,
+): number | null {
   if (recent.length === 0 || before.length === 0) return null;
   const span = mean(before.map((e) => e.age)) - mean(recent.map((e) => e.age));
-  if (span < WEIGHT_TREND_RULES.minSpanDays) return null;
+  if (span <= 0 || span < minSpan) return null;
   return (
     ((mean(recent.map((e) => e.weightKg)) - mean(before.map((e) => e.weightKg))) / span) *
     WEIGHT_TREND_RULES.windowDays
@@ -65,10 +72,13 @@ export function weightTrend(entries: readonly WeightPoint[], today: string): Wei
   if (enough && changePerWeekKg !== null) {
     const before = mean(w0.map((e) => e.weightKg));
     // One mistyped or unusual low reading must not raise the notice: the rule also has to hold
-    // without the lowest entry of the recent window.
+    // without the lowest entry of the recent window. That check only confirms the direction, so it has
+    // no minimum span: in a real loss the lowest entry is often the newest, and dropping it moves the
+    // recent window back in time.
     const lowest = w1.reduce((min, e) => (e.weightKg < min.weightKg ? e : min));
     const withoutLowest = w1.filter((e) => e !== lowest);
-    fastLoss = isFast(changePerWeekKg, before) && isFast(changePerWeek(withoutLowest, w0), before);
+    fastLoss =
+      isFast(changePerWeekKg, before) && isFast(changePerWeek(withoutLowest, w0, 0), before);
   }
 
   return { last, averageKg, changePerWeekKg, fastLoss };

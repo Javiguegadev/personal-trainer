@@ -207,7 +207,7 @@ export const es = {
     fast_loss: {
       title: 'Estás bajando de peso rápido',
       message:
-        'Tu media de 7 días baja más de un 1 % por semana. Asegúrate de comer lo suficiente y, si sigue así, coméntalo con un profesional sanitario.',
+        'Tu media de 7 días baja más de un {percent} % por semana. Asegúrate de comer lo suficiente y, si sigue así, coméntalo con un profesional sanitario.',
     },
     pregnancy: {
       title: 'Embarazo o lactancia',
@@ -351,6 +351,7 @@ export const es = {
     empty: {
       title: 'Aún no hay registros',
       text: 'Apunta tu peso cuando quieras para ver cómo evoluciona.',
+      textNeutral: 'Aquí aparecen los pesos que apuntes.',
       button: 'Apuntar mi peso',
     },
   },

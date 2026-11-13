@@ -67,7 +67,7 @@ export function buildContextSnapshot(sources: ContextSources, today: string): Co
       lastDate: trend.last?.localDate ?? null,
       averageKg: trendHidden ? null : trend.averageKg,
       changePerWeekKg: trendHidden ? null : trend.changePerWeekKg,
-      fastLoss: trend.fastLoss,
+      fastLoss: trendHidden ? false : trend.fastLoss,
       trendHidden,
     },
   };

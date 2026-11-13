@@ -1,5 +1,7 @@
 import type { Profile, WeightTrend } from '@pt/contracts';
 import {
+  WEIGHT_TREND_RULES,
+  formatNumber,
   formatShortDate,
   isWeightTrendHidden,
   targetWeightProgress,
@@ -34,7 +36,9 @@ export function TrendSummary({ trend, profile }: { trend: WeightTrend; profile: 
           key={notice}
           tone="warning"
           title={t.safety[notice].title}
-          message={t.safety[notice].message}
+          message={format(t.safety[notice].message, {
+            percent: formatNumber(WEIGHT_TREND_RULES.fastLossRatio * 100, locale),
+          })}
           testID={`notice-${notice}`}
         />
       ))}

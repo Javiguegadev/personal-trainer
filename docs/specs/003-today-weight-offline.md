@@ -342,3 +342,23 @@ screen that grows with them ("Today") and a way to write data that survives a ba
   - **Known limit**: TanStack saves only paused writes. A write that is retrying because the server is
     unreachable while the device reports a connection is lost if the app is closed during the retry. The
     offline case of AC18 is covered.
+- Domain review of the code (`domain-reviewer`, 2026-11-13): the trend maths, the 1.00 % / 1.01 %
+  boundary, what protected profiles see, the sticky `ed_soft_stop`, pregnancy without numbers and the
+  single evaluation path were checked correct. Fixed from it:
+  - The confirming fast-loss check (without the lowest recent entry) no longer needs 5 days between the
+    windows: in a real loss the lowest entry is often today's, and dropping it hid a 2.3 %-per-week loss.
+    New fixture in `trend.test.ts`.
+  - `context-v2` passes `fastLoss: false` when `trendHidden` (AC25: no trend judgement for protected
+    profiles).
+  - Progress shows the safety notices behind a targets change (a new `low_bmi`, AC12); "Today" already
+    showed them.
+  - With `ed_soft_stop`, the targets-change notice gives no calorie numbers ("your targets have been
+    updated with your new weight").
+  - The empty state of Progress uses neutral copy, without inviting protected profiles to track.
+  - The fast-loss copy takes its percentage from `WEIGHT_TREND_RULES`.
+- Notes for the professional reviewer, not changed: the low-BMI rule follows single readings with no
+  margin, so a user right at BMI 20 can see the deficit switch on and off from one day to the next (a
+  one-way rule with a margin on the 7-day average is proposed to the human, as it changes AC12); the 3 %
+  confirmation only compares with the previous 7 days, so an occasional weigher gets no confirmation; one
+  mistyped high reading in the earlier window can still raise the fast-loss notice (a false notice, low
+  harm).

@@ -50,7 +50,7 @@ export const ContextSnapshotSchema = z.object({
     fastLoss: z.boolean(),
     /**
      * True with an eating-disorder signal or pregnancy: the trend is not shown to the user and is not
-     * given to any AI feature.
+     * given to any AI feature (`averageKg`, `changePerWeekKg` null, `fastLoss` false).
      */
     trendHidden: z.boolean(),
   }),

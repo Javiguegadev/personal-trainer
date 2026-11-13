@@ -207,7 +207,7 @@ export const en: DeepStringRecord<typeof es> = {
     fast_loss: {
       title: 'You are losing weight fast',
       message:
-        'Your 7-day average is falling more than 1 % a week. Make sure you eat enough and, if it continues, talk to a health professional.',
+        'Your 7-day average is falling more than {percent} % a week. Make sure you eat enough and, if it continues, talk to a health professional.',
     },
     pregnancy: {
       title: 'Pregnancy or breastfeeding',
@@ -349,6 +349,7 @@ export const en: DeepStringRecord<typeof es> = {
     empty: {
       title: 'No entries yet',
       text: 'Log your weight whenever you like to see how it changes.',
+      textNeutral: 'The weights you log appear here.',
       button: 'Log my weight',
     },
   },

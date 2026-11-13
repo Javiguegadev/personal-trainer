@@ -104,6 +104,20 @@ describe('buildContextSnapshot — context-v2 (spec 002 AC12, spec 003 AC25)', (
   it.each(['ed_soft_stop', 'pregnancy'] as const)(
     'hides the trend with %s, keeping the last weight',
     (flag) => {
+      // A fast loss (2 % per week) is not passed on either.
+      const fast = [
+        { localDate: '2026-11-01', weightKg: 80 },
+        { localDate: '2026-11-02', weightKg: 80 },
+        { localDate: '2026-11-03', weightKg: 80 },
+        { localDate: '2026-11-08', weightKg: 78.4 },
+        { localDate: '2026-11-09', weightKg: 78.4 },
+        { localDate: '2026-11-10', weightKg: 78.4 },
+      ];
+      expect(buildContextSnapshot({ ...sources, weights: fast }, TODAY).weight.fastLoss).toBe(true);
+      expect(
+        buildContextSnapshot({ ...sources, safetyFlags: [flag], weights: fast }, TODAY).weight,
+      ).toMatchObject({ fastLoss: false, trendHidden: true });
+
       const { weight } = buildContextSnapshot({ ...sources, safetyFlags: [flag], weights }, TODAY);
       expect(weight).toMatchObject({
         lastKg: 79.4,

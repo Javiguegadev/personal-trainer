@@ -1,4 +1,4 @@
-import { formatNumber, formatShortDate } from '@pt/core';
+import { formatNumber, formatShortDate, profileNotices } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
@@ -6,19 +6,22 @@ import { useI18n } from '@/hooks/useI18n';
 import { useRejectedWeightWrite, useWeightTargetsChange } from '@/lib/api';
 import { Button } from './Button';
 import { Notice } from './Notice';
+import { SafetyNotices } from './SafetyNotices';
 
 /**
  * A weight entry that changed the targets (spec 003 AC11): old and new calories, and how they are
- * calculated. Without numeric targets (pregnancy) nothing is said about calories.
+ * calculated. Without numeric targets (pregnancy) nothing is said about calories, and with an
+ * eating-disorder signal the calories are not tied to the weight in numbers. `withSafety` adds the
+ * safety notices behind the new targets (AC12), for screens that do not show them already.
  */
-export function TargetsChangeNotice() {
+export function TargetsChangeNotice({ withSafety = false }: { withSafety?: boolean }) {
   const { t, format, locale } = useI18n();
   const router = useRouter();
   const { change, dismiss } = useWeightTargetsChange();
   if (!change?.previous || !change.current) return null;
   const { previous, current } = change;
   const message =
-    previous.kcal === current.kcal
+    previous.kcal === current.kcal || change.safety.flags.includes('ed_soft_stop')
       ? t.today.targetsUpdated
       : format(t.today.targetsChanged, {
           from: formatNumber(previous.kcal, locale),
@@ -39,6 +42,12 @@ export function TargetsChangeNotice() {
           testID="dismiss-targets-change"
         />
       </View>
+      {withSafety ? (
+        <SafetyNotices
+          notices={profileNotices(change.safety, current)}
+          floorKcal={current.clampedReason === 'calorie_floor' ? current.kcal : undefined}
+        />
+      ) : null}
     </Notice>
   );
 }

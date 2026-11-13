@@ -1,5 +1,5 @@
 import type { Profile } from '@pt/contracts';
-import { isWeightTrendHidden, weightAverageSeries, weightTrend } from '@pt/core';
+import { invitesWeighIn, isWeightTrendHidden, weightAverageSeries, weightTrend } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -66,8 +66,26 @@ function Progress({ profile }: { profile: Profile }) {
         <AppText variant="subtitle" weight="bold">
           {p.empty.title}
         </AppText>
-        <AppText tone="muted">{p.empty.text}</AppText>
-        <Button label={p.empty.button} onPress={() => router.push('/weight')} testID="log-weight" />
+        {invitesWeighIn(profile.safetyFlags) ? (
+          <>
+            <AppText tone="muted">{p.empty.text}</AppText>
+            <Button
+              label={p.empty.button}
+              onPress={() => router.push('/weight')}
+              testID="log-weight"
+            />
+          </>
+        ) : (
+          <>
+            <AppText tone="muted">{p.empty.textNeutral}</AppText>
+            <Button
+              variant="secondary"
+              label={p.add}
+              onPress={() => router.push('/weight')}
+              testID="add-weight"
+            />
+          </>
+        )}
       </View>
     );
   } else {
@@ -104,7 +122,7 @@ function Progress({ profile }: { profile: Profile }) {
       <AppText variant="title">{p.title}</AppText>
       <OfflineBanner />
       <WeightRejectedNotice />
-      <TargetsChangeNotice />
+      <TargetsChangeNotice withSafety />
       {body}
     </Screen>
   );

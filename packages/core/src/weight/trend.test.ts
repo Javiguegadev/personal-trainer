@@ -118,6 +118,25 @@ describe('weightTrend (spec 003 AC23)', () => {
       expect(trend.fastLoss).toBe(false);
     });
 
+    it('flags a real loss whose lowest entry is the newest one (domain review)', () => {
+      // Earlier: days 9, 8, 7 → mean day 8, mean 79.9. Recent: days 6, 3, 0 → mean day 3, mean 78.6.
+      // (78.6 − 79.9) / 5 × 7 = −1.82 kg per week = 2.28 %. Without the lowest (78.2, today): mean
+      // 78.8 on mean day 4.5, (78.8 − 79.9) / 3.5 × 7 = −2.2 → still fast, although only 3.5 days apart.
+      const trend = weightTrend(
+        [
+          entry(9, 80),
+          entry(8, 79.9),
+          entry(7, 79.8),
+          entry(6, 79),
+          entry(3, 78.6),
+          entry(0, 78.2),
+        ],
+        TODAY,
+      );
+      expect(trend.changePerWeekKg).toBeCloseTo(-1.82, 10);
+      expect(trend.fastLoss).toBe(true);
+    });
+
     it('is not raised by entries bunched 11 days apart at a real 0.7 % per week', () => {
       // 0.08 kg per day. Days 13–11: 80.00, 79.92, 79.84 (mean 79.92, mean day 12).
       // Days 2–0: 79.12, 79.04, 78.96 (mean 79.04, mean day 1). −0.88 / 11 × 7 = −0.56 → 0.70 %.
