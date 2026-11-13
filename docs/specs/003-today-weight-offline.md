@@ -1,14 +1,14 @@
 # 003 — Tab shell, "Today", weight log and offline-safe writes
 
-- Status: approved (2026-11-13)
+- Status: done (2026-11-13)
 - Phase: E2b (second of two specs; 002 covered the job, the weekly training and `targets-v2`)
 - Tier: free
 
 ## Problem / user story
 
 As a user who weighs myself in the bathroom, often without coverage, I want to note my weight in two taps
-from the first screen and see where it is heading, so that I can follow my progress without my calories
-changing every morning.
+from the first screen and see where it is heading, so that I can follow my progress and my targets follow my
+current weight.
 
 The app today has one Home screen with buttons. Stages E4 and E5 need a place to live (tabs), a first
 screen that grows with them ("Today") and a way to write data that survives a bad connection.
@@ -189,7 +189,7 @@ screen that grows with them ("Today") and a way to write data that survives a ba
 - Index: the primary key serves the range query `(user_id, local_date)`.
 - Migration `0003`: creates the table and backfills one row per existing profile (AC27).
 - Difference from blueprint §5: `profiles.weight_kg` stays as a copy of the most recent entry, so the
-  targets and the safety rules keep one input. The blueprint is updated in the same change.
+  targets and the safety rules keep one input. The blueprint is updated in the same change (ADR 005).
 
 ## API contracts
 
@@ -287,5 +287,58 @@ screen that grows with them ("Today") and a way to write data that survives a ba
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
+- Tests by criterion: AC1–AC5 `apps/e2e` (`weight.spec.ts`, `onboarding.spec.ts`, `privacy.spec.ts`);
+  AC6–AC9 `core/weight/form.test.ts`, `api/routes/me/weights.test.ts` and E2E; AC10–AC13
+  `core/weight/apply.test.ts`, `api/routes/me/weights.test.ts`, `api-client/mock/backend.test.ts` and
+  `api/store/account-deletion.integration.test.ts` (dev database); AC14–AC17 `core/weight/trend.test.ts`,
+  `app/lib/weightChart.test.ts` and E2E; AC18–AC22 `api-client/weights.test.ts` (optimistic writes,
+  queue saved and resumed after a restart, rollback on 400, retry on network errors) and the offline E2E
+  journey; AC23–AC25 `core/weight/trend.test.ts`, `core/context/snapshot.test.ts`; AC26 the API export
+  test and the integration test (the schema-driven table list now includes `body_measurements`); AC27
+  the backfill in migration `0003`, applied to the dev database.
+- Commits: `0cc6d42` contracts and core (trend, form helpers, `context-v2`) · `facf083` table,
+  migration, API, client and mock backend · `8dcb073` app and E2E.
+- Verified on 2026-11-13: `pnpm check` green, 6 E2E journeys green on the mock backend, Today, Progress
+  and the weight sheet checked on web at 390 px in light and dark mode, migration `0003` applied to the
+  dev database and the account-deletion integration test green on it.
 - Decisions taken during implementation:
+  - **ADR 005** records the change to BLUEPRINT §5: `profiles.weight_kg` is a copy of the latest entry
+    and recomputes the targets.
+  - **One rule for the API and the mock**: `applyLatestWeight` and `evaluateStoredProfile` in
+    `@pt/core` evaluate the stored profile with the new weight, the goal the user asked for and the
+    reported health facts recovered from the stored flags. `checkWeightWrite` holds the date and clock
+    checks.
+  - **The store decides inside one transaction**: `writeWeight(userId, write, decide, at)` locks the
+    profile row (`for update`), so one user's writes are serialised and "most recent entry" is read
+    consistently. The later `recordedAt` wins with `on conflict … do update … where`, and the response
+    carries the entry actually stored (AC20).
+  - **A write before there is a profile** is a 400 with `{ profile: 'required' }`. An account from
+    before spec 002 (no job) stores the entry but keeps its profile and targets until it fills in the form
+    again.
+  - **The profile form stores today's entry** only when the weight differs from the stored one (or the
+    profile is new). The backfill dates each existing profile's entry on the UTC day of `updated_at`.
+  - **One cached list** (`['weights']`, the last 366 days) serves every screen, so an optimistic write
+    shows everywhere. Writes are registered as mutation defaults by key (`['weights', 'save' | 'remove']`)
+    and serialised with one scope; network errors and 5xx retry with backoff, a 4xx undoes the change and
+    leaves a notice. The targets-change notice also lives in the query cache until dismissed.
+  - **Offline cache**: `persistQueryClient` (not `PersistQueryClientProvider`, which restores once and
+    cannot switch users) with `@tanstack/query-async-storage-persister` over the app's key-value storage,
+    key `pt.query-cache.<userId>`, 7 days (`gcTime` matches), buster `spec-003`; targets previews are
+    not saved. `IsRestoringProvider` holds queries until the user's copy is restored. Sign-out stops
+    saving, signs out, clears the cache and the queue, then deletes the saved copy.
+  - **Online state**: `expo-network` on phones (`lib/online.ts`); on web the browser's state, read at
+    start too (`lib/online.web.ts`).
+  - **Tabs**: JS `Tabs` from expo-router (`role="tab"` and `aria-selected` on web) with SVG icons drawn
+    with `react-native-svg`, filled when selected, and a bold label.
+  - **The sheet** is the `weight` route with `presentation: 'modal'` (a normal screen on web).
+  - **Chart**: `react-native-svg`, no charting library. Its two colours (`tokens.chart`) passed the
+    dataviz palette validator on both surfaces. A tap shows the closest entry; the list is the table view;
+    the axis labels are app text over the drawing (SVG text used a serif font on web).
+  - **i18n**: the Profile tab copy is under `profileTab.*`, besides the keys listed in the spec.
+  - **The mock database key changed** (`pt.mock-db.v3`).
+  - **The offline E2E journey emulates the browser state** (`navigator.onLine` and the online/offline
+    events): with a really offline browser the page cannot be reloaded from the dev server.
+  - **Known limit**: TanStack saves only paused writes. A write that is retrying because the server is
+    unreachable while the device reports a connection is lost if the app is closed during the retry. The
+    offline case of AC18 is covered.

@@ -171,7 +171,8 @@ migration.
 
 ```
 Identity, goals and declared context (valid_from / valid_to where history matters)
-  profiles(id, sex, birth_date, height_cm, goal, requested_goal, target_weight_kg, safety_flags[], units, locale)
+  profiles(id, sex, birth_date, height_cm, weight_kg*, goal, requested_goal, target_weight_kg, safety_flags[],
+           units, locale)                       * copy of the latest body_measurements entry (ADR 005)
   dietary_prefs(user_id, diet_type, allergies[], dislikes[], restrictions[])
   lifestyle_profiles(user_id, job_activity[sedentary|standing|physical], work_pattern[fixed|shifts|irregular],
                      usual_sleep_minutes, day_start_minute, valid_from, valid_to)
@@ -184,7 +185,7 @@ Identity, goals and declared context (valid_from / valid_to where history matter
   consents(user_id, kind, version, granted_at, revoked_at)
 
 Daily signals (one row per user and local_date, upsert)
-  body_measurements(user_id, local_date, weight_kg)
+  body_measurements(user_id, local_date, weight_kg, recorded_at)               ← spec 003
   daily_checkins(user_id, local_date, sleep_minutes?, stress?, energy?, soreness?, work_shift?,
                  source[manual|health_import])
 
@@ -223,6 +224,7 @@ Changes from v2:
   training in `routine_blocks`. `targets-v2` adds the planned training energy to a daily-life factor, so
   exercise is counted once.
 - **Weight is a time series** (`body_measurements`), which makes the trend and the weekly review possible.
+  The latest entry is copied to `profiles.weight_kg` and recomputes the targets (ADR 005).
 - **Injuries are structured**, so programs can filter exercises.
 - **`meals` → `meal_items`** replaces the flat `meal_entries`: a photo or a sentence is one meal with
   several foods.

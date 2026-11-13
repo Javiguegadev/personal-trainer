@@ -1,6 +1,7 @@
 import { tokens } from '@pt/ui';
 import { Tabs } from 'expo-router';
 import { Text, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabIcon, type TabIconName } from '@/components/TabIcon';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
@@ -13,6 +14,7 @@ import { useTheme } from '@/hooks/useTheme';
 export default function TabsLayout() {
   const { t } = useI18n();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const options = (name: TabIconName, title: string) => ({
     title,
@@ -40,7 +42,12 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          // The default bar (48 px) clips a 24 px icon plus its label; keep room for the home indicator.
+          height: 56 + insets.bottom,
+        },
       }}
     >
       <Tabs.Screen name="index" options={options('today', t.tabs.today)} />

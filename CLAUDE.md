@@ -1,7 +1,7 @@
 # Personal Trainer: AI nutrition & fitness app (freemium)
 
 Mobile-first, touch-first, with AI where it is faster. One Expo universal app (iOS, Android, web) plus a
-Hono API. Full plan: `docs/BLUEPRINT.md` (v4, see ADR 002 to 004). Current stage: see "Status" at the
+Hono API. Full plan: `docs/BLUEPRINT.md` (v4, see ADR 002 to 005). Current stage: see "Status" at the
 bottom of this file.
 
 **Language: always answer the human in Spanish** (explanations, summaries, questions), even after
@@ -84,7 +84,8 @@ pnpm format
 - E0 Accounts ✅ · E1 Foundation ✅ (monorepo, CI, Expo universal app, typed API).
 - E2 auth + onboarding: in progress (`docs/specs/001-auth-onboarding.md`, see its "Progress"). Only the
   Supabase auth adapter is left; it waits for dashboard settings.
-- E2b logging & context foundations: spec 002 done (job, weekly training, `targets-v2`, user context,
-  consent version, chat retired). Spec 003 is next (tab shell, "Today", weight log, offline-safe writes).
-- Next (ADR 003): E4 food logging → E5 workout logging & daily
+- E2b logging & context foundations ✅: spec 002 (job, weekly training, `targets-v2`, user context, consent
+  version, chat retired) and spec 003 (tabs Today/Progress/Profile, weight log with trend, offline cache
+  and write queue; ADR 005).
+- Next (ADR 003): E4 food logging (spec 004 not written yet) → E5 workout logging & daily
   context → E5b adaptive loop → beta without paywall → E7 premium AI → E6 payments.
