@@ -8,3 +8,4 @@ export * from './health';
 export * from './onboarding';
 export * from './privacy';
 export * from './profile';
+export * from './weight';

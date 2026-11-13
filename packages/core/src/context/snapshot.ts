@@ -14,6 +14,7 @@ import {
   trainingMinutesPerWeek,
   trainingSessionsPerWeek,
 } from '../nutrition/activity';
+import { isWeightTrendHidden, weightTrend, type WeightPoint } from '../weight/trend';
 
 /** The stored rows the snapshot is built from (ADR 003). Later stages add logs and check-ins. */
 export interface ContextSources {
@@ -29,14 +30,19 @@ export interface ContextSources {
   safetyFlags: readonly SafetyFlag[];
   jobActivity: JobActivity;
   plannedActivities: readonly PlannedActivity[];
+  /** The weight log, in any order. Omitted means no entries. */
+  weights?: readonly WeightPoint[];
 }
 
 /**
- * The user context for `today` (the user's local date), version `context-v1` (spec 002 AC12). Pure: the
+ * The user context for `today` (the user's local date), version `context-v2` (spec 002 AC12, spec 003
+ * AC25). Pure: the
  * same sources and date always give the same snapshot, and the sources are not modified.
  */
 export function buildContextSnapshot(sources: ContextSources, today: string): ContextSnapshot {
   const { profile, plannedActivities } = sources;
+  const trend = weightTrend(sources.weights ?? [], today);
+  const trendHidden = isWeightTrendHidden(sources.safetyFlags);
   return {
     version: CONTEXT_VERSION,
     date: today,
@@ -55,6 +61,14 @@ export function buildContextSnapshot(sources: ContextSources, today: string): Co
       sessionsPerWeek: trainingSessionsPerWeek(plannedActivities),
       minutesPerWeek: trainingMinutesPerWeek(plannedActivities),
       factor: trainingFactor(plannedActivities),
+    },
+    weight: {
+      lastKg: trend.last?.weightKg ?? null,
+      lastDate: trend.last?.localDate ?? null,
+      averageKg: trendHidden ? null : trend.averageKg,
+      changePerWeekKg: trendHidden ? null : trend.changePerWeekKg,
+      fastLoss: trend.fastLoss,
+      trendHidden,
     },
   };
 }

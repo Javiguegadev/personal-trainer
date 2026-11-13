@@ -13,3 +13,5 @@ export * from './safety/profile';
 export * from './profile/evaluate';
 export * from './profile/form';
 export * from './profile/notices';
+export * from './weight/form';
+export * from './weight/trend';

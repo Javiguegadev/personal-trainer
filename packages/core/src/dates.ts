@@ -23,6 +23,12 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
 }
 
+/** The date `days` after `isoDate` (negative = before). */
+export function addDays(isoDate: string, days: number): string {
+  const [y, m, d] = parts(isoDate);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
 /**
  * Latest birth date consistent with being `ageYears` old on `today` (they turn that age today).
  * 29 February maps to 28 February in common years.
