@@ -1,6 +1,6 @@
 import { createRoute } from '@hono/zod-openapi';
 import { ApiErrorSchema, ProfileInputSchema, TargetsPreviewResponseSchema } from '@pt/contracts';
-import { evaluateProfileInput } from '@pt/core';
+import { addDays, evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
@@ -34,11 +34,12 @@ export function onboardingRoutes(deps: Deps) {
 
   return createRouter().openapi(targetsPreview, async (c) => {
     const input = c.req.valid('json');
-    const evaluation = evaluateProfileInput(
-      input,
-      await deps.store.getSafetyFlags(c.var.user.userId),
-      deps.now(),
-    );
+    // The last 7 days of the log: the low-BMI recovery rule reads their average (spec 003 AC12).
+    const context = await deps.store.getSafetyContext(c.var.user.userId, addDays(input.today, -6));
+    const evaluation = evaluateProfileInput(input, context.flags, deps.now(), {
+      storedWeightKg: context.weightKg,
+      entries: context.weights,
+    });
     if (evaluation.kind === 'invalid') {
       return apiError(c, 400, 'validation_error', evaluation.fields);
     }

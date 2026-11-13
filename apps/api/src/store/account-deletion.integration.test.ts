@@ -139,6 +139,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       id,
       {
         localDate: TODAY,
+        recentFrom: TODAY,
         entry: { weightKg: 90, recordedAt: new Date(now.getTime() - 60_000).toISOString() },
       },
       () => null,
@@ -148,7 +149,11 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     const later = new Date(now.getTime() + 1000);
     const written = await store.writeWeight(
       id,
-      { localDate: TODAY, entry: { weightKg: 69.4, recordedAt: later.toISOString() } },
+      {
+        localDate: TODAY,
+        recentFrom: TODAY,
+        entry: { weightKg: 69.4, recordedAt: later.toISOString() },
+      },
       ({ profile, latest }) => ({
         weightKg: latest?.weightKg ?? profile.weightKg,
         goal: 'maintain',
@@ -166,6 +171,11 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       later,
     );
     expect(written).toMatchObject({ entry: { weightKg: 69.4 }, previousTargets: { kcal: 1800 } });
+    expect(await store.getSafetyContext(id, TODAY)).toMatchObject({
+      flags: ['low_bmi'],
+      weightKg: 69.4,
+      weights: [{ localDate: TODAY, weightKg: 69.4 }],
+    });
     const after = await store.getMe(id);
     expect(after.profile).toMatchObject({
       weightKg: 69.4,
@@ -178,16 +188,25 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     expect(exported.targets).toHaveLength(2);
     const removed = await store.writeWeight(
       id,
-      { localDate: TODAY, entry: null },
+      { localDate: TODAY, recentFrom: TODAY, entry: null },
       () => null,
       later,
     );
     expect(removed).toMatchObject({ entry: null });
     // Deleting again succeeds (AC9); put one back so the cascade below has a row to remove.
-    await store.writeWeight(id, { localDate: TODAY, entry: null }, () => null, later);
     await store.writeWeight(
       id,
-      { localDate: TODAY, entry: { weightKg: 70, recordedAt: later.toISOString() } },
+      { localDate: TODAY, recentFrom: TODAY, entry: null },
+      () => null,
+      later,
+    );
+    await store.writeWeight(
+      id,
+      {
+        localDate: TODAY,
+        recentFrom: TODAY,
+        entry: { weightKg: 70, recordedAt: later.toISOString() },
+      },
       () => null,
       later,
     );

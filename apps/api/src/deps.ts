@@ -39,9 +39,19 @@ export interface ProfileWrite {
   today: string;
 }
 
+export interface SafetyContext {
+  /** Empty when there is no profile yet. */
+  flags: SafetyFlag[];
+  /** Null when there is no profile yet. */
+  weightKg: number | null;
+  weights: WeightEntry[];
+}
+
 /** A weight write: the entry to store for that day, or null to delete it. */
 export interface WeightWrite {
   localDate: string;
+  /** First day of `WeightState.recent`. */
+  recentFrom: string;
   entry: { weightKg: number; recordedAt: string } | null;
 }
 
@@ -51,6 +61,8 @@ export interface WeightState {
   targets: StoredTargets | null;
   /** The user's most recent entry by day, after the write. */
   latest: WeightEntry | null;
+  /** The entries from `WeightWrite.recentFrom` on, after the write, oldest first. */
+  recent: WeightEntry[];
 }
 
 /** The profile after the most recent weight changed (spec 003 AC10). */
@@ -77,8 +89,11 @@ export interface Store {
   /** Whether the latest active (not revoked) consent of this kind is for this version of the text. */
   hasConsent(userId: string, kind: ConsentKind, version: string): Promise<boolean>;
   grantConsent(userId: string, kind: ConsentKind, version: string, at: Date): Promise<void>;
-  /** Flags stored on the profile (empty when there is no profile yet). */
-  getSafetyFlags(userId: string): Promise<SafetyFlag[]>;
+  /**
+   * What the safety rules need besides the form: the stored flags (`ed_soft_stop` is sticky), the stored
+   * weight and the weight entries from `weightsFrom` on (the low-BMI recovery rule, spec 003 AC12).
+   */
+  getSafetyContext(userId: string, weightsFrom: string): Promise<SafetyContext>;
   /**
    * In one transaction: upserts profile, job and prefs, replaces the training list, closes the current
    * targets row and inserts the new one (spec 001 AC16, spec 002 AC5).

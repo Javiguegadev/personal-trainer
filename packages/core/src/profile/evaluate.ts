@@ -13,6 +13,8 @@ import { isPlausibleClientDate } from '../dates';
 import { trainingMinutesPerWeek } from '../nutrition/activity';
 import { computeTargets } from '../nutrition/targets';
 import { evaluateProfileSafety } from '../safety/profile';
+import { withWeightOnDay } from '../weight/apply-day';
+import { weightTrend, type WeightPoint } from '../weight/trend';
 
 export type ProfileEvaluation =
   | { kind: 'invalid'; fields: Record<string, string> }
@@ -42,14 +44,28 @@ export function checkClientDates(
  * Safety rules + targets for a confirmed profile (AC13–AC22). Runs on both the preview and the save, so
  * nothing the client sends can bypass these rules. `now` is the server clock.
  */
+/** The stored weight log, for the low-BMI recovery rule (spec 003 AC12). */
+export interface WeightHistory {
+  /** The weight stored on the profile now (the latest entry), or null without a profile. */
+  storedWeightKg: number | null;
+  /** The user's entries of at least the last 7 days. */
+  entries: readonly WeightPoint[];
+}
+
 export function evaluateProfileInput(
   input: ProfileInput,
   previousFlags: readonly SafetyFlag[],
   now: Date,
+  history?: WeightHistory,
 ): ProfileEvaluation {
   const invalid = checkClientDates(input, now);
   if (invalid) return { kind: 'invalid', fields: invalid };
-  return evaluate(input, previousFlags, input.today);
+  // Saving another weight also stores it as today's entry (spec 003 AC13): judge the log as it will be.
+  const entries =
+    history && history.storedWeightKg !== input.weightKg
+      ? withWeightOnDay(history.entries, input.today, input.weightKg)
+      : (history?.entries ?? []);
+  return evaluate(input, previousFlags, input.today, weightTrend(entries, input.today).averageKg);
 }
 
 type EvaluatedFields = Pick<
@@ -70,6 +86,7 @@ function evaluate(
   input: EvaluatedFields,
   previousFlags: readonly SafetyFlag[],
   today: string,
+  weightAverageKg: number | null,
 ): Exclude<ProfileEvaluation, { kind: 'invalid' }> {
   const safety = evaluateProfileSafety(
     {
@@ -82,6 +99,7 @@ function evaluate(
       injuries: input.injuries,
       trainingMinutesPerWeek: trainingMinutesPerWeek(input.plannedActivities),
       previousFlags,
+      weightAverageKg,
     },
     today,
   );
@@ -114,11 +132,13 @@ const REPORTED_FLAGS: readonly SafetyFlag[] = ['pregnancy', 'ed_soft_stop', 'med
 /**
  * The stored profile evaluated again with a new weight (spec 003 AC10, AC12): the same safety rules and
  * targets as a profile save, with the goal the user asked for and the health facts they reported.
+ * `entries` is the weight log after the write (at least the last 7 days).
  */
 export function evaluateStoredProfile(
   profile: Profile & { jobActivity: JobActivity },
   weightKg: number,
   today: string,
+  entries: readonly WeightPoint[] = [],
 ): Exclude<ProfileEvaluation, { kind: 'invalid' }> {
   return evaluate(
     {
@@ -137,6 +157,7 @@ export function evaluateStoredProfile(
     },
     profile.safetyFlags,
     today,
+    weightTrend(entries, today).averageKg,
   );
 }
 

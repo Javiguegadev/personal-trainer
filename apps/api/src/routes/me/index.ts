@@ -6,7 +6,7 @@ import {
   MeResponseSchema,
   ProfileInputSchema,
 } from '@pt/contracts';
-import { evaluateProfileInput } from '@pt/core';
+import { addDays, evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
 import { weightRoutes } from './weights';
 import { apiError, createRouter } from '../../http';
@@ -105,11 +105,12 @@ export function meRoutes(deps: Deps) {
     .openapi(putProfile, async (c) => {
       const input = c.req.valid('json');
       const { userId } = c.var.user;
-      const evaluation = evaluateProfileInput(
-        input,
-        await deps.store.getSafetyFlags(userId),
-        deps.now(),
-      );
+      // The last 7 days of the log: the low-BMI recovery rule reads their average (spec 003 AC12).
+      const context = await deps.store.getSafetyContext(userId, addDays(input.today, -6));
+      const evaluation = evaluateProfileInput(input, context.flags, deps.now(), {
+        storedWeightKg: context.weightKg,
+        entries: context.weights,
+      });
       if (evaluation.kind === 'invalid') {
         return apiError(c, 400, 'validation_error', evaluation.fields);
       }

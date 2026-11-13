@@ -82,8 +82,8 @@ describe('applyLatestWeight (spec 003 AC10–AC13)', () => {
     expect(change).toMatchObject({ weightKg: 69.9, targetsChange: null });
   });
 
-  it('removes the deficit below BMI 20 and restores it above (AC12)', () => {
-    // 165 cm: BMI 20 is 54.45 kg.
+  it('removes the deficit on one reading below BMI 20, restores it only on the 7-day average (AC12)', () => {
+    // 165 cm: BMI 20 is 54.45 kg; BMI 20.5 is 55.81 kg.
     const before = stored(56);
     const low = applyLatestWeight(before.profile, before.targets, entry(54.4), TODAY);
     expect(low?.goal).toBe('maintain');
@@ -97,12 +97,22 @@ describe('applyLatestWeight (spec 003 AC10–AC13)', () => {
       goal: low.goal,
       safetyFlags: low.safetyFlags,
     };
-    const back = applyLatestWeight(
-      lowProfile,
-      low?.targetsChange?.current ?? null,
-      entry(54.5),
-      TODAY,
+    const lowTargets = low.targetsChange?.current ?? null;
+
+    // One reading above the threshold, even well above: still no deficit.
+    const one = applyLatestWeight(lowProfile, lowTargets, entry(57), TODAY, [entry(57)]);
+    expect(one?.goal).toBe('maintain');
+    expect(one?.safetyFlags).toContain('low_bmi');
+
+    // A 7-day average of 55.7 kg (BMI 20.46): still no deficit.
+    const close = [entry(55.6, '2026-11-07'), entry(55.7, '2026-11-09'), entry(55.8)];
+    expect(applyLatestWeight(lowProfile, lowTargets, entry(55.8), TODAY, close)?.goal).toBe(
+      'maintain',
     );
+
+    // A 7-day average of 55.9 kg (BMI 20.53): the deficit comes back.
+    const above = [entry(55.8, '2026-11-07'), entry(55.9, '2026-11-09'), entry(56)];
+    const back = applyLatestWeight(lowProfile, lowTargets, entry(56), TODAY, above);
     expect(back?.goal).toBe('lose');
     expect(back?.safetyFlags).not.toContain('low_bmi');
   });

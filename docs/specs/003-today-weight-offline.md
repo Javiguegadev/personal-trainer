@@ -97,8 +97,10 @@ screen that grows with them ("Today") and a way to write data that survives a ba
   without numeric targets (pregnancy), nothing is said about calories. _(free)_
 - **AC12** — Given a new weight that puts the BMI below the low-BMI threshold of spec 001, then the
   deficit is removed (applied goal "maintain"), the profile stores `low_bmi`, and the notice of AC11 comes
-  with the low-BMI notice. Given a later weight above the threshold, then the requested goal applies
-  again. `ed_soft_stop` stays sticky whatever the weight. _(free)_
+  with the low-BMI notice. Given a profile with `low_bmi`, then the requested goal applies again only
+  when the 7-day average (AC23) is at least 0.5 BMI points above the threshold; a single reading above it
+  is not enough, from the weight log or from the profile form (human decision, 2026-11-13, after the
+  domain review). `ed_soft_stop` stays sticky whatever the weight. _(free)_
 - **AC13** — Given an entry for a day before the user's most recent entry, or the deletion of such an
   entry, then the targets do not change. Given the deletion of the most recent entry, then the targets
   are recomputed with the entry that is now the most recent; with no entries left, the profile weight
@@ -356,9 +358,16 @@ screen that grows with them ("Today") and a way to write data that survives a ba
     updated with your new weight").
   - The empty state of Progress uses neutral copy, without inviting protected profiles to track.
   - The fast-loss copy takes its percentage from `WEIGHT_TREND_RULES`.
-- Notes for the professional reviewer, not changed: the low-BMI rule follows single readings with no
-  margin, so a user right at BMI 20 can see the deficit switch on and off from one day to the next (a
-  one-way rule with a margin on the 7-day average is proposed to the human, as it changes AC12); the 3 %
+- **Low-BMI recovery margin** (human decision after the domain review, AC12 changed): `low_bmi` is set
+  on one reading below the threshold and cleared only when the 7-day average is at least 0.5 BMI points
+  above it (`SAFETY_RULES.lowBmiRecoveryMargin`). Without an average (fewer than 3 entries in the week)
+  the deficit stays off. It applies to the weight log, the profile form and its preview alike: the store
+  gives the evaluation the last 7 days of the log (`getSafetyContext`, `WeightState.recent`), and a
+  weight typed in the form counts as today's entry, as the save will store it. The low-BMI notice now
+  says when the deficit comes back. This also changes the behaviour of spec 001 AC19 for an existing
+  profile: correcting a mistyped low weight in the form needs a week of entries to restore the deficit.
+- Notes for the professional reviewer, not changed: the 0.5-point margin and the 7-day window of the
+  low-BMI recovery; the 3 %
   confirmation only compares with the previous 7 days, so an occasional weigher gets no confirmation; one
   mistyped high reading in the earlier window can still raise the fast-loss notice (a false notice, low
   harm).

@@ -67,8 +67,13 @@ export class FakeStore implements Store {
     });
   }
 
-  async getSafetyFlags(userId: string) {
-    return this.rows(userId).profile?.safetyFlags ?? [];
+  async getSafetyContext(userId: string, weightsFrom: string) {
+    const rows = this.rows(userId);
+    return {
+      flags: rows.profile?.safetyFlags ?? [],
+      weightKg: rows.profile?.weightKg ?? null,
+      weights: rows.weights.filter((w) => w.localDate >= weightsFrom),
+    };
   }
 
   async saveProfile(userId: string, data: Parameters<Store['saveProfile']>[1], at: Date) {
@@ -125,6 +130,7 @@ export class FakeStore implements Store {
       profile: rows.profile,
       targets: previousTargets,
       latest: rows.weights.at(-1) ?? null,
+      recent: rows.weights.filter((w) => w.localDate >= write.recentFrom),
     });
     if (decision) {
       rows.profile = {

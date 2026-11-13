@@ -222,7 +222,7 @@ export const es = {
     low_bmi: {
       title: 'Sin déficit calórico',
       message:
-        'Tu IMC está por debajo del rango recomendado, así que no aplicamos déficit. Consulta con un profesional antes de intentar perder peso.',
+        'Tu IMC está por debajo del rango recomendado o muy cerca de su límite, así que no aplicamos déficit. Volverá cuando tu peso medio de una semana quede claramente por encima. Consulta con un profesional antes de intentar perder peso.',
     },
     low_target_bmi: {
       title: 'Revisa tu peso objetivo',

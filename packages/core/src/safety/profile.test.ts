@@ -106,6 +106,49 @@ describe('evaluateProfileSafety — ESPEN/GLIM low BMI by age', () => {
     expect(r.appliedGoal).toBe('maintain');
     expect(r.flags).toContain('low_bmi');
   });
+  describe('leaving low_bmi (spec 003 AC12)', () => {
+    // 1.70 m: BMI 20 = 57.8 kg, BMI 20.5 = 59.245 kg.
+    const wasLow: SafetyInput = { ...adult, weightKg: 60, previousFlags: ['low_bmi'] };
+
+    it('keeps no deficit on one reading above the threshold, without a 7-day average', () => {
+      const r = evaluateProfileSafety(wasLow, TODAY);
+      expect(r.appliedGoal).toBe('maintain');
+      expect(r.flags).toContain('low_bmi');
+      expect(evaluateProfileSafety({ ...wasLow, weightAverageKg: null }, TODAY).flags).toContain(
+        'low_bmi',
+      );
+    });
+
+    it('keeps it with an average less than 0.5 BMI points above', () => {
+      // 59.2 / 1.70² = 20.48
+      const r = evaluateProfileSafety({ ...wasLow, weightAverageKg: 59.2 }, TODAY);
+      expect(r.flags).toContain('low_bmi');
+    });
+
+    it('gives the deficit back with an average at least 0.5 points above', () => {
+      // 59.3 / 1.70² = 20.52
+      const r = evaluateProfileSafety({ ...wasLow, weightAverageKg: 59.3 }, TODAY);
+      expect(r.flags).not.toContain('low_bmi');
+      expect(r.appliedGoal).toBe('lose');
+    });
+
+    it('enters it on one reading below the threshold, whatever the average', () => {
+      const r = evaluateProfileSafety({ ...adult, weightKg: 57.7, weightAverageKg: 62 }, TODAY);
+      expect(r.flags).toContain('low_bmi');
+    });
+
+    it('uses the 70+ threshold (22, so 22.5 to leave)', () => {
+      // 65 / 1.70² = 22.49; 65.1 / 1.70² = 22.53
+      const older = { ...wasLow, birthDate: '1950-01-01', weightKg: 66 };
+      expect(evaluateProfileSafety({ ...older, weightAverageKg: 65 }, TODAY).flags).toContain(
+        'low_bmi',
+      );
+      expect(evaluateProfileSafety({ ...older, weightAverageKg: 65.1 }, TODAY).flags).not.toContain(
+        'low_bmi',
+      );
+    });
+  });
+
   it('70+: BMI 23 keeps the goal', () => {
     // 66.5 / 1.70² = 23.0
     expect(

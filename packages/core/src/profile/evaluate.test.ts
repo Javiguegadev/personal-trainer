@@ -120,3 +120,28 @@ describe('evaluateProfileInput', () => {
     expect(result).toMatchObject({ kind: 'ok', safety: { appliedGoal: 'maintain' } });
   });
 });
+
+describe('evaluateProfileInput with the weight log (spec 003 AC12)', () => {
+  // 165 cm: BMI 20.5 is 55.81 kg. The profile was flagged low_bmi earlier.
+  const entries = [
+    { localDate: '2026-11-09', weightKg: 56 },
+    { localDate: '2026-11-10', weightKg: 56 },
+  ];
+  const form = input({ weightKg: 56, goal: 'lose' });
+
+  it('judges the log as the save will leave it (a new weight becomes today’s entry)', () => {
+    // Stored 54 kg, typed 56: today's entry is added, 3 entries averaging 56 kg (BMI 20.57).
+    const result = evaluateProfileInput(form, ['low_bmi'], NOW, { storedWeightKg: 54, entries });
+    expect(result).toMatchObject({ kind: 'ok', safety: { appliedGoal: 'lose' } });
+  });
+
+  it('keeps no deficit without a 7-day average', () => {
+    expect(evaluateProfileInput(form, ['low_bmi'], NOW)).toMatchObject({
+      safety: { appliedGoal: 'maintain' },
+    });
+    // The same weight as stored adds no entry: 2 entries, no average.
+    expect(
+      evaluateProfileInput(form, ['low_bmi'], NOW, { storedWeightKg: 56, entries }),
+    ).toMatchObject({ safety: { appliedGoal: 'maintain' } });
+  });
+});

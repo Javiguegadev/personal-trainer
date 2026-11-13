@@ -35,6 +35,7 @@ export interface LatestWeightChange {
 
 /**
  * The stored profile evaluated again with the user's most recent weight entry (spec 003 AC10–AC13).
+ * `recent` is the log after the write, at least its last 7 days (for the low-BMI recovery rule, AC12).
  * Returns null when nothing changes: no entries left, the same weight, or a profile that cannot be
  * evaluated yet (an account from before spec 002 that has not filled in the form again).
  */
@@ -43,11 +44,17 @@ export function applyLatestWeight(
   targets: Targets | null,
   latest: WeightPoint | null,
   today: string,
+  recent: readonly WeightPoint[] = [],
 ): LatestWeightChange | null {
   if (!latest || latest.weightKg === profile.weightKg) return null;
   const { jobActivity } = profile;
   if (jobActivity === null) return null;
-  const evaluation = evaluateStoredProfile({ ...profile, jobActivity }, latest.weightKg, today);
+  const evaluation = evaluateStoredProfile(
+    { ...profile, jobActivity },
+    latest.weightKg,
+    today,
+    recent,
+  );
   if (evaluation.kind === 'blocked') return null;
   return {
     weightKg: latest.weightKg,

@@ -207,6 +207,7 @@ export function createMockApiClient({
       currentTargets(record),
       record.weights.at(-1) ?? null,
       today,
+      record.weights,
     );
     if (change) {
       const at = now().toISOString();
@@ -228,7 +229,10 @@ export function createMockApiClient({
 
   function evaluate(body: unknown, record: UserRecord) {
     const input = parse(ProfileInputSchema, body);
-    const evaluation = evaluateProfileInput(input, record.profile?.safetyFlags ?? [], now());
+    const evaluation = evaluateProfileInput(input, record.profile?.safetyFlags ?? [], now(), {
+      storedWeightKg: record.profile?.weightKg ?? null,
+      entries: record.weights,
+    });
     if (evaluation.kind === 'invalid') throw fail('validation_error', evaluation.fields);
     if (evaluation.kind === 'blocked') throw fail('age_blocked');
     return { input, evaluation };

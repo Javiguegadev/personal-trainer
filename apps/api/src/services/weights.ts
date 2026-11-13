@@ -1,5 +1,5 @@
 import type { WeightSaveResponse } from '@pt/contracts';
-import { applyLatestWeight, targetsOnly } from '@pt/core';
+import { addDays, applyLatestWeight, targetsOnly } from '@pt/core';
 import type { Deps, WeightState, WeightWrite } from '../deps';
 
 /**
@@ -9,13 +9,19 @@ import type { Deps, WeightState, WeightWrite } from '../deps';
 export async function writeWeight(
   deps: Deps,
   userId: string,
-  write: WeightWrite,
+  write: Omit<WeightWrite, 'recentFrom'>,
   today: string,
 ): Promise<WeightSaveResponse | null> {
   let targetsChange: WeightSaveResponse['targetsChange'] = null;
 
-  const decide = ({ profile, targets, latest }: WeightState) => {
-    const change = applyLatestWeight(profile, targets && targetsOnly(targets), latest, today);
+  const decide = ({ profile, targets, latest, recent }: WeightState) => {
+    const change = applyLatestWeight(
+      profile,
+      targets && targetsOnly(targets),
+      latest,
+      today,
+      recent,
+    );
     if (!change) return null;
     targetsChange = change.targetsChange;
     return {
@@ -26,7 +32,9 @@ export async function writeWeight(
     };
   };
 
-  const result = await deps.store.writeWeight(userId, write, decide, deps.now());
+  // The last 7 days: the low-BMI recovery rule reads their average (AC12).
+  const recentFrom = addDays(today, -6);
+  const result = await deps.store.writeWeight(userId, { ...write, recentFrom }, decide, deps.now());
   if (!result) return null;
   return { entry: result.entry, targetsChange };
 }

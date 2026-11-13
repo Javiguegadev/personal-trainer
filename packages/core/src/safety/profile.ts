@@ -12,6 +12,12 @@ export const SAFETY_RULES = {
   teenMaxSurplusRatio: 0.1,
   /** ESPEN/GLIM low-BMI thresholds: < 20 under 70 years, < 22 from 70. No deficit below them. */
   minBmi: { under70: 20, from70: 22 },
+  /**
+   * A profile flagged `low_bmi` gets the deficit back only when its 7-day average weight is at least this
+   * many BMI points above the threshold (spec 003 AC12): one high, clothed or mistyped reading must not
+   * switch the deficit on and off.
+   */
+  lowBmiRecoveryMargin: 0.5,
   olderAge: 70,
 } as const;
 
@@ -23,6 +29,11 @@ export interface SafetyInput {
   goal: Goal;
   healthFlags: ReportedHealthFlag[];
   injuries: string | null;
+  /**
+   * 7-day average of the weight log (spec 003), or null with fewer than 3 entries in the week. Only used
+   * to leave `low_bmi`. Omitted means no average.
+   */
+  weightAverageKg?: number | null;
   /** Planned training per week (spec 002 AC11). Omitted means no training. */
   trainingMinutesPerWeek?: number;
   /**
@@ -65,7 +76,13 @@ export function evaluateProfileSafety(input: SafetyInput, today: string): Safety
     maxSurplusRatio = SAFETY_RULES.teenMaxSurplusRatio;
   }
 
-  if (computeBmi(input.weightKg, input.heightCm) < minBmi) {
+  // Into `low_bmi` on one reading; out of it only on the 7-day average with a margin (spec 003 AC12).
+  const averageKg = input.weightAverageKg ?? null;
+  const recovered =
+    averageKg !== null &&
+    computeBmi(averageKg, input.heightCm) >= minBmi + SAFETY_RULES.lowBmiRecoveryMargin;
+  const wasLow = input.previousFlags?.includes('low_bmi') ?? false;
+  if (computeBmi(input.weightKg, input.heightCm) < minBmi || (wasLow && !recovered)) {
     flags.add('low_bmi');
     noDeficit = true;
   }

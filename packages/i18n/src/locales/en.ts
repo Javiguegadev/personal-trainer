@@ -222,7 +222,7 @@ export const en: DeepStringRecord<typeof es> = {
     low_bmi: {
       title: 'No calorie deficit',
       message:
-        "Your BMI is below the recommended range, so we don't apply a deficit. Talk to a professional before trying to lose weight.",
+        "Your BMI is below the recommended range or very close to its limit, so we don't apply a deficit. It comes back when your average weight over a week is clearly above it. Talk to a professional before trying to lose weight.",
     },
     low_target_bmi: {
       title: 'Check your target weight',

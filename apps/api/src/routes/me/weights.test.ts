@@ -184,9 +184,9 @@ describe('PUT /me/weights/{localDate} (spec 003 AC7, AC8, AC10, AC11)', () => {
 });
 
 describe('safety rules on a logged weight (AC12)', () => {
-  it('removes the deficit below the low-BMI threshold and restores it above', async () => {
+  it('removes the deficit on one reading below BMI 20 and restores it on the 7-day average', async () => {
     await onboard();
-    // 165 cm: BMI 20 is 54.45 kg. 54 kg → BMI 19.8.
+    // 165 cm: BMI 20 is 54.45 kg (54 kg → BMI 19.8); BMI 20.5 is 55.81 kg.
     const low = await put(TODAY, 54, at(60));
     expect(low.targetsChange?.safety.appliedGoal).toBe('maintain');
     expect(low.targetsChange?.safety.flags).toContain('low_bmi');
@@ -197,12 +197,36 @@ describe('safety rules on a logged weight (AC12)', () => {
     });
     expect((await me()).profile?.safetyFlags).toContain('low_bmi');
 
-    // 60 kg → BMI 22.0.
-    const back = await put(TODAY, 60, at(120));
+    // One reading well above the threshold (60 kg, BMI 22.0) is not enough.
+    await put(TODAY, 60, at(120));
+    expect((await me()).profile).toMatchObject({ weightKg: 60, goal: 'maintain' });
+
+    // Earlier days change nothing on their own (AC13); then today's entry completes a 7-day average of
+    // 56 kg (BMI 20.57) and the deficit comes back.
+    await put('2026-11-09', 56, at(130));
+    await put('2026-11-10', 56, at(140));
+    expect((await me()).profile?.goal).toBe('maintain');
+    const back = await put(TODAY, 56, at(150));
     expect(back.targetsChange?.safety.appliedGoal).toBe('lose');
     const profile = (await me()).profile;
     expect(profile?.goal).toBe('lose');
     expect(profile?.safetyFlags).not.toContain('low_bmi');
+  });
+
+  it('applies the same rule to a weight typed in the profile form', async () => {
+    await onboard();
+    await put(TODAY, 54, at(60));
+    // One typed weight above the threshold: still no deficit, in the preview and in the save.
+    const preview = await t.call(
+      'POST',
+      '/onboarding/targets-preview',
+      profileInput({ weightKg: 60 }),
+    );
+    expect((await preview.json()) as unknown).toMatchObject({
+      safety: { appliedGoal: 'maintain' },
+    });
+    await t.call('PUT', '/me/profile', profileInput({ weightKg: 60 }));
+    expect((await me()).profile?.goal).toBe('maintain');
   });
 
   it('keeps ed_soft_stop whatever the weight', async () => {

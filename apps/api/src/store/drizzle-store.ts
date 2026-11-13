@@ -145,12 +145,25 @@ export function createDrizzleStore(db: Db): Store {
       await db.insert(consents).values({ userId, kind, version, grantedAt: at });
     },
 
-    async getSafetyFlags(userId) {
-      const [row] = await db
-        .select({ flags: profiles.safetyFlags })
-        .from(profiles)
-        .where(eq(profiles.id, userId));
-      return row ? toFlags(row.flags) : [];
+    async getSafetyContext(userId, weightsFrom) {
+      const [[row], weights] = await Promise.all([
+        db
+          .select({ flags: profiles.safetyFlags, weightKg: profiles.weightKg })
+          .from(profiles)
+          .where(eq(profiles.id, userId)),
+        db
+          .select()
+          .from(bodyMeasurements)
+          .where(
+            and(eq(bodyMeasurements.userId, userId), gte(bodyMeasurements.localDate, weightsFrom)),
+          )
+          .orderBy(asc(bodyMeasurements.localDate)),
+      ]);
+      return {
+        flags: row ? toFlags(row.flags) : [],
+        weightKg: row?.weightKg ?? null,
+        weights: weights.map(toWeight),
+      };
     },
 
     async saveProfile(userId, data, at) {
@@ -264,7 +277,7 @@ export function createDrizzleStore(db: Db): Store {
           await tx.delete(bodyMeasurements).where(day);
         }
 
-        const [[entry], [latest], [lifestyle], activities, [targets]] = await Promise.all([
+        const [[entry], [latest], recent, [lifestyle], activities, [targets]] = await Promise.all([
           tx.select().from(bodyMeasurements).where(day),
           tx
             .select()
@@ -272,6 +285,16 @@ export function createDrizzleStore(db: Db): Store {
             .where(eq(bodyMeasurements.userId, userId))
             .orderBy(desc(bodyMeasurements.localDate))
             .limit(1),
+          tx
+            .select()
+            .from(bodyMeasurements)
+            .where(
+              and(
+                eq(bodyMeasurements.userId, userId),
+                gte(bodyMeasurements.localDate, write.recentFrom),
+              ),
+            )
+            .orderBy(asc(bodyMeasurements.localDate)),
           tx.select().from(lifestyleProfiles).where(eq(lifestyleProfiles.userId, userId)),
           tx
             .select()
@@ -291,6 +314,7 @@ export function createDrizzleStore(db: Db): Store {
           profile: toProfile(profile, lifestyle, activities),
           targets: previousTargets,
           latest: latest ? toWeight(latest) : null,
+          recent: recent.map(toWeight),
         });
         if (decision) {
           await tx

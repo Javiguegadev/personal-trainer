@@ -21,7 +21,10 @@ the existing rule.
    same transaction as the entry and evaluates the stored profile again with it (`applyLatestWeight` in
    `@pt/core`, which reuses the rules of `evaluateProfileInput`). A new `nutrition_targets` row is stored
    only when the numbers change.
-3. **An entry for an earlier day, or deleting one, changes nothing**; deleting the most recent entry
+3. **The low-BMI rule has a margin to leave it**: `low_bmi` (no deficit) is set on one reading below the
+   threshold and cleared only when the 7-day average is at least 0.5 BMI points above it, so single
+   readings cannot switch the deficit on and off (decided by the human after the domain review).
+4. **An entry for an earlier day, or deleting one, changes nothing**; deleting the most recent entry
    recomputes with the one before it. Saving the profile form with another weight stores it as today's
    entry.
 
