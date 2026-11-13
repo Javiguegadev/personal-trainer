@@ -2,17 +2,32 @@
  * TanStack Query bindings. Query options are plain factories (testable without React);
  * `createApiHooks(api)` binds them to one client so every screen and platform reuses them.
  */
-import type { ConsentRequest, MeResponse, ProfileInput } from '@pt/contracts';
+import type {
+  ConsentRequest,
+  MeResponse,
+  ProfileInput,
+  TargetsChange,
+  WeightSaveResponse,
+} from '@pt/contracts';
 import {
   keepPreviousData,
   skipToken,
   queryOptions,
   useMutation,
+  useMutationState,
   useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
+import {
+  dismissWeightNotice,
+  weightKeys,
+  weightsQueryOptions,
+  type DeleteWeightVariables,
+  type RejectedWeightWrite,
+  type SaveWeightVariables,
+} from './weights';
 
 export const queryKeys = {
   me: ['me'] as const,
@@ -82,6 +97,61 @@ export function createApiHooks(api: ApiClient) {
         mutationFn: (body: ProfileInput) => api.updateProfile(body),
         onSuccess: (me) => afterProfileSaved(queryClient, me),
       });
+    },
+
+    /** The weight log of the last year, oldest first (spec 003). */
+    useWeights: (today: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...weightsQueryOptions(api, today), enabled: options.enabled ?? true }),
+
+    /**
+     * Optimistic and offline-safe: the function comes from the defaults registered with
+     * `registerWeightMutations`, found by key, so a queued write survives a restart (AC18).
+     */
+    useSaveWeight: () =>
+      useMutation<WeightSaveResponse, unknown, SaveWeightVariables>({
+        mutationKey: weightKeys.save,
+      }),
+
+    useDeleteWeight: () =>
+      useMutation<WeightSaveResponse, unknown, DeleteWeightVariables>({
+        mutationKey: weightKeys.remove,
+      }),
+
+    /** Days with a write that has not reached the server yet (AC18). */
+    usePendingWeightDates: (): string[] =>
+      useMutationState({
+        filters: { mutationKey: weightKeys.mutations, status: 'pending' },
+        select: (mutation) => (mutation.state.variables as { localDate: string }).localDate,
+      }),
+
+    /** The last targets change caused by a weight write, and how to dismiss it (AC11). */
+    useWeightTargetsChange: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<TargetsChange | null>({
+        queryKey: weightKeys.targetsChange,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return {
+        change: data,
+        dismiss: () => dismissWeightNotice(queryClient, weightKeys.targetsChange),
+      };
+    },
+
+    /** The last write the API rejected, and how to dismiss it (AC21). */
+    useRejectedWeightWrite: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<RejectedWeightWrite | null>({
+        queryKey: weightKeys.rejected,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return {
+        rejected: data,
+        dismiss: () => dismissWeightNotice(queryClient, weightKeys.rejected),
+      };
     },
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),

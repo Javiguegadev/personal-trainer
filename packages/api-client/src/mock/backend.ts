@@ -8,13 +8,26 @@ import {
   CONSENT_VERSION,
   ConsentRequestSchema,
   ProfileInputSchema,
+  WEIGHT_LIMITS,
+  WeightDateParamSchema,
+  WeightDeleteQuerySchema,
+  WeightListQuerySchema,
+  WeightUpsertRequestSchema,
   type ApiErrorCode,
   type DietaryPrefs,
   type ExportResponse,
   type MeResponse,
   type Profile,
+  type WeightEntry,
+  type WeightSaveResponse,
 } from '@pt/contracts';
-import { evaluateProfileInput } from '@pt/core';
+import {
+  applyLatestWeight,
+  checkWeightWrite,
+  daysBetween,
+  evaluateProfileInput,
+  targetsOnly,
+} from '@pt/core';
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
 import { parseMockToken, type MockUser } from './identity';
@@ -43,12 +56,14 @@ interface UserRecord {
   /** Full history; the current row has `validTo: null`. */
   targets: ExportResponse['targets'];
   aiUsage: ExportResponse['aiUsage'];
+  /** The weight log, sorted by day. */
+  weights: WeightEntry[];
 }
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (spec 002). */
-export const MOCK_DB_KEY = 'pt.mock-db.v2';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (spec 003). */
+export const MOCK_DB_KEY = 'pt.mock-db.v3';
 
 const MESSAGES: Record<ApiErrorCode, string> = {
   unauthorized: 'A valid access token is required',
@@ -98,6 +113,7 @@ const emptyUser = (email: string | null): UserRecord => ({
   dietaryPrefs: null,
   targets: [],
   aiUsage: [],
+  weights: [],
 });
 
 export function createMockApiClient({
@@ -167,6 +183,49 @@ export function createMockApiClient({
     };
   }
 
+  const currentTargets = (record: UserRecord) => {
+    const current = record.targets.find((t) => t.validTo === null);
+    return current ? targetsOnly(current) : null;
+  };
+
+  function putWeight(record: UserRecord, entry: WeightEntry) {
+    record.weights = [...record.weights.filter((w) => w.localDate !== entry.localDate), entry].sort(
+      (a, b) => (a.localDate < b.localDate ? -1 : 1),
+    );
+  }
+
+  /** After a weight write: the latest entry becomes the profile weight (spec 003 AC10–AC13). */
+  function afterWeightWrite(
+    record: UserRecord,
+    localDate: string,
+    today: string,
+  ): WeightSaveResponse {
+    const entry = record.weights.find((w) => w.localDate === localDate) ?? null;
+    if (!record.profile) return { entry, targetsChange: null };
+    const change = applyLatestWeight(
+      record.profile,
+      currentTargets(record),
+      record.weights.at(-1) ?? null,
+      today,
+    );
+    if (change) {
+      const at = now().toISOString();
+      record.profile = {
+        ...record.profile,
+        weightKg: change.weightKg,
+        goal: change.goal,
+        safetyFlags: change.safetyFlags,
+      };
+      if (change.targetsChange) {
+        for (const row of record.targets) if (row.validTo === null) row.validTo = at;
+        const { current } = change.targetsChange;
+        if (current) record.targets.push({ ...current, validFrom: at, validTo: null });
+      }
+    }
+    persist();
+    return { entry, targetsChange: change?.targetsChange ?? null };
+  }
+
   function evaluate(body: unknown, record: UserRecord) {
     const input = parse(ProfileInputSchema, body);
     const evaluation = evaluateProfileInput(input, record.profile?.safetyFlags ?? [], now());
@@ -202,6 +261,10 @@ export function createMockApiClient({
       const { user, record } = await authenticateWithConsent();
       const { input, evaluation } = evaluate(body, record);
       const at = now().toISOString();
+      // A new profile, or a weight typed in the profile form, is today's entry (spec 003 AC13).
+      if (record.profile?.weightKg !== input.weightKg) {
+        putWeight(record, { localDate: input.today, weightKg: input.weightKg, recordedAt: at });
+      }
       record.profile = {
         sex: input.sex,
         birthDate: input.birthDate,
@@ -236,6 +299,46 @@ export function createMockApiClient({
       };
     },
 
+    listWeights: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { from, to } = parse(WeightListQuerySchema, query);
+      if (from > to) throw fail('validation_error', { from: 'after_to' });
+      if (daysBetween(from, to) > WEIGHT_LIMITS.listDaysMax) {
+        throw fail('validation_error', { to: 'too_big' });
+      }
+      return { entries: record.weights.filter((w) => w.localDate >= from && w.localDate <= to) };
+    },
+
+    saveWeight: async (day, body) => {
+      const { record } = await authenticateWithConsent();
+      const { localDate } = parse(WeightDateParamSchema, { localDate: day });
+      const input = parse(WeightUpsertRequestSchema, body);
+      const invalid = checkWeightWrite({ localDate, ...input }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      if (!record.profile) throw fail('validation_error', { profile: 'required' });
+      const stored = record.weights.find((w) => w.localDate === localDate);
+      // The write recorded later on its device wins (AC20).
+      if (!stored || Date.parse(stored.recordedAt) <= Date.parse(input.recordedAt)) {
+        putWeight(record, {
+          localDate,
+          weightKg: input.weightKg,
+          recordedAt: new Date(input.recordedAt).toISOString(),
+        });
+      }
+      return afterWeightWrite(record, localDate, input.today);
+    },
+
+    deleteWeight: async (day, query) => {
+      const { record } = await authenticateWithConsent();
+      const { localDate } = parse(WeightDateParamSchema, { localDate: day });
+      const { today } = parse(WeightDeleteQuerySchema, query);
+      const invalid = checkWeightWrite({ localDate, today }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      if (!record.profile) throw fail('validation_error', { profile: 'required' });
+      record.weights = record.weights.filter((w) => w.localDate !== localDate);
+      return afterWeightWrite(record, localDate, today);
+    },
+
     exportData: async () => {
       const { user, record } = await authenticate();
       return {
@@ -245,6 +348,7 @@ export function createMockApiClient({
         profile: record.profile,
         dietaryPrefs: record.dietaryPrefs,
         targets: record.targets,
+        weights: record.weights,
         consents: record.consents,
         aiUsage: record.aiUsage,
       };

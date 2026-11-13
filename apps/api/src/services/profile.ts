@@ -29,6 +29,7 @@ export async function saveProfile(
       },
       dietaryPrefs: input.dietaryPrefs,
       targets: evaluation.targets,
+      today: input.today,
     },
     deps.now(),
   );

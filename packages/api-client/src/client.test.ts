@@ -95,9 +95,42 @@ describe('createApiClient', () => {
             profile: null,
             dietaryPrefs: null,
             targets: [],
+            weights: [],
             consents: [],
             aiUsage: [],
           }),
+      },
+      {
+        run: (a: Api) => a.listWeights({ from: '2026-11-01', to: '2026-11-11' }),
+        method: 'GET',
+        path: '/me/weights?from=2026-11-01&to=2026-11-11',
+        res: () => Response.json({ entries: [] }),
+      },
+      {
+        run: (a: Api) =>
+          a.saveWeight('2026-11-11', {
+            weightKg: 70,
+            recordedAt: '2026-11-11T10:00:00.000Z',
+            today: '2026-11-11',
+          }),
+        method: 'PUT',
+        path: '/me/weights/2026-11-11',
+        body: { weightKg: 70, recordedAt: '2026-11-11T10:00:00.000Z', today: '2026-11-11' },
+        res: () =>
+          Response.json({
+            entry: {
+              localDate: '2026-11-11',
+              weightKg: 70,
+              recordedAt: '2026-11-11T10:00:00.000Z',
+            },
+            targetsChange: null,
+          }),
+      },
+      {
+        run: (a: Api) => a.deleteWeight('2026-11-11', { today: '2026-11-11' }),
+        method: 'DELETE',
+        path: '/me/weights/2026-11-11?today=2026-11-11',
+        res: () => Response.json({ entry: null, targetsChange: null }),
       },
       {
         run: (a: Api) => a.deleteAccount(),

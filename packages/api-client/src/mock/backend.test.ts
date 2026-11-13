@@ -245,3 +245,77 @@ describe('mock backend: profile and targets', () => {
     await expect(reloaded.me()).resolves.toMatchObject({ onboardingCompleted: true });
   });
 });
+
+describe('mock backend: weight log (spec 003)', () => {
+  const TODAY = '2026-11-11';
+  const at = (seconds: number) => new Date(NOW.getTime() + seconds * 1000).toISOString();
+  const all = { from: '2026-01-01', to: TODAY };
+  async function consented() {
+    const s = setup();
+    await s.api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    return s;
+  }
+
+  it('needs consent', async () => {
+    const { api } = setup();
+    await expect(api.listWeights(all)).rejects.toMatchObject({ status: 403 });
+    await expect(
+      api.saveWeight(TODAY, { weightKg: 60, recordedAt: at(0), today: TODAY }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(api.deleteWeight(TODAY, { today: TODAY })).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('stores the profile weight as the entry of that day (AC13)', async () => {
+    const { api } = await consented();
+    await api.updateProfile(input());
+    expect((await api.listWeights(all)).entries).toEqual([
+      { localDate: TODAY, weightKg: 60, recordedAt: NOW.toISOString() },
+    ]);
+  });
+
+  it('copies the latest weight to the profile and recomputes the targets (AC10)', async () => {
+    const { api } = await consented();
+    const before = await api.updateProfile(input());
+    const saved = await api.saveWeight(TODAY, { weightKg: 64, recordedAt: at(60), today: TODAY });
+    const after = await api.me();
+    expect(after.profile?.weightKg).toBe(64);
+    expect(saved.targetsChange?.previous?.kcal).toBe(before.targets?.kcal);
+    expect(saved.targetsChange?.current?.kcal).toBe(after.targets?.kcal);
+    expect((await api.exportData()).weights).toHaveLength(1);
+
+    // An older day changes nothing (AC13).
+    const older = await api.saveWeight('2026-11-09', {
+      weightKg: 80,
+      recordedAt: at(90),
+      today: TODAY,
+    });
+    expect(older.targetsChange).toBeNull();
+    expect((await api.me()).profile?.weightKg).toBe(64);
+  });
+
+  it('keeps the write recorded later and deletes idempotently (AC9, AC20)', async () => {
+    const { api } = await consented();
+    await api.updateProfile(input());
+    await api.saveWeight(TODAY, { weightKg: 61, recordedAt: at(300), today: TODAY });
+    const late = await api.saveWeight(TODAY, { weightKg: 75, recordedAt: at(100), today: TODAY });
+    expect(late.entry?.weightKg).toBe(61);
+
+    expect(await api.deleteWeight(TODAY, { today: TODAY })).toEqual({
+      entry: null,
+      targetsChange: null,
+    });
+    await expect(api.deleteWeight(TODAY, { today: TODAY })).resolves.toMatchObject({ entry: null });
+    expect((await api.me()).profile?.weightKg).toBe(61);
+  });
+
+  it('rejects a future day and an implausible weight with field errors', async () => {
+    const { api } = await consented();
+    await api.updateProfile(input());
+    await expect(
+      api.saveWeight('2026-11-12', { weightKg: 60, recordedAt: at(0), today: TODAY }),
+    ).rejects.toMatchObject({ status: 400, fields: { localDate: 'in_future' } });
+    await expect(
+      api.saveWeight(TODAY, { weightKg: 301, recordedAt: at(0), today: TODAY }),
+    ).rejects.toMatchObject({ status: 400, fields: { weightKg: 'too_big' } });
+  });
+});

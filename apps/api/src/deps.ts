@@ -8,6 +8,7 @@ import type {
   SafetyFlag,
   StoredTargets,
   Targets,
+  WeightEntry,
 } from '@pt/contracts';
 
 /** The signed-in user, taken from a verified Supabase access token. */
@@ -31,6 +32,41 @@ export interface ProfileWrite {
   dietaryPrefs: DietaryPrefs;
   /** Null when safety rules do not allow numeric targets: the current row is closed, nothing is inserted. */
   targets: Targets | null;
+  /**
+   * The user's day. When the profile is new or its weight changed, the weight is also stored as the
+   * entry of this day (spec 003 AC13).
+   */
+  today: string;
+}
+
+/** A weight write: the entry to store for that day, or null to delete it. */
+export interface WeightWrite {
+  localDate: string;
+  entry: { weightKg: number; recordedAt: string } | null;
+}
+
+/** What `writeWeight` shows its `decide` callback, read inside the transaction after the write. */
+export interface WeightState {
+  profile: Profile;
+  targets: StoredTargets | null;
+  /** The user's most recent entry by day, after the write. */
+  latest: WeightEntry | null;
+}
+
+/** The profile after the most recent weight changed (spec 003 AC10). */
+export interface WeightDecision {
+  weightKg: number;
+  goal: Profile['goal'];
+  safetyFlags: SafetyFlag[];
+  /** Set when the targets differ: the current row is closed and this one is inserted (null = none). */
+  newTargets?: Targets | null;
+}
+
+export interface WeightWriteResult {
+  /** The entry stored for that day after the write. */
+  entry: WeightEntry | null;
+  /** The targets before the write. */
+  previousTargets: StoredTargets | null;
 }
 
 export type ExportRecord = Omit<ExportResponse, 'exportedAt' | 'userId' | 'email'>;
@@ -48,6 +84,19 @@ export interface Store {
    * targets row and inserts the new one (spec 001 AC16, spec 002 AC5).
    */
   saveProfile(userId: string, data: ProfileWrite, at: Date): Promise<void>;
+  /** Entries dated from `from` to `to` (inclusive), oldest first. */
+  listWeights(userId: string, from: string, to: string): Promise<WeightEntry[]>;
+  /**
+   * In one transaction (spec 003 AC8–AC10, AC20): stores the entry unless the stored one was recorded
+   * later, or deletes it; then asks `decide` what the profile becomes and applies it. Returns null when
+   * the user has no profile (nothing is written).
+   */
+  writeWeight(
+    userId: string,
+    write: WeightWrite,
+    decide: (state: WeightState) => WeightDecision | null,
+    at: Date,
+  ): Promise<WeightWriteResult | null>;
   recordAiUsage(userId: string, usage: AiUsage, at: Date): Promise<void>;
   exportUser(userId: string): Promise<ExportRecord>;
 }

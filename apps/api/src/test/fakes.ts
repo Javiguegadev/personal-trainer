@@ -1,5 +1,5 @@
 import type { AiUsage } from '@pt/ai';
-import type { ConsentKind, ProfileInput } from '@pt/contracts';
+import type { ConsentKind, ProfileInput, WeightEntry } from '@pt/contracts';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { createApp } from '../app';
 import type { AuthAdmin, Deps, ExportRecord, MeRecord, Store } from '../deps';
@@ -17,6 +17,8 @@ interface UserRows {
   dietaryPrefs: MeRecord['dietaryPrefs'];
   targets: ExportRecord['targets'];
   aiUsage: (AiUsage & { createdAt: string })[];
+  /** Kept sorted by day. */
+  weights: WeightEntry[];
 }
 
 /** In-memory Store with the same semantics as the Drizzle one (targets history, sticky completion). */
@@ -26,7 +28,14 @@ export class FakeStore implements Store {
   rows(userId: string): UserRows {
     let rows = this.users.get(userId);
     if (!rows) {
-      rows = { consents: [], profile: null, dietaryPrefs: null, targets: [], aiUsage: [] };
+      rows = {
+        consents: [],
+        profile: null,
+        dietaryPrefs: null,
+        targets: [],
+        aiUsage: [],
+        weights: [],
+      };
       this.users.set(userId, rows);
     }
     return rows;
@@ -65,6 +74,13 @@ export class FakeStore implements Store {
   async saveProfile(userId: string, data: Parameters<Store['saveProfile']>[1], at: Date) {
     const rows = this.rows(userId);
     const iso = at.toISOString();
+    if (rows.profile?.weightKg !== data.profile.weightKg) {
+      this.putWeight(rows, {
+        localDate: data.today,
+        weightKg: data.profile.weightKg,
+        recordedAt: iso,
+      });
+    }
     rows.profile = {
       ...data.profile,
       onboardingCompletedAt: rows.profile?.onboardingCompletedAt ?? iso,
@@ -72,6 +88,62 @@ export class FakeStore implements Store {
     rows.dietaryPrefs = data.dietaryPrefs;
     for (const t of rows.targets) if (t.validTo === null) t.validTo = iso;
     if (data.targets) rows.targets.push({ ...data.targets, validFrom: iso, validTo: null });
+  }
+
+  private putWeight(rows: UserRows, entry: WeightEntry) {
+    rows.weights = [...rows.weights.filter((w) => w.localDate !== entry.localDate), entry].sort(
+      (a, b) => (a.localDate < b.localDate ? -1 : 1),
+    );
+  }
+
+  async listWeights(userId: string, from: string, to: string) {
+    return this.rows(userId).weights.filter((w) => w.localDate >= from && w.localDate <= to);
+  }
+
+  async writeWeight(
+    userId: string,
+    write: Parameters<Store['writeWeight']>[1],
+    decide: Parameters<Store['writeWeight']>[2],
+    at: Date,
+  ) {
+    const rows = this.rows(userId);
+    if (!rows.profile) return null;
+    const iso = at.toISOString();
+    const stored = rows.weights.find((w) => w.localDate === write.localDate);
+    if (!write.entry) {
+      rows.weights = rows.weights.filter((w) => w.localDate !== write.localDate);
+    } else if (!stored || Date.parse(stored.recordedAt) <= Date.parse(write.entry.recordedAt)) {
+      this.putWeight(rows, {
+        localDate: write.localDate,
+        weightKg: write.entry.weightKg,
+        recordedAt: new Date(write.entry.recordedAt).toISOString(),
+      });
+    }
+    const current = rows.targets.find((t) => t.validTo === null);
+    const previousTargets = current ? (({ validTo: _, ...t }) => t)(current) : null;
+    const decision = decide({
+      profile: rows.profile,
+      targets: previousTargets,
+      latest: rows.weights.at(-1) ?? null,
+    });
+    if (decision) {
+      rows.profile = {
+        ...rows.profile,
+        weightKg: decision.weightKg,
+        goal: decision.goal,
+        safetyFlags: decision.safetyFlags,
+      };
+      if (decision.newTargets !== undefined) {
+        for (const t of rows.targets) if (t.validTo === null) t.validTo = iso;
+        if (decision.newTargets) {
+          rows.targets.push({ ...decision.newTargets, validFrom: iso, validTo: null });
+        }
+      }
+    }
+    return {
+      entry: rows.weights.find((w) => w.localDate === write.localDate) ?? null,
+      previousTargets,
+    };
   }
 
   async recordAiUsage(userId: string, usage: AiUsage, at: Date) {
@@ -84,6 +156,7 @@ export class FakeStore implements Store {
       profile: rows.profile,
       dietaryPrefs: rows.dietaryPrefs,
       targets: rows.targets,
+      weights: rows.weights,
       consents: rows.consents,
       aiUsage: rows.aiUsage.map((u) => ({
         feature: u.feature,

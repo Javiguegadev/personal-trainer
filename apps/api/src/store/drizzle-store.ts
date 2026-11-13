@@ -1,10 +1,11 @@
 import type { ConsentKind, PlannedActivity, SafetyFlag } from '@pt/contracts';
 import { SafetyFlagSchema } from '@pt/contracts';
-import { and, asc, desc, eq, isNull, schema, sql, type Db } from '@pt/db';
+import { and, asc, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
 
 const {
   aiUsage,
+  bodyMeasurements,
   consents,
   dietaryPrefs,
   lifestyleProfiles,
@@ -18,6 +19,7 @@ type PrefsRow = typeof dietaryPrefs.$inferSelect;
 type LifestyleRow = typeof lifestyleProfiles.$inferSelect;
 type ActivityRow = typeof plannedActivities.$inferSelect;
 type TargetsRow = typeof nutritionTargets.$inferSelect;
+type WeightRow = typeof bodyMeasurements.$inferSelect;
 
 /** Unknown values (e.g. a flag removed from the contract) are dropped instead of failing the response. */
 function toFlags(values: readonly string[]): SafetyFlag[] {
@@ -80,6 +82,14 @@ function toTargets(row: TargetsRow) {
     formulaVersion: row.formulaVersion,
     clampedReason: row.clampedReason,
     validFrom: row.validFrom.toISOString(),
+  };
+}
+
+function toWeight(row: WeightRow) {
+  return {
+    localDate: row.localDate,
+    weightKg: row.weightKg,
+    recordedAt: row.recordedAt.toISOString(),
   };
 }
 
@@ -147,6 +157,10 @@ export function createDrizzleStore(db: Db): Store {
       await db.transaction(async (tx) => {
         const { jobActivity, plannedActivities: activities, ...profile } = data.profile;
         const values = { id: userId, ...profile, updatedAt: at };
+        const [stored] = await tx
+          .select({ weightKg: profiles.weightKg })
+          .from(profiles)
+          .where(eq(profiles.id, userId));
         await tx
           .insert(profiles)
           .values({ ...values, onboardingCompletedAt: at })
@@ -159,6 +173,18 @@ export function createDrizzleStore(db: Db): Store {
               onboardingCompletedAt: sql`coalesce(${profiles.onboardingCompletedAt}, ${at.toISOString()}::timestamptz)`,
             },
           });
+
+        // A new profile, or a weight typed in the profile form, is today's entry (spec 003 AC13).
+        if (stored?.weightKg !== profile.weightKg) {
+          const entry = { weightKg: profile.weightKg, recordedAt: at, updatedAt: at };
+          await tx
+            .insert(bodyMeasurements)
+            .values({ userId, localDate: data.today, ...entry })
+            .onConflictDoUpdate({
+              target: [bodyMeasurements.userId, bodyMeasurements.localDate],
+              set: entry,
+            });
+        }
 
         const lifestyle = { userId, jobActivity, updatedAt: at };
         await tx
@@ -190,6 +216,108 @@ export function createDrizzleStore(db: Db): Store {
       });
     },
 
+    async listWeights(userId, from, to) {
+      const rows = await db
+        .select()
+        .from(bodyMeasurements)
+        .where(
+          and(
+            eq(bodyMeasurements.userId, userId),
+            gte(bodyMeasurements.localDate, from),
+            lte(bodyMeasurements.localDate, to),
+          ),
+        )
+        .orderBy(asc(bodyMeasurements.localDate));
+      return rows.map(toWeight);
+    },
+
+    async writeWeight(userId, write, decide, at) {
+      return db.transaction(async (tx) => {
+        // The row lock serialises the writes of one user, so "most recent entry" is read consistently.
+        const [profile] = await tx
+          .select()
+          .from(profiles)
+          .where(eq(profiles.id, userId))
+          .for('update');
+        if (!profile) return null;
+
+        const day = and(
+          eq(bodyMeasurements.userId, userId),
+          eq(bodyMeasurements.localDate, write.localDate),
+        );
+        if (write.entry) {
+          const entry = {
+            weightKg: write.entry.weightKg,
+            recordedAt: new Date(write.entry.recordedAt),
+            updatedAt: at,
+          };
+          await tx
+            .insert(bodyMeasurements)
+            .values({ userId, localDate: write.localDate, ...entry })
+            .onConflictDoUpdate({
+              target: [bodyMeasurements.userId, bodyMeasurements.localDate],
+              set: entry,
+              // The write recorded later on its device wins, whatever the order of arrival (AC20).
+              setWhere: lte(bodyMeasurements.recordedAt, entry.recordedAt),
+            });
+        } else {
+          await tx.delete(bodyMeasurements).where(day);
+        }
+
+        const [[entry], [latest], [lifestyle], activities, [targets]] = await Promise.all([
+          tx.select().from(bodyMeasurements).where(day),
+          tx
+            .select()
+            .from(bodyMeasurements)
+            .where(eq(bodyMeasurements.userId, userId))
+            .orderBy(desc(bodyMeasurements.localDate))
+            .limit(1),
+          tx.select().from(lifestyleProfiles).where(eq(lifestyleProfiles.userId, userId)),
+          tx
+            .select()
+            .from(plannedActivities)
+            .where(eq(plannedActivities.userId, userId))
+            .orderBy(asc(plannedActivities.position)),
+          tx
+            .select()
+            .from(nutritionTargets)
+            .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)))
+            .orderBy(desc(nutritionTargets.validFrom))
+            .limit(1),
+        ]);
+        const previousTargets = targets ? toTargets(targets) : null;
+
+        const decision = decide({
+          profile: toProfile(profile, lifestyle, activities),
+          targets: previousTargets,
+          latest: latest ? toWeight(latest) : null,
+        });
+        if (decision) {
+          await tx
+            .update(profiles)
+            .set({
+              weightKg: decision.weightKg,
+              goal: decision.goal,
+              safetyFlags: decision.safetyFlags,
+              updatedAt: at,
+            })
+            .where(eq(profiles.id, userId));
+          if (decision.newTargets !== undefined) {
+            await tx
+              .update(nutritionTargets)
+              .set({ validTo: at })
+              .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)));
+            if (decision.newTargets) {
+              await tx
+                .insert(nutritionTargets)
+                .values({ userId, ...decision.newTargets, validFrom: at });
+            }
+          }
+        }
+        return { entry: entry ? toWeight(entry) : null, previousTargets };
+      });
+    },
+
     async recordAiUsage(userId, usage, at) {
       await db.insert(aiUsage).values({
         userId,
@@ -205,28 +333,41 @@ export function createDrizzleStore(db: Db): Store {
     },
 
     async exportUser(userId) {
-      const [[profile], [lifestyle], activities, [prefs], targets, consentRows, usageRows] =
-        await Promise.all([
-          db.select().from(profiles).where(eq(profiles.id, userId)),
-          lifestyleOf(userId),
-          activitiesOf(userId),
-          db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
-          db
-            .select()
-            .from(nutritionTargets)
-            .where(eq(nutritionTargets.userId, userId))
-            .orderBy(desc(nutritionTargets.validFrom)),
-          db
-            .select()
-            .from(consents)
-            .where(eq(consents.userId, userId))
-            .orderBy(desc(consents.grantedAt)),
-          db
-            .select()
-            .from(aiUsage)
-            .where(eq(aiUsage.userId, userId))
-            .orderBy(desc(aiUsage.createdAt)),
-        ]);
+      const [
+        [profile],
+        [lifestyle],
+        activities,
+        [prefs],
+        targets,
+        consentRows,
+        usageRows,
+        weights,
+      ] = await Promise.all([
+        db.select().from(profiles).where(eq(profiles.id, userId)),
+        lifestyleOf(userId),
+        activitiesOf(userId),
+        db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
+        db
+          .select()
+          .from(nutritionTargets)
+          .where(eq(nutritionTargets.userId, userId))
+          .orderBy(desc(nutritionTargets.validFrom)),
+        db
+          .select()
+          .from(consents)
+          .where(eq(consents.userId, userId))
+          .orderBy(desc(consents.grantedAt)),
+        db
+          .select()
+          .from(aiUsage)
+          .where(eq(aiUsage.userId, userId))
+          .orderBy(desc(aiUsage.createdAt)),
+        db
+          .select()
+          .from(bodyMeasurements)
+          .where(eq(bodyMeasurements.userId, userId))
+          .orderBy(asc(bodyMeasurements.localDate)),
+      ]);
       return {
         profile: profile ? toProfile(profile, lifestyle, activities) : null,
         dietaryPrefs: prefs ? toPrefs(prefs) : null,
@@ -234,6 +375,7 @@ export function createDrizzleStore(db: Db): Store {
           ...toTargets(t),
           validTo: t.validTo?.toISOString() ?? null,
         })),
+        weights: weights.map(toWeight),
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

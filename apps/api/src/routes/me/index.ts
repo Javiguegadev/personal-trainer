@@ -8,6 +8,7 @@ import {
 } from '@pt/contracts';
 import { evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
+import { weightRoutes } from './weights';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { saveProfile, toMeResponse } from '../../services/profile';
@@ -128,5 +129,6 @@ export function meRoutes(deps: Deps) {
     .openapi(deleteMe, async (c) => {
       await deps.authAdmin.deleteUser(c.var.user.userId);
       return c.body(null, 204);
-    });
+    })
+    .route('/', weightRoutes(deps));
 }

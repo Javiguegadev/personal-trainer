@@ -21,6 +21,7 @@ const enabled = Boolean(supabaseUrl && DATABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 /** Every table that holds user rows. Add a table here only together with its rows in the test below. */
 const COVERED_USER_TABLES = [
   'profiles',
+  'body_measurements',
   'lifestyle_profiles',
   'planned_activities',
   'dietary_prefs',
@@ -60,6 +61,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
 
     const store = createDrizzleStore(db);
     const now = new Date();
+    const TODAY = now.toISOString().slice(0, 10);
     const input = profileInput();
     await store.grantConsent(id, 'health_data', CONSENT_VERSION, now);
     await store.saveProfile(
@@ -98,6 +100,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
           formulaVersion: 'targets-v2',
           clampedReason: null,
         },
+        today: TODAY,
       },
       now,
     );
@@ -126,6 +129,68 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       plannedActivities: [{ kind: 'sport', label: 'fútbol', sessionsPerWeek: 2 }],
     });
     expect((await store.exportUser(id)).profile?.plannedActivities).toHaveLength(1);
+
+    // Spec 003: the profile save stored today's entry (AC13); a write recorded earlier loses (AC20);
+    // the latest weight reaches the profile and the targets in one transaction (AC10).
+    expect(await store.listWeights(id, TODAY, TODAY)).toEqual([
+      { localDate: TODAY, weightKg: input.weightKg, recordedAt: now.toISOString() },
+    ]);
+    const stale = await store.writeWeight(
+      id,
+      {
+        localDate: TODAY,
+        entry: { weightKg: 90, recordedAt: new Date(now.getTime() - 60_000).toISOString() },
+      },
+      () => null,
+      now,
+    );
+    expect(stale?.entry?.weightKg).toBe(input.weightKg);
+    const later = new Date(now.getTime() + 1000);
+    const written = await store.writeWeight(
+      id,
+      { localDate: TODAY, entry: { weightKg: 69.4, recordedAt: later.toISOString() } },
+      ({ profile, latest }) => ({
+        weightKg: latest?.weightKg ?? profile.weightKg,
+        goal: 'maintain',
+        safetyFlags: ['low_bmi'],
+        newTargets: {
+          kcal: 2000,
+          proteinG: 120,
+          carbsG: 240,
+          fatG: 60,
+          fiberG: 28,
+          formulaVersion: 'targets-v2',
+          clampedReason: null,
+        },
+      }),
+      later,
+    );
+    expect(written).toMatchObject({ entry: { weightKg: 69.4 }, previousTargets: { kcal: 1800 } });
+    const after = await store.getMe(id);
+    expect(after.profile).toMatchObject({
+      weightKg: 69.4,
+      goal: 'maintain',
+      safetyFlags: ['low_bmi'],
+    });
+    expect(after.targets?.kcal).toBe(2000);
+    const exported = await store.exportUser(id);
+    expect(exported.weights).toHaveLength(1);
+    expect(exported.targets).toHaveLength(2);
+    const removed = await store.writeWeight(
+      id,
+      { localDate: TODAY, entry: null },
+      () => null,
+      later,
+    );
+    expect(removed).toMatchObject({ entry: null });
+    // Deleting again succeeds (AC9); put one back so the cascade below has a row to remove.
+    await store.writeWeight(id, { localDate: TODAY, entry: null }, () => null, later);
+    await store.writeWeight(
+      id,
+      { localDate: TODAY, entry: { weightKg: 70, recordedAt: later.toISOString() } },
+      () => null,
+      later,
+    );
 
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.

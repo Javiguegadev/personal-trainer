@@ -1,5 +1,8 @@
 import type {
+  JobActivity,
+  Profile,
   ProfileInput,
+  ReportedHealthFlag,
   SafetyEvaluation,
   SafetyFlag,
   Targets,
@@ -46,7 +49,28 @@ export function evaluateProfileInput(
 ): ProfileEvaluation {
   const invalid = checkClientDates(input, now);
   if (invalid) return { kind: 'invalid', fields: invalid };
+  return evaluate(input, previousFlags, input.today);
+}
 
+type EvaluatedFields = Pick<
+  ProfileInput,
+  | 'sex'
+  | 'birthDate'
+  | 'heightCm'
+  | 'weightKg'
+  | 'targetWeightKg'
+  | 'goal'
+  | 'healthFlags'
+  | 'injuries'
+  | 'jobActivity'
+  | 'plannedActivities'
+>;
+
+function evaluate(
+  input: EvaluatedFields,
+  previousFlags: readonly SafetyFlag[],
+  today: string,
+): Exclude<ProfileEvaluation, { kind: 'invalid' }> {
   const safety = evaluateProfileSafety(
     {
       birthDate: input.birthDate,
@@ -59,7 +83,7 @@ export function evaluateProfileInput(
       trainingMinutesPerWeek: trainingMinutesPerWeek(input.plannedActivities),
       previousFlags,
     },
-    input.today,
+    today,
   );
   if (safety.status === 'blocked') return { kind: 'blocked' };
 
@@ -70,7 +94,7 @@ export function evaluateProfileInput(
       jobActivity: input.jobActivity,
       plannedActivities: input.plannedActivities,
     },
-    input.today,
+    today,
   );
   const computed = safety.targetsAllowed ? computeTargets(snapshot, safety) : null;
   const flags = [...safety.flags];
@@ -83,4 +107,62 @@ export function evaluateProfileInput(
     breakdown: computed?.breakdown ?? null,
     flags,
   };
+}
+
+const REPORTED_FLAGS: readonly SafetyFlag[] = ['pregnancy', 'ed_soft_stop', 'medical_condition'];
+
+/**
+ * The stored profile evaluated again with a new weight (spec 003 AC10, AC12): the same safety rules and
+ * targets as a profile save, with the goal the user asked for and the health facts they reported.
+ */
+export function evaluateStoredProfile(
+  profile: Profile & { jobActivity: JobActivity },
+  weightKg: number,
+  today: string,
+): Exclude<ProfileEvaluation, { kind: 'invalid' }> {
+  return evaluate(
+    {
+      sex: profile.sex,
+      birthDate: profile.birthDate,
+      heightCm: profile.heightCm,
+      weightKg,
+      targetWeightKg: profile.targetWeightKg,
+      goal: profile.requestedGoal,
+      healthFlags: profile.safetyFlags.filter((flag): flag is ReportedHealthFlag =>
+        REPORTED_FLAGS.includes(flag),
+      ),
+      injuries: profile.injuries,
+      jobActivity: profile.jobActivity,
+      plannedActivities: profile.plannedActivities,
+    },
+    profile.safetyFlags,
+    today,
+  );
+}
+
+/** Only the targets, from a stored row that also carries its validity dates. */
+export function targetsOnly(row: Targets): Targets {
+  return {
+    kcal: row.kcal,
+    proteinG: row.proteinG,
+    carbsG: row.carbsG,
+    fatG: row.fatG,
+    fiberG: row.fiberG,
+    formulaVersion: row.formulaVersion,
+    clampedReason: row.clampedReason,
+  };
+}
+
+/** Whether two sets of targets are the same numbers (spec 003 AC10). Null = no numeric targets. */
+export function sameTargets(a: Targets | null, b: Targets | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.kcal === b.kcal &&
+    a.proteinG === b.proteinG &&
+    a.carbsG === b.carbsG &&
+    a.fatG === b.fatG &&
+    a.fiberG === b.fiberG &&
+    a.formulaVersion === b.formulaVersion &&
+    a.clampedReason === b.clampedReason
+  );
 }

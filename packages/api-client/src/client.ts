@@ -4,6 +4,8 @@ import {
   HealthResponseSchema,
   MeResponseSchema,
   TargetsPreviewResponseSchema,
+  WeightListResponseSchema,
+  WeightSaveResponseSchema,
   type ApiErrorCode,
   type ConsentRequest,
   type ExportResponse,
@@ -11,6 +13,11 @@ import {
   type MeResponse,
   type ProfileInput,
   type TargetsPreviewResponse,
+  type WeightDeleteQuery,
+  type WeightListQuery,
+  type WeightListResponse,
+  type WeightSaveResponse,
+  type WeightUpsertRequest,
 } from '@pt/contracts';
 import type { z } from 'zod';
 
@@ -115,6 +122,20 @@ export function createApiClient({
       request('/onboarding/targets-preview', TargetsPreviewResponseSchema, {
         method: 'POST',
         json: body,
+      }),
+
+    /** `GET /me/weights`: the entries of a range of at most 366 days, oldest first (spec 003). */
+    listWeights: ({ from, to }: WeightListQuery): Promise<WeightListResponse> =>
+      request(`/me/weights?from=${from}&to=${to}`, WeightListResponseSchema),
+
+    /** `PUT /me/weights/:localDate`: one entry per day; idempotent (spec 003 AC8, AC19). */
+    saveWeight: (localDate: string, body: WeightUpsertRequest): Promise<WeightSaveResponse> =>
+      request(`/me/weights/${localDate}`, WeightSaveResponseSchema, { method: 'PUT', json: body }),
+
+    /** `DELETE /me/weights/:localDate`: succeeds when the entry no longer exists (spec 003 AC9). */
+    deleteWeight: (localDate: string, query: WeightDeleteQuery): Promise<WeightSaveResponse> =>
+      request(`/me/weights/${localDate}?today=${query.today}`, WeightSaveResponseSchema, {
+        method: 'DELETE',
       }),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */

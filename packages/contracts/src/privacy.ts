@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DietaryPrefsSchema, ProfileSchema, StoredTargetsSchema } from './profile';
+import { WeightEntrySchema } from './weight';
 
 /**
  * Version of the consent text shown to the user. Bump it when the text changes: a consent given to an
@@ -26,6 +27,8 @@ export const ExportResponseSchema = z.object({
   profile: ProfileSchema.nullable(),
   dietaryPrefs: DietaryPrefsSchema.nullable(),
   targets: z.array(StoredTargetsSchema.extend({ validTo: datetime.nullable() })),
+  /** The weight log, oldest first (spec 003 AC26). */
+  weights: z.array(WeightEntrySchema),
   consents: z.array(
     z.object({
       kind: ConsentKindSchema,
