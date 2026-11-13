@@ -245,6 +245,7 @@ export function profileInput(overrides: Partial<ProfileInput> = {}): ProfileInpu
     jobActivity: 'sedentary',
     plannedActivities: [],
     goal: 'lose',
+    trainingFocus: 'general_fitness',
     injuries: null,
     healthFlags: [],
     units: 'metric',

@@ -126,8 +126,25 @@ export const en: DeepStringRecord<typeof es> = {
         'Light: you can talk normally. Moderate: you can talk, but not sing. Hard: you can only say a few words at a time.',
       intensityHintStrength:
         'Light: far from failure, with long rests. Moderate: demanding sets. Hard: close to failure, with short rests.',
-      goal: 'Goal',
-      goalOptions: { lose: 'Lose fat', maintain: 'Maintain', gain: 'Build muscle' },
+      goal: 'Your weight',
+      goalOptions: { lose: 'Lose fat', maintain: 'Keep my weight', gain: 'Gain weight' },
+      goalHint: 'To build muscle, choose gain weight or keep my weight, and "Gain muscle" below.',
+      focus: 'What do you train for?',
+      focusHint: 'It sets your macros: protein and, if you play a sport, carbohydrates.',
+      focusOptions: {
+        hypertrophy: 'Gain muscle',
+        strength: 'Gain strength',
+        sport_performance: 'Perform in my sport',
+        general_fitness: 'Health and general fitness',
+      },
+      focusDescriptions: {
+        hypertrophy: 'More muscle mass. More protein to build it.',
+        strength: 'Lift heavier. More protein to recover.',
+        sport_performance:
+          'Perform better in your sport. Enough carbohydrates for your sessions and matches.',
+        general_fitness: 'Be fit and feel good, without a specific sport goal.',
+      },
+      addSport: 'Add a sport',
       diet: 'Diet',
       dietOptions: {
         omnivore: 'Omnivore',
@@ -154,6 +171,8 @@ export const en: DeepStringRecord<typeof es> = {
         in_future: "The date can't be in the future.",
         too_long: "It's too long.",
         invalid: 'Please check this field.',
+        sport_required: 'To perform in your sport, add at least one sport to your week.',
+        sport_name_required: 'Name your sport.',
       },
     },
     summary: {
@@ -196,6 +215,9 @@ export const en: DeepStringRecord<typeof es> = {
       protein: 'Protein: {perKg} g per kg × {weight} kg reference weight',
       fat: 'Fat: 25% of calories, at least 0.6 g per kg',
       carbs: 'Carbs: the remaining calories',
+      carbsMin:
+        'Carbs: the remaining calories, at least {perKg} g per kg for your training (fat goes down to make room)',
+      focus: 'What you train for: {focus}',
       fiber: 'Fibre: 14 g per 1000 kcal, at least 25 g',
       sources: 'Sources',
       sourceList:
@@ -244,6 +266,16 @@ export const en: DeepStringRecord<typeof es> = {
       message:
         'You plan {hours} or more hours of training per week. Make sure you eat enough to sustain it. If in doubt, talk to a sports nutrition professional.',
     },
+    performance_deficit: {
+      title: 'Slower fat loss',
+      message:
+        'As you train to perform in your sport, the deficit is smaller (at most 10% and 300 kcal) to protect your performance.',
+    },
+    carbs_below_sport_minimum: {
+      title: 'Not enough carbohydrates for your training',
+      message:
+        'These calories don\'t cover the carbohydrates your training needs. While you train this much, consider choosing "Keep my weight".',
+    },
     activity_ceiling: {
       title: 'Limited estimate',
       message:
@@ -274,6 +306,13 @@ export const en: DeepStringRecord<typeof es> = {
     sessionsOne: '1 session',
     sessionsOther: '{count} sessions',
     noTraining: 'No training planned this week.',
+    trainingFor: {
+      hypertrophy: 'For: gain muscle',
+      strength: 'For: gain strength',
+      sport_performance: 'For: perform in {sports}',
+      general_fitness: 'For: health and general fitness',
+    },
+    trainingForSportFallback: 'your sport',
     targetsChanged: 'Your daily calories go from {from} to {to} kcal with your new weight.',
     targetsUpdated: 'Your targets have been updated with your new weight.',
     howCalculated: 'How is this calculated?',

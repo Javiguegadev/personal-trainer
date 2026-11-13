@@ -16,6 +16,7 @@ const form = (weightKg: number, overrides: Partial<ProfileInput> = {}): ProfileI
   jobActivity: 'sedentary',
   plannedActivities: [],
   goal: 'lose',
+  trainingFocus: 'general_fitness',
   injuries: null,
   healthFlags: [],
   units: 'metric',
@@ -40,6 +41,7 @@ function stored(weightKg: number, overrides: Partial<ProfileInput> = {}) {
     plannedActivities: input.plannedActivities,
     requestedGoal: input.goal,
     goal: evaluation.safety.appliedGoal,
+    trainingFocus: input.trainingFocus,
     safetyFlags: evaluation.flags,
     injuries: input.injuries,
     units: input.units,
@@ -67,6 +69,21 @@ describe('applyLatestWeight (spec 003 AC10–AC13)', () => {
       },
     });
     expect(viaForm.targets?.kcal).toBeLessThan(before.targets?.kcal ?? 0);
+  });
+
+  it('keeps what the user trains for (spec 004 AC10)', () => {
+    const hypertrophy = { trainingFocus: 'hypertrophy' as const };
+    const before = stored(70, hypertrophy);
+    const viaForm = stored(66, hypertrophy);
+    const change = applyLatestWeight(before.profile, before.targets, entry(66), TODAY);
+    expect(change?.targetsChange?.current).toEqual(viaForm.targets);
+    expect(viaForm.targets).toMatchObject({ proteinG: 132, formulaVersion: 'targets-v3' }); // 2.0 × 66
+
+    // A profile without a focus (never after migration 0004) counts as health and general fitness.
+    const untagged = { ...before.profile, trainingFocus: null };
+    expect(
+      applyLatestWeight(untagged, before.targets, entry(66), TODAY)?.targetsChange?.current,
+    ).toEqual(stored(66).targets);
   });
 
   it('changes nothing without entries or with the same weight', () => {

@@ -115,8 +115,48 @@ describe('mock backend: profile and targets', () => {
   it('previews targets without storing anything (AC10)', async () => {
     const { api } = await consented();
     const preview = await api.targetsPreview(input());
-    expect(preview.targets?.formulaVersion).toBe('targets-v2');
+    expect(preview.targets?.formulaVersion).toBe('targets-v3');
     expect((await api.me()).onboardingCompleted).toBe(false);
+  });
+
+  it('uses, stores and exports what the user trains for (spec 004 AC6, AC10, AC14)', async () => {
+    const { api } = await consented();
+    const preview = await api.targetsPreview(input({ trainingFocus: 'strength' }));
+    expect(preview.breakdown).toMatchObject({ trainingFocus: 'strength', proteinGPerKg: 1.8 });
+    const me = await api.updateProfile(input({ trainingFocus: 'strength' }));
+    expect(me.profile?.trainingFocus).toBe('strength');
+    expect(me.targets).toMatchObject({ proteinG: 108, formulaVersion: 'targets-v3' }); // 1.8 × 60
+    expect((await api.exportData()).profile?.trainingFocus).toBe('strength');
+  });
+
+  it('needs a named sport for sport performance, with the API fields (spec 004 AC3)', async () => {
+    const { api } = await consented();
+    const sport = {
+      kind: 'sport' as const,
+      label: null,
+      sessionsPerWeek: 3,
+      minutesPerSession: 90,
+      intensity: 'moderate' as const,
+    };
+    const noSport = await api
+      .updateProfile(input({ trainingFocus: 'sport_performance' }))
+      .catch((e: unknown) => e);
+    expect(isApiError(noSport, 'validation_error') && noSport.fields).toEqual({
+      plannedActivities: 'too_small',
+    });
+    const unnamed = await api
+      .targetsPreview(input({ trainingFocus: 'sport_performance', plannedActivities: [sport] }))
+      .catch((e: unknown) => e);
+    expect(isApiError(unnamed, 'validation_error') && unnamed.fields).toEqual({
+      'plannedActivities.0.label': 'too_small',
+    });
+    const named = await api.targetsPreview(
+      input({
+        trainingFocus: 'sport_performance',
+        plannedActivities: [{ ...sport, label: 'pádel' }],
+      }),
+    );
+    expect(named.breakdown?.carbsMinGPerKg).toBe(3);
   });
 
   it('counts the job and the weekly training in the preview (spec 002 AC6, AC7)', async () => {

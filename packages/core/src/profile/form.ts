@@ -17,6 +17,7 @@ import {
   type ProfileInput,
   type ReportedHealthFlag,
   type Sex,
+  type TrainingFocus,
   type Units,
 } from '@pt/contracts';
 import { formatDecimal, parseDecimal } from '../format';
@@ -47,6 +48,14 @@ export function newPlannedActivity(): PlannedActivityFormValue {
   };
 }
 
+/** What "Add a sport" inserts when sport performance has no sport yet (spec 004 AC3). */
+export function newSportActivity(): PlannedActivityFormValue {
+  return { ...newPlannedActivity(), kind: 'sport' };
+}
+
+/** Preselected answer of "What do you train for?" (spec 004 AC2). */
+export const DEFAULT_TRAINING_FOCUS: TrainingFocus = 'general_fitness';
+
 /** Whether another activity card can be added (spec 002 AC2). */
 export function canAddPlannedActivity(
   values: Pick<ProfileFormValues, 'plannedActivities'>,
@@ -73,6 +82,8 @@ export interface ProfileFormValues {
   /** Weekly training outside work. Empty means "I don't train" (spec 002 AC3). */
   plannedActivities: PlannedActivityFormValue[];
   goal: Goal | null;
+  /** What the user trains for; always answered, preselected (spec 004 AC2). */
+  trainingFocus: TrainingFocus;
   dietType: DietType | null;
   /** Comma-separated lists. */
   allergies: string;
@@ -93,11 +104,14 @@ export type ProfileFormField =
   | 'jobActivity'
   | 'plannedActivities'
   | 'goal'
+  | 'trainingFocus'
   | 'dietType'
   | 'allergies'
   | 'dislikes'
   | 'restrictions'
-  | 'injuries';
+  | 'injuries'
+  /** The name of one activity card (spec 004 AC3), with the API's path. */
+  | `plannedActivities.${number}.label`;
 
 /** Each code maps to the i18n key `onboarding.form.errors.<code>`. */
 export type FormErrorCode =
@@ -108,7 +122,11 @@ export type FormErrorCode =
   | 'invalid_date'
   | 'in_future'
   | 'too_long'
-  | 'invalid';
+  | 'invalid'
+  /** Sport performance without a sport activity (spec 004 AC3). */
+  | 'sport_required'
+  /** A sport activity without a name under sport performance (spec 004 AC3). */
+  | 'sport_name_required';
 
 export type ProfileFormErrors = Partial<Record<ProfileFormField, FormErrorCode>>;
 
@@ -130,6 +148,7 @@ export function emptyProfileForm(units: Units): ProfileFormValues {
     jobActivity: null,
     plannedActivities: [],
     goal: null,
+    trainingFocus: DEFAULT_TRAINING_FOCUS,
     dietType: null,
     allergies: '',
     dislikes: '',
@@ -193,6 +212,7 @@ export function profileFormFromProfile(
     })),
     // The goal the user asked for: safety rules re-apply on every save.
     goal: profile.requestedGoal,
+    trainingFocus: profile.trainingFocus ?? DEFAULT_TRAINING_FOCUS,
     dietType: prefs?.dietType ?? null,
     allergies: joinList(prefs?.allergies),
     dislikes: joinList(prefs?.dislikes),
@@ -307,6 +327,24 @@ function parsePlannedActivities(
   return { value: activities };
 }
 
+/**
+ * "Perform in my sport" needs the sport (spec 004 AC3): an error on the list without a sport activity,
+ * and one on the name of each unnamed sport. The API checks the same rule (`ProfileInputSchema`).
+ */
+function sportErrors(values: ProfileFormValues): ProfileFormErrors {
+  if (values.trainingFocus !== 'sport_performance') return {};
+  const errors: ProfileFormErrors = {};
+  if (!values.plannedActivities.some((activity) => activity.kind === 'sport')) {
+    errors.plannedActivities = 'sport_required';
+  }
+  values.plannedActivities.forEach((activity, index) => {
+    if (activity.kind === 'sport' && activity.label.trim() === '') {
+      errors[`plannedActivities.${index}.label`] = 'sport_name_required';
+    }
+  });
+  return errors;
+}
+
 /** Splits a typed list on commas, semicolons or new lines. */
 export function splitList(text: string): string[] {
   return text
@@ -370,6 +408,10 @@ export function parseProfileForm(
     'plannedActivities',
     parsePlannedActivities(values.plannedActivities),
   );
+  // A limit error on the list (e.g. too many minutes) stays the one shown under it.
+  const { plannedActivities: sportListError, ...sportNameErrors } = sportErrors(values);
+  Object.assign(errors, sportNameErrors);
+  if (sportListError && !errors.plannedActivities) errors.plannedActivities = sportListError;
   const goal = choice('goal', values.goal);
   const dietType = choice('dietType', values.dietType);
   const allergies = optional('allergies', parseList(values.allergies)) ?? [];
@@ -410,6 +452,7 @@ export function parseProfileForm(
       jobActivity,
       plannedActivities,
       goal,
+      trainingFocus: values.trainingFocus,
       injuries: injuriesText === '' ? null : injuriesText,
       healthFlags,
       units: values.units,
@@ -449,7 +492,14 @@ export function formErrorFromApi(
   path: string,
   code: string,
 ): { field: ProfileFormField; code: FormErrorCode } | null {
-  const [first = '', second = ''] = path.split('.');
+  const [first = '', second = '', third = ''] = path.split('.');
+  // The sport check of spec 004 AC3: the list and the name of one card.
+  if (first === 'plannedActivities' && code === 'too_small') {
+    if (second === '') return { field: 'plannedActivities', code: 'sport_required' };
+    if (/^\d+$/.test(second) && third === 'label') {
+      return { field: `plannedActivities.${Number(second)}.label`, code: 'sport_name_required' };
+    }
+  }
   const field = API_FIELDS[first === 'dietaryPrefs' ? `${first}.${second}` : first];
   if (!field) return null;
   return { field, code: PASSTHROUGH_CODES.has(code) ? (code as FormErrorCode) : 'invalid' };
@@ -464,6 +514,7 @@ const API_FIELDS: Partial<Record<string, ProfileFormField>> = {
   jobActivity: 'jobActivity',
   plannedActivities: 'plannedActivities',
   goal: 'goal',
+  trainingFocus: 'trainingFocus',
   injuries: 'injuries',
   'dietaryPrefs.dietType': 'dietType',
   'dietaryPrefs.allergies': 'allergies',

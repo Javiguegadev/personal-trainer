@@ -12,11 +12,13 @@ const {
   nutritionTargets,
   plannedActivities,
   profiles,
+  trainingProfiles,
 } = schema;
 
 type ProfileRow = typeof profiles.$inferSelect;
 type PrefsRow = typeof dietaryPrefs.$inferSelect;
 type LifestyleRow = typeof lifestyleProfiles.$inferSelect;
+type TrainingRow = typeof trainingProfiles.$inferSelect;
 type ActivityRow = typeof plannedActivities.$inferSelect;
 type TargetsRow = typeof nutritionTargets.$inferSelect;
 type WeightRow = typeof bodyMeasurements.$inferSelect;
@@ -42,6 +44,7 @@ function toActivity(row: ActivityRow): PlannedActivity {
 function toProfile(
   row: ProfileRow,
   lifestyle: LifestyleRow | undefined,
+  training: TrainingRow | undefined,
   activities: ActivityRow[],
 ) {
   return {
@@ -55,6 +58,8 @@ function toProfile(
     plannedActivities: activities.map(toActivity),
     requestedGoal: row.requestedGoal,
     goal: row.goal,
+    // Every profile has a row after migration 0005 (spec 004 AC13); null only for safety.
+    trainingFocus: training?.focus ?? null,
     safetyFlags: toFlags(row.safetyFlags),
     injuries: row.injuries,
     units: row.units,
@@ -104,6 +109,8 @@ export function createDrizzleStore(db: Db): Store {
 
   const lifestyleOf = (userId: string) =>
     db.select().from(lifestyleProfiles).where(eq(lifestyleProfiles.userId, userId));
+  const trainingOf = (userId: string) =>
+    db.select().from(trainingProfiles).where(eq(trainingProfiles.userId, userId));
   const activitiesOf = (userId: string) =>
     db
       .select()
@@ -113,11 +120,12 @@ export function createDrizzleStore(db: Db): Store {
 
   return {
     async getMe(userId) {
-      const [[consent], [profile], [lifestyle], activities, [prefs], [targets]] = await Promise.all(
-        [
+      const [[consent], [profile], [lifestyle], [training], activities, [prefs], [targets]] =
+        await Promise.all([
           activeConsent(userId, 'health_data'),
           db.select().from(profiles).where(eq(profiles.id, userId)),
           lifestyleOf(userId),
+          trainingOf(userId),
           activitiesOf(userId),
           db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
           db
@@ -126,11 +134,10 @@ export function createDrizzleStore(db: Db): Store {
             .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)))
             .orderBy(desc(nutritionTargets.validFrom))
             .limit(1),
-        ],
-      );
+        ]);
       return {
         consentVersion: consent?.version ?? null,
-        profile: profile ? toProfile(profile, lifestyle, activities) : null,
+        profile: profile ? toProfile(profile, lifestyle, training, activities) : null,
         dietaryPrefs: prefs ? toPrefs(prefs) : null,
         targets: targets ? toTargets(targets) : null,
       };
@@ -168,7 +175,12 @@ export function createDrizzleStore(db: Db): Store {
 
     async saveProfile(userId, data, at) {
       await db.transaction(async (tx) => {
-        const { jobActivity, plannedActivities: activities, ...profile } = data.profile;
+        const {
+          jobActivity,
+          trainingFocus,
+          plannedActivities: activities,
+          ...profile
+        } = data.profile;
         const values = { id: userId, ...profile, updatedAt: at };
         const [stored] = await tx
           .select({ weightKg: profiles.weightKg })
@@ -204,6 +216,12 @@ export function createDrizzleStore(db: Db): Store {
           .insert(lifestyleProfiles)
           .values(lifestyle)
           .onConflictDoUpdate({ target: lifestyleProfiles.userId, set: lifestyle });
+
+        const training = { userId, focus: trainingFocus, updatedAt: at };
+        await tx
+          .insert(trainingProfiles)
+          .values(training)
+          .onConflictDoUpdate({ target: trainingProfiles.userId, set: training });
 
         // The list is small (at most 6 rows) and has no history: replace it.
         await tx.delete(plannedActivities).where(eq(plannedActivities.userId, userId));
@@ -277,41 +295,43 @@ export function createDrizzleStore(db: Db): Store {
           await tx.delete(bodyMeasurements).where(day);
         }
 
-        const [[entry], [latest], recent, [lifestyle], activities, [targets]] = await Promise.all([
-          tx.select().from(bodyMeasurements).where(day),
-          tx
-            .select()
-            .from(bodyMeasurements)
-            .where(eq(bodyMeasurements.userId, userId))
-            .orderBy(desc(bodyMeasurements.localDate))
-            .limit(1),
-          tx
-            .select()
-            .from(bodyMeasurements)
-            .where(
-              and(
-                eq(bodyMeasurements.userId, userId),
-                gte(bodyMeasurements.localDate, write.recentFrom),
-              ),
-            )
-            .orderBy(asc(bodyMeasurements.localDate)),
-          tx.select().from(lifestyleProfiles).where(eq(lifestyleProfiles.userId, userId)),
-          tx
-            .select()
-            .from(plannedActivities)
-            .where(eq(plannedActivities.userId, userId))
-            .orderBy(asc(plannedActivities.position)),
-          tx
-            .select()
-            .from(nutritionTargets)
-            .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)))
-            .orderBy(desc(nutritionTargets.validFrom))
-            .limit(1),
-        ]);
+        const [[entry], [latest], recent, [lifestyle], [training], activities, [targets]] =
+          await Promise.all([
+            tx.select().from(bodyMeasurements).where(day),
+            tx
+              .select()
+              .from(bodyMeasurements)
+              .where(eq(bodyMeasurements.userId, userId))
+              .orderBy(desc(bodyMeasurements.localDate))
+              .limit(1),
+            tx
+              .select()
+              .from(bodyMeasurements)
+              .where(
+                and(
+                  eq(bodyMeasurements.userId, userId),
+                  gte(bodyMeasurements.localDate, write.recentFrom),
+                ),
+              )
+              .orderBy(asc(bodyMeasurements.localDate)),
+            tx.select().from(lifestyleProfiles).where(eq(lifestyleProfiles.userId, userId)),
+            tx.select().from(trainingProfiles).where(eq(trainingProfiles.userId, userId)),
+            tx
+              .select()
+              .from(plannedActivities)
+              .where(eq(plannedActivities.userId, userId))
+              .orderBy(asc(plannedActivities.position)),
+            tx
+              .select()
+              .from(nutritionTargets)
+              .where(and(eq(nutritionTargets.userId, userId), isNull(nutritionTargets.validTo)))
+              .orderBy(desc(nutritionTargets.validFrom))
+              .limit(1),
+          ]);
         const previousTargets = targets ? toTargets(targets) : null;
 
         const decision = decide({
-          profile: toProfile(profile, lifestyle, activities),
+          profile: toProfile(profile, lifestyle, training, activities),
           targets: previousTargets,
           latest: latest ? toWeight(latest) : null,
           recent: recent.map(toWeight),
@@ -360,6 +380,7 @@ export function createDrizzleStore(db: Db): Store {
       const [
         [profile],
         [lifestyle],
+        [training],
         activities,
         [prefs],
         targets,
@@ -369,6 +390,7 @@ export function createDrizzleStore(db: Db): Store {
       ] = await Promise.all([
         db.select().from(profiles).where(eq(profiles.id, userId)),
         lifestyleOf(userId),
+        trainingOf(userId),
         activitiesOf(userId),
         db.select().from(dietaryPrefs).where(eq(dietaryPrefs.userId, userId)),
         db
@@ -393,7 +415,7 @@ export function createDrizzleStore(db: Db): Store {
           .orderBy(asc(bodyMeasurements.localDate)),
       ]);
       return {
-        profile: profile ? toProfile(profile, lifestyle, activities) : null,
+        profile: profile ? toProfile(profile, lifestyle, training, activities) : null,
         dietaryPrefs: prefs ? toPrefs(prefs) : null,
         targets: targets.map((t) => ({
           ...toTargets(t),

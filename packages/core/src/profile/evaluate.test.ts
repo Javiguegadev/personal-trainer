@@ -13,6 +13,7 @@ const input = (overrides: Partial<ProfileInput> = {}): ProfileInput => ({
   jobActivity: 'sedentary',
   plannedActivities: [],
   goal: 'maintain',
+  trainingFocus: 'general_fitness',
   injuries: null,
   healthFlags: [],
   units: 'metric',
@@ -44,9 +45,19 @@ describe('evaluateProfileInput', () => {
     const result = evaluateProfileInput(input(), [], NOW);
     expect(result.kind).toBe('ok');
     if (result.kind !== 'ok') return;
-    expect(result.targets?.formulaVersion).toBe('targets-v2');
+    expect(result.targets?.formulaVersion).toBe('targets-v3');
     expect(result.breakdown).not.toBeNull();
     expect(result.flags).toEqual([]);
+  });
+
+  it('uses what the user trains for (spec 004 AC6, AC10)', () => {
+    const protein = (trainingFocus: ProfileInput['trainingFocus']) => {
+      const result = evaluateProfileInput(input({ trainingFocus }), [], NOW);
+      return result.kind === 'ok' ? result.breakdown : null;
+    };
+    // 62 kg, maintain: 1.6 → 99 g; strength 1.8 → 112 g.
+    expect(protein('general_fitness')).toMatchObject({ proteinGPerKg: 1.6 });
+    expect(protein('strength')).toMatchObject({ proteinGPerKg: 1.8, trainingFocus: 'strength' });
   });
 
   it('blocks under 16 (AC17)', () => {

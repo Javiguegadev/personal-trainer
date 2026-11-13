@@ -18,6 +18,7 @@ export const profileInput: ProfileInput = {
   jobActivity: 'sedentary',
   plannedActivities: [],
   goal: 'maintain',
+  trainingFocus: 'general_fitness',
   injuries: null,
   healthFlags: [],
   units: 'metric',

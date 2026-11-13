@@ -80,6 +80,7 @@ type EvaluatedFields = Pick<
   | 'injuries'
   | 'jobActivity'
   | 'plannedActivities'
+  | 'trainingFocus'
 >;
 
 function evaluate(
@@ -111,6 +112,7 @@ function evaluate(
       safetyFlags: safety.flags,
       jobActivity: input.jobActivity,
       plannedActivities: input.plannedActivities,
+      trainingFocus: input.trainingFocus,
     },
     today,
   );
@@ -154,6 +156,8 @@ export function evaluateStoredProfile(
       injuries: profile.injuries,
       jobActivity: profile.jobActivity,
       plannedActivities: profile.plannedActivities,
+      // Never null after the backfill of migration 0004 (spec 004 AC13); if it were, the form's default.
+      trainingFocus: profile.trainingFocus ?? 'general_fitness',
     },
     profile.safetyFlags,
     today,

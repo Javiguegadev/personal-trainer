@@ -8,6 +8,7 @@ import type {
   SafetyFlag,
   StoredTargets,
   Targets,
+  TrainingFocus,
   WeightEntry,
 } from '@pt/contracts';
 
@@ -28,7 +29,10 @@ export interface MeRecord {
 }
 
 export interface ProfileWrite {
-  profile: Omit<Profile, 'onboardingCompletedAt' | 'jobActivity'> & { jobActivity: JobActivity };
+  profile: Omit<Profile, 'onboardingCompletedAt' | 'jobActivity' | 'trainingFocus'> & {
+    jobActivity: JobActivity;
+    trainingFocus: TrainingFocus;
+  };
   dietaryPrefs: DietaryPrefs;
   /** Null when safety rules do not allow numeric targets: the current row is closed, nothing is inserted. */
   targets: Targets | null;

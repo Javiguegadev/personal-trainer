@@ -7,6 +7,7 @@ import {
   JobActivitySchema,
   LocaleSchema,
   SexSchema,
+  TrainingFocusSchema,
   UnitsSchema,
 } from '@pt/contracts';
 import { pgEnum } from 'drizzle-orm/pg-core';
@@ -22,6 +23,7 @@ export const jobActivityEnum = pgEnum('job_activity', values(JobActivitySchema))
 export const activityKindEnum = pgEnum('activity_kind', values(ActivityKindSchema));
 export const intensityEnum = pgEnum('intensity', values(IntensitySchema));
 export const goalEnum = pgEnum('goal', values(GoalSchema));
+export const trainingFocusEnum = pgEnum('training_focus', values(TrainingFocusSchema));
 export const dietTypeEnum = pgEnum('diet_type', values(DietTypeSchema));
 export const unitsEnum = pgEnum('units', values(UnitsSchema));
 export const localeEnum = pgEnum('locale', values(LocaleSchema));

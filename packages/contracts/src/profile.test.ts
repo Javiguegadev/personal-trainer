@@ -15,6 +15,7 @@ const valid: ProfileInput = {
   jobActivity: 'sedentary',
   plannedActivities: [],
   goal: 'lose',
+  trainingFocus: 'general_fitness',
   injuries: null,
   healthFlags: [],
   units: 'metric',
@@ -90,6 +91,64 @@ describe('ProfileInputSchema: job and weekly training (spec 002 AC1–AC4)', () 
     const result = withTraining([long, { ...gym, sessionsPerWeek: 1, minutesPerSession: 10 }]);
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]).toMatchObject({ path: ['plannedActivities'], code: 'too_big' });
+  });
+});
+
+describe('ProfileInputSchema: training focus (spec 004 AC2, AC3)', () => {
+  const football: PlannedActivity = {
+    kind: 'sport',
+    label: 'fútbol',
+    sessionsPerWeek: 3,
+    minutesPerSession: 90,
+    intensity: 'moderate',
+  };
+  const gym: PlannedActivity = { ...football, kind: 'strength', label: null };
+  const sport = (plannedActivities: PlannedActivity[]) =>
+    ProfileInputSchema.safeParse({
+      ...valid,
+      trainingFocus: 'sport_performance',
+      plannedActivities,
+    });
+
+  it('requires one of the four focuses (AC2)', () => {
+    for (const trainingFocus of ['hypertrophy', 'strength', 'general_fitness'] as const) {
+      expect(ProfileInputSchema.safeParse({ ...valid, trainingFocus }).success).toBe(true);
+    }
+    expect(ProfileInputSchema.safeParse({ ...valid, trainingFocus: undefined }).success).toBe(
+      false,
+    );
+    expect(ProfileInputSchema.safeParse({ ...valid, trainingFocus: 'endurance' }).success).toBe(
+      false,
+    );
+  });
+
+  it('accepts sport performance with a named sport activity (AC3)', () => {
+    expect(sport([gym, football]).success).toBe(true);
+  });
+
+  it('rejects sport performance without a sport activity on the list (AC3)', () => {
+    for (const list of [[], [gym]]) {
+      const result = sport(list);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues).toEqual([
+        expect.objectContaining({ path: ['plannedActivities'], code: 'too_small' }),
+      ]);
+    }
+  });
+
+  it('rejects a sport activity without a name under sport performance (AC3)', () => {
+    const result = sport([gym, { ...football, label: null }, football]);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ path: ['plannedActivities', 1, 'label'], code: 'too_small' }),
+    ]);
+  });
+
+  it('keeps the name optional for other focuses (AC3)', () => {
+    const unnamed = { ...football, label: null };
+    expect(ProfileInputSchema.safeParse({ ...valid, plannedActivities: [unnamed] }).success).toBe(
+      true,
+    );
   });
 });
 

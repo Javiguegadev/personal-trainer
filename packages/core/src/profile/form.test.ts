@@ -7,6 +7,7 @@ import {
   emptyProfileForm,
   formErrorFromApi,
   newPlannedActivity,
+  newSportActivity,
   parseProfileForm,
   profileFormFromProfile,
   splitList,
@@ -47,6 +48,7 @@ describe('parseProfileForm', () => {
         jobActivity: 'sedentary',
         plannedActivities: [],
         goal: 'lose',
+        trainingFocus: 'general_fitness',
         injuries: 'rodilla',
         healthFlags: [],
         units: 'metric',
@@ -176,6 +178,7 @@ describe('profileFormFromProfile', () => {
       ],
       requestedGoal: 'lose',
       goal: 'maintain',
+      trainingFocus: 'sport_performance',
       safetyFlags: ['ed_soft_stop', 'calorie_floor', 'injury'],
       injuries: 'espalda',
       units: 'metric',
@@ -184,9 +187,84 @@ describe('profileFormFromProfile', () => {
     };
     expect(profileFormFromProfile(profile, null, 'es')).toMatchObject({
       goal: 'lose',
+      trainingFocus: 'sport_performance',
       injuries: 'espalda',
       otherHealthFlags: ['ed_soft_stop'],
       dietType: null,
+    });
+    // A profile without a focus (never after migration 0004) gets the form's default.
+    expect(
+      profileFormFromProfile({ ...profile, trainingFocus: null }, null, 'es').trainingFocus,
+    ).toBe('general_fitness');
+  });
+});
+
+describe('what the user trains for (spec 004 AC2, AC3)', () => {
+  const football = { ...newSportActivity(), label: 'fútbol' };
+
+  it('preselects health and general fitness (AC2)', () => {
+    expect(emptyProfileForm('metric').trainingFocus).toBe('general_fitness');
+    const result = parseProfileForm(filled({ trainingFocus: 'strength' }), TODAY, 'es');
+    expect(result.ok && result.input.trainingFocus).toBe('strength');
+  });
+
+  it('"Add a sport" adds an unnamed sport activity (AC3)', () => {
+    expect(newSportActivity()).toEqual({ ...newPlannedActivity(), kind: 'sport', label: '' });
+  });
+
+  it('needs a sport activity for sport performance (AC3)', () => {
+    const gym = newPlannedActivity();
+    for (const plannedActivities of [[], [gym]]) {
+      expect(
+        parseProfileForm(
+          filled({ trainingFocus: 'sport_performance', plannedActivities }),
+          TODAY,
+          'es',
+        ),
+      ).toEqual({ ok: false, errors: { plannedActivities: 'sport_required' } });
+    }
+  });
+
+  it('needs every sport named for sport performance (AC3)', () => {
+    const unnamed = { ...football, label: '  ' };
+    expect(
+      parseProfileForm(
+        filled({
+          trainingFocus: 'sport_performance',
+          plannedActivities: [newPlannedActivity(), football, unnamed],
+        }),
+        TODAY,
+        'es',
+      ),
+    ).toEqual({ ok: false, errors: { 'plannedActivities.2.label': 'sport_name_required' } });
+    const result = parseProfileForm(
+      filled({ trainingFocus: 'sport_performance', plannedActivities: [football] }),
+      TODAY,
+      'es',
+    );
+    expect(result.ok && result.input).toMatchObject({
+      trainingFocus: 'sport_performance',
+      plannedActivities: [{ kind: 'sport', label: 'fútbol' }],
+    });
+  });
+
+  it('keeps the name optional for other focuses (AC3)', () => {
+    const unnamed = newSportActivity();
+    expect(parseProfileForm(filled({ plannedActivities: [unnamed] }), TODAY, 'es').ok).toBe(true);
+  });
+
+  it('maps the API errors of the sport check to the same fields (AC3)', () => {
+    expect(formErrorFromApi('plannedActivities', 'too_small')).toEqual({
+      field: 'plannedActivities',
+      code: 'sport_required',
+    });
+    expect(formErrorFromApi('plannedActivities.1.label', 'too_small')).toEqual({
+      field: 'plannedActivities.1.label',
+      code: 'sport_name_required',
+    });
+    expect(formErrorFromApi('trainingFocus', 'invalid_value')).toEqual({
+      field: 'trainingFocus',
+      code: 'invalid',
     });
   });
 });

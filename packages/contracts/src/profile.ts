@@ -69,8 +69,18 @@ export const PlannedActivitiesSchema = z
     }
   });
 
+/** What the user wants with their weight; it sets the calories. */
 export const GoalSchema = z.enum(['lose', 'maintain', 'gain']);
 export type Goal = z.infer<typeof GoalSchema>;
+
+/** What the user trains for (spec 004); it sets the macros, apart from the weight goal. */
+export const TrainingFocusSchema = z.enum([
+  'hypertrophy',
+  'strength',
+  'sport_performance',
+  'general_fitness',
+]);
+export type TrainingFocus = z.infer<typeof TrainingFocusSchema>;
 
 export const DietTypeSchema = z.enum(['omnivore', 'vegetarian', 'vegan', 'pescatarian', 'other']);
 export type DietType = z.infer<typeof DietTypeSchema>;
@@ -143,24 +153,54 @@ export const DietaryPrefsSchema = z.object({
 export type DietaryPrefs = z.infer<typeof DietaryPrefsSchema>;
 
 /** What the user confirms in the form. Metric only. */
-export const ProfileInputSchema = z.object({
-  sex: SexSchema,
-  birthDate: IsoDateSchema,
-  heightCm: HeightCmSchema,
-  weightKg: WeightKgSchema,
-  targetWeightKg: WeightKgSchema.nullable(),
-  jobActivity: JobActivitySchema,
-  plannedActivities: PlannedActivitiesSchema,
-  /** The goal the user asked for; safety rules may apply a different one. */
-  goal: GoalSchema,
-  injuries: z.string().trim().max(PROFILE_LIMITS.textMax).nullable(),
-  healthFlags: z.array(ReportedHealthFlagSchema).max(3),
-  units: UnitsSchema,
-  locale: LocaleSchema,
-  dietaryPrefs: DietaryPrefsSchema,
-  /** The user's local date (YYYY-MM-DD). The API accepts it only within ±1 day of server UTC. */
-  today: IsoDateSchema,
-});
+export const ProfileInputSchema = z
+  .object({
+    sex: SexSchema,
+    birthDate: IsoDateSchema,
+    heightCm: HeightCmSchema,
+    weightKg: WeightKgSchema,
+    targetWeightKg: WeightKgSchema.nullable(),
+    jobActivity: JobActivitySchema,
+    plannedActivities: PlannedActivitiesSchema,
+    /** The goal the user asked for; safety rules may apply a different one. */
+    goal: GoalSchema,
+    trainingFocus: TrainingFocusSchema,
+    injuries: z.string().trim().max(PROFILE_LIMITS.textMax).nullable(),
+    healthFlags: z.array(ReportedHealthFlagSchema).max(3),
+    units: UnitsSchema,
+    locale: LocaleSchema,
+    dietaryPrefs: DietaryPrefsSchema,
+    /** The user's local date (YYYY-MM-DD). The API accepts it only within ±1 day of server UTC. */
+    today: IsoDateSchema,
+  })
+  .superRefine((input, ctx) => {
+    // "Perform in my sport" needs the sport (spec 004 AC3): at least one, and every one named.
+    if (input.trainingFocus !== 'sport_performance') return;
+    const sports = input.plannedActivities.filter((activity) => activity.kind === 'sport');
+    if (sports.length === 0) {
+      ctx.addIssue({
+        code: 'too_small',
+        origin: 'array',
+        minimum: 1,
+        inclusive: true,
+        input: input.plannedActivities,
+        path: ['plannedActivities'],
+        message: 'Add a sport activity',
+      });
+    }
+    input.plannedActivities.forEach((activity, index) => {
+      if (activity.kind !== 'sport' || activity.label !== null) return;
+      ctx.addIssue({
+        code: 'too_small',
+        origin: 'string',
+        minimum: 1,
+        inclusive: true,
+        input: activity.label,
+        path: ['plannedActivities', index, 'label'],
+        message: 'Name your sport',
+      });
+    });
+  });
 export type ProfileInput = z.infer<typeof ProfileInputSchema>;
 
 export const TargetsSchema = z.object({
@@ -189,6 +229,10 @@ export const TargetsBreakdownSchema = z.object({
   proteinGPerKg: z.number(),
   /** Weight used for protein and the fat minimum: the actual weight, or the BMI-25 weight when BMI ≥ 30. */
   referenceWeightKg: z.number(),
+  /** What the user trains for, which sets the protein and the carbohydrate minimum (spec 004). */
+  trainingFocus: TrainingFocusSchema,
+  /** Carbohydrate minimum per kg of reference weight; null outside sport performance (spec 004 AC7). */
+  carbsMinGPerKg: z.number().nullable(),
 });
 export type TargetsBreakdown = z.infer<typeof TargetsBreakdownSchema>;
 
@@ -218,6 +262,8 @@ export const ProfileSchema = z.object({
   plannedActivities: z.array(PlannedActivitySchema),
   requestedGoal: GoalSchema,
   goal: GoalSchema,
+  /** Never null after the backfill of migration 0004; nullable so an old row cannot break a read. */
+  trainingFocus: TrainingFocusSchema.nullable(),
   safetyFlags: z.array(SafetyFlagSchema),
   injuries: z.string().nullable(),
   units: UnitsSchema,

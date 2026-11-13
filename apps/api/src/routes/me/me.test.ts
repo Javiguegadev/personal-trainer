@@ -138,8 +138,56 @@ describe('PUT /me/profile', () => {
     const me = MeResponseSchema.parse(await res.json());
     expect(me.onboardingCompleted).toBe(true);
     expect(me.profile).toMatchObject({ requestedGoal: 'lose', goal: 'lose', heightCm: 165 });
-    expect(me.targets).toMatchObject({ formulaVersion: 'targets-v2', clampedReason: null });
+    expect(me.targets).toMatchObject({ formulaVersion: 'targets-v3', clampedReason: null });
     expect(me.targets?.kcal).toBeGreaterThan(1200);
+  });
+
+  it('stores what the user trains for and computes targets-v3 with it (spec 004 AC6, AC10)', async () => {
+    await consent();
+    const res = await t.call('PUT', '/me/profile', profileInput({ trainingFocus: 'hypertrophy' }));
+    expect(res.status).toBe(200);
+    const me = MeResponseSchema.parse(await res.json());
+    expect(me.profile?.trainingFocus).toBe('hypertrophy');
+    // 70 kg, lose, muscle: 2.0 g/kg = 140 g, above 35 % of 1560 kcal → ⌊136.5⌋ = 136 g
+    expect(me.targets).toMatchObject({ kcal: 1560, proteinG: 136, formulaVersion: 'targets-v3' });
+    expect(t.store.rows(USER_ID).profile?.trainingFocus).toBe('hypertrophy');
+  });
+
+  it('needs a named sport for sport performance, and stores nothing (spec 004 AC3)', async () => {
+    await consent();
+    const sport = {
+      kind: 'sport' as const,
+      label: null,
+      sessionsPerWeek: 3,
+      minutesPerSession: 90,
+      intensity: 'moderate' as const,
+    };
+    const noSport = await t.call(
+      'PUT',
+      '/me/profile',
+      profileInput({ trainingFocus: 'sport_performance' }),
+    );
+    expect(noSport.status).toBe(400);
+    expect((await errorOf(noSport)).fields).toEqual({ plannedActivities: 'too_small' });
+
+    const unnamed = await t.call(
+      'POST',
+      '/onboarding/targets-preview',
+      profileInput({ trainingFocus: 'sport_performance', plannedActivities: [sport] }),
+    );
+    expect(unnamed.status).toBe(400);
+    expect((await errorOf(unnamed)).fields).toEqual({ 'plannedActivities.0.label': 'too_small' });
+    expect(t.store.rows(USER_ID).profile).toBeNull();
+
+    const named = await t.call(
+      'PUT',
+      '/me/profile',
+      profileInput({
+        trainingFocus: 'sport_performance',
+        plannedActivities: [{ ...sport, label: 'fútbol' }],
+      }),
+    );
+    expect(named.status).toBe(200);
   });
 
   it('returns field errors for implausible values (AC22)', async () => {
@@ -386,7 +434,22 @@ describe('PUT /me/profile', () => {
     const after = MeResponseSchema.parse(await res.json());
     expect(after.onboardingCompleted).toBe(true);
     expect(after.profile?.jobActivity).toBe('standing');
-    expect(after.targets?.formulaVersion).toBe('targets-v2');
+    expect(after.targets?.formulaVersion).toBe('targets-v3');
+  });
+
+  it('moves an account to targets-v3 on its next save, keeping the old rows (spec 004 AC10, AC13)', async () => {
+    await consent();
+    await t.call('PUT', '/me/profile', profileInput());
+    // An account from before spec 004: targets-v2, and the focus the backfill gave it.
+    const rows = t.store.rows(USER_ID);
+    rows.targets = rows.targets.map((row) => ({ ...row, formulaVersion: 'targets-v2' }));
+    expect(rows.profile?.trainingFocus).toBe('general_fitness');
+
+    await t.call('PUT', '/me/profile', profileInput({ weightKg: 69 }));
+    expect(t.store.rows(USER_ID).targets.map((row) => row.formulaVersion)).toEqual([
+      'targets-v2',
+      'targets-v3',
+    ]);
   });
 
   it('keeps old targets with valid_to when the profile is edited (AC16)', async () => {

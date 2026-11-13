@@ -7,6 +7,7 @@ export * from './dates';
 export * from './format';
 export * from './units';
 export * from './nutrition/activity';
+export * from './nutrition/focus';
 export * from './nutrition/targets';
 export * from './context/snapshot';
 export * from './safety/profile';

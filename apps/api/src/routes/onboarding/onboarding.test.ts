@@ -36,7 +36,7 @@ describe('POST /onboarding/targets-preview', () => {
     const res = await t.call('POST', '/onboarding/targets-preview', profileInput());
     expect(res.status).toBe(200);
     const body = TargetsPreviewResponseSchema.parse(await res.json());
-    expect(body.targets?.formulaVersion).toBe('targets-v2');
+    expect(body.targets?.formulaVersion).toBe('targets-v3');
     expect(body.breakdown?.ageYears).toBe(35);
     expect(body.safety).toMatchObject({ status: 'ok', appliedGoal: 'lose' });
     expect(t.store.rows(USER_ID).profile).toBeNull();

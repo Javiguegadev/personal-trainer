@@ -29,6 +29,20 @@
       "when": 1794573457601,
       "tag": "0003_body_measurements",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794583176968,
+      "tag": "0004_training_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794583216071,
+      "tag": "0005_training_focus_backfill",
+      "breakpoints": true
     }
   ]
 }

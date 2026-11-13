@@ -23,6 +23,7 @@ const COVERED_USER_TABLES = [
   'profiles',
   'body_measurements',
   'lifestyle_profiles',
+  'training_profiles',
   'planned_activities',
   'dietary_prefs',
   'nutrition_targets',
@@ -85,6 +86,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
           ],
           requestedGoal: input.goal,
           goal: input.goal,
+          trainingFocus: 'sport_performance',
           safetyFlags: [],
           injuries: null,
           units: input.units,
@@ -126,9 +128,13 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     expect(me.targets?.kcal).toBe(1800);
     expect(me.profile).toMatchObject({
       jobActivity: 'standing',
+      trainingFocus: 'sport_performance',
       plannedActivities: [{ kind: 'sport', label: 'fútbol', sessionsPerWeek: 2 }],
     });
-    expect((await store.exportUser(id)).profile?.plannedActivities).toHaveLength(1);
+    expect((await store.exportUser(id)).profile).toMatchObject({
+      trainingFocus: 'sport_performance',
+      plannedActivities: [{ kind: 'sport' }],
+    });
 
     // Spec 003: the profile save stored today's entry (AC13); a write recorded earlier loses (AC20);
     // the latest weight reaches the profile and the targets in one transaction (AC10).

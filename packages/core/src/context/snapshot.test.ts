@@ -31,13 +31,14 @@ const sources: ContextSources = {
   safetyFlags: ['injury'],
   jobActivity: 'sedentary',
   plannedActivities: [gym, football],
+  trainingFocus: 'strength',
 };
 
-describe('buildContextSnapshot — context-v2 (spec 002 AC12, spec 003 AC25)', () => {
+describe('buildContextSnapshot — context-v3 (spec 002 AC12, spec 003 AC25, spec 004 AC11)', () => {
   it('returns the profile, the job and the planned training for the given day', () => {
     const snapshot = buildContextSnapshot(sources, TODAY);
     expect(snapshot).toEqual({
-      version: 'context-v2',
+      version: 'context-v3',
       date: TODAY,
       profile: {
         sex: 'male',
@@ -55,6 +56,7 @@ describe('buildContextSnapshot — context-v2 (spec 002 AC12, spec 003 AC25)', (
         minutesPerWeek: 360,
         // (3 h × 2.5 + 3 h × 5) / 168
         factor: 22.5 / 168,
+        focus: 'strength',
       },
       weight: {
         lastKg: null,
@@ -75,6 +77,7 @@ describe('buildContextSnapshot — context-v2 (spec 002 AC12, spec 003 AC25)', (
       sessionsPerWeek: 0,
       minutesPerWeek: 0,
       factor: 0,
+      focus: 'strength',
     });
   });
 

@@ -126,8 +126,26 @@ export const es = {
         'Suave: puedes hablar con normalidad. Moderada: puedes hablar, pero no cantar. Intensa: solo puedes decir unas pocas palabras seguidas.',
       intensityHintStrength:
         'Suave: lejos del fallo y con descansos largos. Moderada: series exigentes. Intensa: cerca del fallo y con descansos cortos.',
-      goal: 'Objetivo',
-      goalOptions: { lose: 'Perder grasa', maintain: 'Mantenerme', gain: 'Ganar músculo' },
+      goal: 'Tu peso',
+      goalOptions: { lose: 'Perder grasa', maintain: 'Mantener mi peso', gain: 'Ganar peso' },
+      goalHint:
+        'Para ganar músculo, elige ganar peso o mantener mi peso, y «Ganar músculo» más abajo.',
+      focus: '¿Para qué entrenas?',
+      focusHint: 'Ajusta tus macros: la proteína y, si haces deporte, los carbohidratos.',
+      focusOptions: {
+        hypertrophy: 'Ganar músculo',
+        strength: 'Ganar fuerza',
+        sport_performance: 'Rendir en mi deporte',
+        general_fitness: 'Salud y forma física',
+      },
+      focusDescriptions: {
+        hypertrophy: 'Más masa muscular. Más proteína para construirla.',
+        strength: 'Levantar más peso. Más proteína para recuperarte.',
+        sport_performance:
+          'Rendir mejor en tu deporte. Carbohidratos suficientes para tus entrenos y partidos.',
+        general_fitness: 'Estar en forma y sentirte bien, sin un objetivo deportivo concreto.',
+      },
+      addSport: 'Añadir un deporte',
       diet: 'Tipo de dieta',
       dietOptions: {
         omnivore: 'Omnívora',
@@ -154,6 +172,8 @@ export const es = {
         in_future: 'La fecha no puede ser futura.',
         too_long: 'Es demasiado largo.',
         invalid: 'Revisa este dato.',
+        sport_required: 'Para rendir en tu deporte, añade al menos un deporte a tu semana.',
+        sport_name_required: 'Ponle nombre a tu deporte.',
       },
     },
     summary: {
@@ -196,6 +216,9 @@ export const es = {
       protein: 'Proteína: {perKg} g por kg × {weight} kg de peso de referencia',
       fat: 'Grasa: 25 % de las calorías, con un mínimo de 0,6 g por kg',
       carbs: 'Carbohidratos: las calorías restantes',
+      carbsMin:
+        'Carbohidratos: las calorías restantes, con un mínimo de {perKg} g por kg para tu entrenamiento (la grasa baja para dejarles sitio)',
+      focus: 'Para qué entrenas: {focus}',
       fiber: 'Fibra: 14 g por cada 1000 kcal, con un mínimo de 25 g',
       sources: 'Fuentes',
       sourceList:
@@ -244,6 +267,16 @@ export const es = {
       message:
         'Planificas {hours} horas o más de entrenamiento a la semana. Asegúrate de comer lo suficiente para sostenerlo. Si tienes dudas, consulta con un profesional de la nutrición deportiva.',
     },
+    performance_deficit: {
+      title: 'Pierdes grasa más despacio',
+      message:
+        'Como entrenas para rendir en tu deporte, el déficit es más pequeño (como mucho un 10 % y 300 kcal) para proteger tu rendimiento.',
+    },
+    carbs_below_sport_minimum: {
+      title: 'Faltan carbohidratos para tu entrenamiento',
+      message:
+        'Con estas calorías no llegas a los carbohidratos que necesita lo que entrenas. Mientras entrenes tanto, plantéate elegir «Mantener mi peso».',
+    },
     activity_ceiling: {
       title: 'Estimación limitada',
       message:
@@ -274,6 +307,13 @@ export const es = {
     sessionsOne: '1 sesión',
     sessionsOther: '{count} sesiones',
     noTraining: 'Sin entreno previsto esta semana.',
+    trainingFor: {
+      hypertrophy: 'Para: ganar músculo',
+      strength: 'Para: ganar fuerza',
+      sport_performance: 'Para: rendir en {sports}',
+      general_fitness: 'Para: salud y forma física',
+    },
+    trainingForSportFallback: 'tu deporte',
     targetsChanged: 'Tus calorías diarias pasan de {from} a {to} kcal con tu nuevo peso.',
     targetsUpdated: 'Tus objetivos se han actualizado con tu nuevo peso.',
     howCalculated: '¿Cómo se calcula?',

@@ -166,7 +166,7 @@ food and training suggestions of later stages fit it too.
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Plan (2026-11-13), one green commit per dependency step:
   1. contracts + core (test-first): `TrainingFocusSchema`, `ProfileInputSchema.trainingFocus` and the
      AC3 check (`contracts/profile.ts`, `profile.test.ts`); `context-v3` (`contracts/context.ts`,
@@ -186,4 +186,32 @@ food and training suggestions of later stages fit it too.
   5. e2e: strength protein in `onboarding.spec.ts`; a new sport-performance journey (blocked, "Add a
      sport", name, carbohydrate minimum); E2E helpers learn the focus. Web check at 390 px, light and dark.
   6. close: domain review, Progress, CLAUDE.md status (food logging becomes spec 005), memory.
+- State (2026-11-13, steps 1–3 committed, `pnpm check` green + API integration test green):
+  - Done: contracts, core (AC3 helpers, AC5–AC11), db (`0004_training_profiles` applied to dev), api
+    (store reads/writes `training_profiles`, export, AC3 400 and AC10 route tests, deletion table list),
+    api-client mock (`MOCK_DB_KEY` v4, AC3/AC6/AC14 tests), i18n es/en for every key of the spec, the
+    tones of the two new notices in `SafetyNotices`.
+  - AC13 backfill: `0005_training_focus_backfill.sql` (pasted by the human; the guard hook blocks
+    editing migration files). Dev recorded 0005 as applied while it was still empty, so its INSERT was
+    run once by hand on dev (0 profiles there, nothing to fill). Other databases apply it normally.
+  - Next: step 4 (app UI: `ProfileForm` goal hint + focus list + "Add a sport" + name error,
+    `TargetsCard` breakdown, notices with the third argument of `profileNotices` in
+    `useProfileEditor`, `(tabs)/index.tsx` and `WeightNotices`, `TrainingLine` "For: …"). The i18n keys
+    already exist (`onboarding.form.goalHint/focus*/addSport`, `errors.sport_*`,
+    `targets.breakdown.focus/carbsMin`, `safety.performance_deficit/carbs_below_sport_minimum`,
+    `today.trainingFor*`).
 - Decisions taken during implementation:
+  - **One commit for steps 1–3**: the required `ProfileInput.trainingFocus` breaks api, api-client and
+    app types at once (as in spec 002), so `pnpm check` can only be green once the API, the mock and the
+    app compile with it.
+  - **Backfill in `0005`, not `0004`** (see State).
+  - **Notices** come from `profileNotices(safety, targets, training?)`: `performance_deficit` when the
+    focus is sport performance and the applied goal is `lose`; `carbs_below_sport_minimum` when
+    `targets.carbsG` is below `sportCarbsMinimum` (computed from the profile, so "Today" needs no
+    breakdown). Both only with numeric targets. With a high training load, `high_training_load` and
+    `performance_deficit` both show.
+  - **Fat makes room with a floor rounding** (`⌊…⌋`), so carbs never fall below the minimum by rounding.
+  - **Form errors**: codes `sport_required` (list) and `sport_name_required` (field
+    `plannedActivities.N.label`, the API path); `formErrorFromApi` maps the API's `too_small` to them.
+  - `Profile.trainingFocus` null (never after the backfill) is treated as `general_fitness` by core and
+    the form.

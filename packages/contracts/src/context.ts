@@ -6,9 +6,10 @@ import {
   PlannedActivitySchema,
   SafetyFlagSchema,
   SexSchema,
+  TrainingFocusSchema,
 } from './profile';
 
-export const CONTEXT_VERSION = 'context-v2';
+export const CONTEXT_VERSION = 'context-v3';
 
 /**
  * The user context (ADR 003): one versioned, read-only view of what the app knows about the user on a
@@ -39,6 +40,8 @@ export const ContextSnapshotSchema = z.object({
     minutesPerWeek: z.number().int(),
     /** Share of the BMR added by the planned training (see `trainingFactor` in @pt/core). */
     factor: z.number(),
+    /** What the user trains for (spec 004 AC11). Added by `context-v3`. */
+    focus: TrainingFocusSchema,
   }),
   /** The weight log (spec 003 AC25). Added by `context-v2`. */
   weight: z.object({

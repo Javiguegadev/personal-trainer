@@ -1,9 +1,10 @@
+import type { PlannedActivity } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { profileNotices } from './notices';
 
 describe('profileNotices', () => {
   it('returns nothing for a profile without flags', () => {
-    expect(profileNotices({ flags: [] }, { clampedReason: null })).toEqual([]);
+    expect(profileNotices({ flags: [] }, { clampedReason: null, carbsG: 250 })).toEqual([]);
   });
 
   it('orders notices from most to least important', () => {
@@ -16,7 +17,7 @@ describe('profileNotices', () => {
   });
 
   it('explains a clamped calorie target (AC14)', () => {
-    expect(profileNotices({ flags: [] }, { clampedReason: 'calorie_floor' })).toEqual([
+    expect(profileNotices({ flags: [] }, { clampedReason: 'calorie_floor', carbsG: 127 })).toEqual([
       'calorie_floor',
     ]);
   });
@@ -29,11 +30,71 @@ describe('profileNotices', () => {
 
   it('explains the activity ceiling and the high training load (spec 002 AC10, AC11)', () => {
     expect(
-      profileNotices({ flags: ['high_training_load'] }, { clampedReason: 'activity_ceiling' }),
+      profileNotices({ flags: ['high_training_load'] }, { clampedReason: 'activity_ceiling', carbsG: 739 }),
     ).toEqual(['high_training_load', 'activity_ceiling']);
   });
 
   it('shows low_target_bmi (AC19)', () => {
     expect(profileNotices({ flags: ['low_target_bmi'] }, null)).toEqual(['low_target_bmi']);
+  });
+});
+
+describe('profileNotices: what the user trains for (spec 004)', () => {
+  const football: PlannedActivity = {
+    kind: 'sport',
+    label: 'fútbol',
+    sessionsPerWeek: 6,
+    minutesPerSession: 120,
+    intensity: 'moderate',
+  };
+  /** 165 cm, 60 kg, 720 min a week: carbohydrate minimum 5 × 60 = 300 g. */
+  const profile = {
+    trainingFocus: 'sport_performance' as const,
+    goal: 'lose' as const,
+    heightCm: 165,
+    weightKg: 60,
+    plannedActivities: [football],
+  };
+  const targets = (carbsG: number) => ({ clampedReason: null, carbsG });
+
+  it('says fat loss is slower to protect performance (AC5)', () => {
+    expect(profileNotices({ flags: [] }, targets(302), profile)).toEqual(['performance_deficit']);
+    expect(profileNotices({ flags: [] }, targets(302), { ...profile, goal: 'maintain' })).toEqual(
+      [],
+    );
+    expect(
+      profileNotices({ flags: [] }, targets(302), { ...profile, trainingFocus: 'strength' }),
+    ).toEqual([]);
+  });
+
+  it('says when the calories cannot cover the carbohydrates the training needs (AC8)', () => {
+    const maintain = { ...profile, goal: 'maintain' as const };
+    expect(profileNotices({ flags: [] }, targets(300), maintain)).toEqual([]);
+    expect(profileNotices({ flags: [] }, targets(299), maintain)).toEqual([
+      'carbs_below_sport_minimum',
+    ]);
+    expect(
+      profileNotices({ flags: [] }, targets(10), { ...maintain, trainingFocus: 'hypertrophy' }),
+    ).toEqual([]);
+  });
+
+  it('orders them with the other training notices', () => {
+    expect(
+      profileNotices(
+        { flags: ['high_training_load', 'injury'] },
+        { clampedReason: 'calorie_floor', carbsG: 120 },
+        profile,
+      ),
+    ).toEqual([
+      'calorie_floor',
+      'carbs_below_sport_minimum',
+      'high_training_load',
+      'performance_deficit',
+      'medical_condition',
+    ]);
+  });
+
+  it('says nothing about the focus without numeric targets (pregnancy)', () => {
+    expect(profileNotices({ flags: ['pregnancy'] }, null, profile)).toEqual(['pregnancy']);
   });
 });

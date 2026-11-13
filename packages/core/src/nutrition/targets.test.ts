@@ -1,4 +1,10 @@
-import type { JobActivity, PlannedActivity, SafetyEvaluation, Sex } from '@pt/contracts';
+import type {
+  JobActivity,
+  PlannedActivity,
+  SafetyEvaluation,
+  Sex,
+  TrainingFocus,
+} from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { buildContextSnapshot } from '../context/snapshot';
 import { computeAge } from '../dates';
@@ -29,6 +35,8 @@ interface Person {
   weightKg: number;
   job: JobActivity;
   training?: PlannedActivity[];
+  /** Health and general fitness when omitted (the v2 numbers). */
+  focus?: TrainingFocus;
 }
 
 /** Targets through the same path as production: sources → context snapshot → computeTargets. */
@@ -46,6 +54,7 @@ function targetsFor(person: Person, s: SafetyEvaluation) {
       safetyFlags: s.flags,
       jobActivity: person.job,
       plannedActivities: person.training ?? [],
+      trainingFocus: person.focus ?? 'general_fitness',
     },
     TODAY,
   );
@@ -257,10 +266,10 @@ const fixtures: {
   },
 ];
 
-describe('computeTargets — targets-v2 (spec 002 AC6)', () => {
+describe('computeTargets — targets-v2 numbers under targets-v3 (spec 002 AC6)', () => {
   it.each(fixtures)('$name', ({ person, safety: s, expected }) => {
     const { targets } = targetsFor(person, s);
-    expect(targets).toEqual({ ...expected, formulaVersion: 'targets-v2' });
+    expect(targets).toEqual({ ...expected, formulaVersion: 'targets-v3' });
     // Macros add up to the kcal target (rounding tolerance).
     const macroKcal = 4 * targets.proteinG + 4 * targets.carbsG + 9 * targets.fatG;
     expect(Math.abs(macroKcal - targets.kcal)).toBeLessThanOrEqual(10);
@@ -279,6 +288,8 @@ describe('computeTargets — targets-v2 (spec 002 AC6)', () => {
       floorKcal: 1749,
       proteinGPerKg: 1.6,
       referenceWeightKg: 80,
+      trainingFocus: 'general_fitness',
+      carbsMinGPerKg: null,
     });
   });
 
@@ -528,5 +539,208 @@ describe('reference weight for BMI ≥ 30', () => {
     expect(targets.proteinG * 4).toBeLessThanOrEqual(targets.kcal * 0.35);
     const macroKcal = 4 * targets.proteinG + 4 * targets.carbsG + 9 * targets.fatG;
     expect(Math.abs(macroKcal - targets.kcal)).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('targets-v3: what the user trains for (spec 004)', () => {
+  const football = (sessionsPerWeek: number, minutesPerSession: number): PlannedActivity => ({
+    ...activity('sport', sessionsPerWeek, minutesPerSession),
+    label: 'fútbol',
+  });
+  /** Woman, 30 y, 165 cm, 60 kg, seated. BMR 600+1031.25−150−161 = 1320.25. */
+  const woman: Omit<Person, 'training'> = {
+    sex: 'female',
+    birthDate: '1996-11-11',
+    heightCm: 165,
+    weightKg: 60,
+    job: 'sedentary',
+  };
+
+  it('a smaller deficit for sport performance with fat loss (AC5)', () => {
+    // TDEE 1748.75 × (1.4 + 4.5 × 5 / 168) = 2682.5
+    const person: Person = { ...man, job: 'sedentary', training: [football(3, 90)] };
+    // Health: − min(20 % = 536.5, 500) = 2182.5 → 2180
+    const health = targetsFor(person, safety('lose'));
+    expect(health.targets.kcal).toBe(2180);
+    expect(health.breakdown.goalAdjustmentKcal).toBe(-500);
+    // Sport performance: − min(10 % = 268.25, 300) = 2414.25 → 2410
+    const sport = targetsFor({ ...person, focus: 'sport_performance' }, safety('lose'));
+    expect(sport.targets.kcal).toBe(2410);
+    expect(sport.breakdown.goalAdjustmentKcal).toBe(-268);
+  });
+
+  it('sport performance does not change maintenance or a surplus (AC5, AC9)', () => {
+    const person: Person = { ...man, job: 'sedentary', training: [football(3, 90)] };
+    for (const goal of ['maintain', 'gain'] as const) {
+      expect(targetsFor({ ...person, focus: 'sport_performance' }, safety(goal)).targets.kcal).toBe(
+        targetsFor(person, safety(goal)).targets.kcal,
+      );
+    }
+  });
+
+  it.each([
+    // Seated, no training: maintain 2450 kcal, lose 1748.75 × 1.4 − 489.65 = 1958.6 → 1960.
+    ['general_fitness', 'maintain', 1.6, 128],
+    ['sport_performance', 'maintain', 1.6, 128],
+    ['strength', 'maintain', 1.8, 144],
+    ['hypertrophy', 'maintain', 1.8, 144],
+    ['general_fitness', 'lose', 1.8, 144],
+    ['sport_performance', 'lose', 1.8, 144],
+    ['strength', 'lose', 2.0, 160],
+    ['hypertrophy', 'lose', 2.0, 160],
+    ['general_fitness', 'gain', 1.6, 128],
+    ['hypertrophy', 'gain', 1.8, 144],
+  ] as const)('protein by focus: %s, %s → %d g/kg = %d g (AC6)', (focus, goal, perKg, grams) => {
+    const { targets, breakdown } = targetsFor({ ...man, job: 'sedentary', focus }, safety(goal));
+    expect(breakdown.proteinGPerKg).toBe(perKg);
+    expect(breakdown.trainingFocus).toBe(focus);
+    expect(targets.proteinG).toBe(grams);
+  });
+
+  it('protein still never exceeds 35 % of the calories (AC6)', () => {
+    // Floor 1200 kcal · 2.0 × 55 = 110 g = 440 kcal > 420 (35 %) → ⌊105⌋ = 105 g
+    const { targets } = targetsFor(
+      {
+        sex: 'female',
+        birthDate: '1966-11-11',
+        heightCm: 155,
+        weightKg: 55,
+        job: 'sedentary',
+        focus: 'hypertrophy',
+      },
+      safety('lose'),
+    );
+    expect(targets.kcal).toBe(1200);
+    expect(targets.proteinG).toBe(105);
+  });
+
+  it('a carbohydrate minimum for sport performance, paid for with fat (AC7)', () => {
+    // 6 × 120 = 720 min (high load). TDEE 1320.25 × (1.4 + 12 × 5 / 168) = 2319.9
+    // Deficit min(232, 300) → 2087.9 → 2090 · P 1.8 × 60 = 108
+    const person: Person = { ...woman, training: [football(6, 120)] };
+    const s = safety('lose', { flags: ['high_training_load'] });
+
+    // Health: F 2090 × 0.25 / 9 = 58.06 → 58 · C (2090 − 432 − 522) / 4 = 284
+    const health = targetsFor(person, s);
+    expect(health.targets).toMatchObject({ kcal: 2090, proteinG: 108, fatG: 58, carbsG: 284 });
+    expect(health.breakdown.carbsMinGPerKg).toBeNull();
+
+    // Sport: minimum 5 × 60 = 300 g · F ⌊(2090 − 432 − 1200) / 9⌋ = 50 · C (2090 − 432 − 450) / 4 = 302
+    const sport = targetsFor({ ...person, focus: 'sport_performance' }, s);
+    expect(sport.targets).toMatchObject({ kcal: 2090, proteinG: 108, fatG: 50, carbsG: 302 });
+    expect(sport.breakdown.carbsMinGPerKg).toBe(5);
+  });
+
+  it('leaves the macros alone when the carbohydrates already reach the minimum (AC7)', () => {
+    // Man, football 3 × 90 (270 min → 3 g/kg = 240 g), maintain: 2682.5 → 2680 kcal
+    // F 2680 × 0.25 / 9 = 74.4 → 74 · C (2680 − 512 − 666) / 4 = 375.5 → 376 ≥ 240
+    const person: Person = { ...man, job: 'sedentary', training: [football(3, 90)] };
+    const health = targetsFor(person, safety('maintain'));
+    const sport = targetsFor({ ...person, focus: 'sport_performance' }, safety('maintain'));
+    expect(sport.targets).toEqual(health.targets);
+    expect(sport.breakdown.carbsMinGPerKg).toBe(3);
+  });
+
+  it('carbs are what fits when fat is already at its minimum (AC8)', () => {
+    // Woman, 60 y, 155 cm, 55 kg, seated, sport 7 × 120 hard (840 min → 6 g/kg = 330 g)
+    // BMR 1057.75 · TDEE × (1.4 + 14 × 7 / 168) = 2097.9 · − 209.8 → 1888.1 → 1890
+    // P 99 · F minimum 0.6 × 55 = 33 · C (1890 − 396 − 297) / 4 = 299.25 → 299 < 330
+    const { targets } = targetsFor(
+      {
+        sex: 'female',
+        birthDate: '1966-11-11',
+        heightCm: 155,
+        weightKg: 55,
+        job: 'sedentary',
+        training: [{ ...activity('sport', 7, 120, 'hard'), label: 'triatlón' }],
+        focus: 'sport_performance',
+      },
+      safety('lose', { flags: ['high_training_load'] }),
+    );
+    expect(targets).toMatchObject({ kcal: 1890, proteinG: 99, fatG: 33, carbsG: 299 });
+  });
+
+  it('uses the reference weight for the carbohydrate minimum from BMI 30 (AC7)', () => {
+    // 175 cm, 110 kg → BMI 35.9 → reference 25 × 1.75² = 76.6 kg
+    const { breakdown } = targetsFor(
+      {
+        ...man,
+        weightKg: 110,
+        job: 'sedentary',
+        training: [football(3, 90)],
+        focus: 'sport_performance',
+      },
+      safety('maintain'),
+    );
+    expect(breakdown.referenceWeightKg).toBe(76.6);
+    expect(breakdown.carbsMinGPerKg).toBe(3);
+  });
+
+  it('the focus never raises the calories nor lowers the floor (AC9)', () => {
+    const focuses = ['hypertrophy', 'strength', 'sport_performance', 'general_fitness'] as const;
+    const people: Person[] = [
+      { ...man, job: 'sedentary', training: [football(3, 90)] },
+      { ...woman, training: [football(6, 120)] },
+      { sex: 'other', birthDate: '1950-01-01', heightCm: 150, weightKg: 40, job: 'sedentary' },
+      { ...man, weightKg: 130, job: 'physical', training: [activity('strength', 4, 60)] },
+    ];
+    for (const person of people) {
+      for (const goal of ['lose', 'maintain', 'gain'] as const) {
+        const base = targetsFor(person, safety(goal));
+        for (const focus of focuses) {
+          const { targets, breakdown } = targetsFor({ ...person, focus }, safety(goal));
+          expect(breakdown.floorKcal).toBe(base.breakdown.floorKcal);
+          expect(targets.kcal).toBeGreaterThanOrEqual(breakdown.floorKcal);
+          if (goal === 'lose' && focus === 'sport_performance') {
+            // Only a smaller deficit: never above the expenditure (or the floor).
+            expect(targets.kcal).toBeLessThanOrEqual(
+              Math.max(breakdown.tdeeKcal + 5, Math.ceil(breakdown.floorKcal / 10) * 10),
+            );
+          } else {
+            expect(targets.kcal).toBe(base.targets.kcal);
+          }
+          expect(targets.proteinG * 4).toBeLessThanOrEqual(targets.kcal * 0.35);
+          expect(targets.carbsG).toBeGreaterThanOrEqual(0);
+          const macroKcal = 4 * targets.proteinG + 4 * targets.carbsG + 9 * targets.fatG;
+          expect(Math.abs(macroKcal - targets.kcal)).toBeLessThanOrEqual(10);
+        }
+      }
+    }
+  });
+
+  it.each([
+    ['low BMI', { weightKg: 50 }],
+    ['eating-disorder signal', { healthFlags: ['ed_soft_stop' as const] }],
+    ['teen', { birthDate: '2009-06-01' }],
+  ])('%s gets no deficit with sport performance either (AC9)', (_name, override) => {
+    const s = evaluateProfileSafety(
+      {
+        birthDate: '1990-01-01',
+        heightCm: 170,
+        weightKg: 70,
+        targetWeightKg: null,
+        goal: 'lose',
+        healthFlags: [],
+        injuries: null,
+        ...override,
+      },
+      TODAY,
+    );
+    const person = {
+      ...woman,
+      birthDate: '1990-01-01',
+      heightCm: 170,
+      weightKg: 70,
+      training: [football(3, 90)],
+      focus: 'sport_performance' as const,
+      ...override,
+    } as Person;
+    expect(targetsFor(person, s).breakdown.goalAdjustmentKcal).toBe(0);
+  });
+
+  it('new targets carry formula version targets-v3 (AC10)', () => {
+    expect(
+      targetsFor({ ...man, job: 'sedentary' }, safety('maintain')).targets.formulaVersion,
+    ).toBe('targets-v3');
   });
 });

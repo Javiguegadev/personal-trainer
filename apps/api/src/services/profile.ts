@@ -22,6 +22,7 @@ export async function saveProfile(
         plannedActivities: input.plannedActivities,
         requestedGoal: input.goal,
         goal: evaluation.safety.appliedGoal,
+        trainingFocus: input.trainingFocus,
         safetyFlags: evaluation.flags,
         injuries: input.injuries?.trim() || null,
         units: input.units,

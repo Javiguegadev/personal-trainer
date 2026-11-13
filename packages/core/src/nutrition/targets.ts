@@ -8,35 +8,41 @@ import type {
 import { computeAge } from '../dates';
 import { roundTo } from '../units';
 import { ACTIVITY_FACTOR_CEILING, isHighTrainingLoad } from './activity';
+import {
+  proteinGPerKg as proteinFor,
+  referenceWeightKg as referenceFor,
+  sportCarbsMinimum,
+} from './focus';
 
 export { computeAge };
 
 /**
- * Daily calorie and macro targets, version `targets-v2` (spec 002 AC6, AC9–AC11; spec 001 AC13–AC15).
- * v2 replaces the single activity level of v1 with a job factor plus a training factor
- * (`./activity`). Changing any constant here means a new formula version, new fixtures and a domain
- * review.
+ * Daily calorie and macro targets, version `targets-v3` (spec 004; spec 002 AC6, AC9–AC11; spec 001
+ * AC13–AC15). v2 replaced the single activity level of v1 with a job factor plus a training factor
+ * (`./activity`); v3 adds what the user trains for (`./focus`): protein by focus, a smaller deficit and a
+ * carbohydrate minimum for sport performance. Changing any constant here means a new formula version,
+ * new fixtures and a domain review.
  */
-export const TARGETS_FORMULA_VERSION = 'targets-v2';
+export const TARGETS_FORMULA_VERSION = 'targets-v3';
 
 /** Minimum daily kcal by sex (AC14); the BMR is also a floor. */
 export const CALORIE_FLOOR: Record<Sex, number> = { female: 1200, male: 1500, other: 1350 };
 
 const DEFICIT_RATIO = 0.2;
 const DEFICIT_MAX_KCAL = 500;
-/** With a high training load the deficit is smaller, to lower the risk of under-fuelling (AC11). */
-const HIGH_LOAD_DEFICIT_RATIO = 0.1;
-const HIGH_LOAD_DEFICIT_MAX_KCAL = 300;
+/**
+ * With a high training load (spec 002 AC11) or a sport-performance focus (spec 004 AC5) the deficit is
+ * smaller, to lower the risk of under-fuelling and to protect performance.
+ */
+const SMALL_DEFICIT_RATIO = 0.1;
+const SMALL_DEFICIT_MAX_KCAL = 300;
 const SURPLUS_RATIO = 0.1;
 const SURPLUS_MAX_KCAL = 300;
-const PROTEIN_G_PER_KG = { lose: 1.8, maintain: 1.6, gain: 1.6 } as const;
 const FAT_KCAL_RATIO = 0.25;
 const FAT_MIN_G_PER_KG = 0.6;
 const FIBER_G_PER_1000_KCAL = 14; // IOM 2005
 const FIBER_MIN_G = 25; // EFSA adequate intake for adults
 const PROTEIN_MAX_KCAL_RATIO = 0.35; // top of the IOM AMDR
-const REFERENCE_BMI_THRESHOLD = 30;
-const REFERENCE_BMI = 25;
 const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
 
 /** Mifflin-St Jeor (1990). "other" uses the mean of the male and female equations. */
@@ -72,12 +78,13 @@ export function computeTargets(
   const activityFactor = capped ? ACTIVITY_FACTOR_CEILING : uncapped;
   const tdee = bmr * activityFactor;
   const goal = safety.appliedGoal;
-  const highLoad = isHighTrainingLoad(snapshot.training.minutesPerWeek);
+  const { focus, minutesPerWeek } = snapshot.training;
+  const smallDeficit = isHighTrainingLoad(minutesPerWeek) || focus === 'sport_performance';
 
   let adjustment = 0;
   if (goal === 'lose') {
-    adjustment = highLoad
-      ? -Math.min(tdee * HIGH_LOAD_DEFICIT_RATIO, HIGH_LOAD_DEFICIT_MAX_KCAL)
+    adjustment = smallDeficit
+      ? -Math.min(tdee * SMALL_DEFICIT_RATIO, SMALL_DEFICIT_MAX_KCAL)
       : -Math.min(tdee * DEFICIT_RATIO, DEFICIT_MAX_KCAL);
   } else if (goal === 'gain') {
     adjustment = Math.min(tdee * SURPLUS_RATIO, SURPLUS_MAX_KCAL);
@@ -91,14 +98,9 @@ export function computeTargets(
   // Never round below the floor, even when raw is only a few kcal above it.
   const kcal = Math.max(clamped ? 0 : roundTo10(raw), ceilTo10(floor));
 
-  const proteinGPerKg = PROTEIN_G_PER_KG[goal];
-  // With obesity, g/kg of total weight overshoots (ISSN ranges come from lean, active people): use the
-  // weight at BMI 25 for the user's height instead, and never exceed 35 % of kcal from protein.
-  const heightM = input.heightCm / 100;
-  const referenceWeightKg =
-    input.weightKg / (heightM * heightM) >= REFERENCE_BMI_THRESHOLD
-      ? REFERENCE_BMI * heightM * heightM
-      : input.weightKg;
+  const proteinGPerKg = proteinFor(focus, goal);
+  // Protein never exceeds 35 % of kcal (with obesity it already uses the BMI-25 weight).
+  const referenceWeightKg = referenceFor(input.heightCm, input.weightKg);
   const proteinG = Math.min(
     Math.round(proteinGPerKg * referenceWeightKg),
     Math.floor((kcal * PROTEIN_MAX_KCAL_RATIO) / KCAL_PER_G.protein),
@@ -109,7 +111,16 @@ export function computeTargets(
   const carbsFor = (fat: number) =>
     Math.round((kcal - proteinG * KCAL_PER_G.protein - fat * KCAL_PER_G.fat) / KCAL_PER_G.carbs);
   let carbsG = carbsFor(fatG);
-  if (carbsG < 0) {
+  const carbsMin = sportCarbsMinimum(focus, minutesPerWeek, referenceWeightKg);
+  if (carbsMin && carbsG < carbsMin.grams) {
+    // Sport performance (spec 004 AC7, AC8): fat makes room for the carbohydrate minimum, down to its
+    // own minimum; calories never change. Fat is rounded down so the carbs reach the minimum.
+    const fatRoom = Math.floor(
+      (kcal - proteinG * KCAL_PER_G.protein - carbsMin.grams * KCAL_PER_G.carbs) / KCAL_PER_G.fat,
+    );
+    fatG = Math.max(fatRoom, Math.round(fatMinG));
+    carbsG = Math.max(0, carbsFor(fatG));
+  } else if (carbsG < 0) {
     // Protein is kept; fat drops to its minimum; carbs never go negative.
     fatG = Math.round(fatMinG);
     carbsG = Math.max(0, carbsFor(fatG));
@@ -137,6 +148,8 @@ export function computeTargets(
       floorKcal: Math.round(floor),
       proteinGPerKg,
       referenceWeightKg: Math.round(referenceWeightKg * 10) / 10,
+      trainingFocus: focus,
+      carbsMinGPerKg: carbsMin?.gPerKg ?? null,
     },
   };
 }

@@ -6,6 +6,7 @@ import {
   type PlannedActivity,
   type SafetyFlag,
   type Sex,
+  type TrainingFocus,
 } from '@pt/contracts';
 import { computeAge } from '../dates';
 import {
@@ -30,14 +31,16 @@ export interface ContextSources {
   safetyFlags: readonly SafetyFlag[];
   jobActivity: JobActivity;
   plannedActivities: readonly PlannedActivity[];
+  /** What the user trains for (spec 004). */
+  trainingFocus: TrainingFocus;
   /** The weight log, in any order. Omitted means no entries. */
   weights?: readonly WeightPoint[];
 }
 
 /**
- * The user context for `today` (the user's local date), version `context-v2` (spec 002 AC12, spec 003
- * AC25). Pure: the
- * same sources and date always give the same snapshot, and the sources are not modified.
+ * The user context for `today` (the user's local date), version `context-v3` (spec 002 AC12, spec 003
+ * AC25, spec 004 AC11). Pure: the same sources and date always give the same snapshot, and the sources
+ * are not modified.
  */
 export function buildContextSnapshot(sources: ContextSources, today: string): ContextSnapshot {
   const { profile, plannedActivities } = sources;
@@ -61,6 +64,7 @@ export function buildContextSnapshot(sources: ContextSources, today: string): Co
       sessionsPerWeek: trainingSessionsPerWeek(plannedActivities),
       minutesPerWeek: trainingMinutesPerWeek(plannedActivities),
       factor: trainingFactor(plannedActivities),
+      focus: sources.trainingFocus,
     },
     weight: {
       lastKg: trend.last?.weightKg ?? null,

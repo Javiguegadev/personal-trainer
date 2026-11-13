@@ -10,7 +10,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { authenticatedRole, authUid } from 'drizzle-orm/supabase';
-import { activityKindEnum, intensityEnum, jobActivityEnum } from './enums';
+import { activityKindEnum, intensityEnum, jobActivityEnum, trainingFocusEnum } from './enums';
 import { profiles } from './profiles';
 
 /**
@@ -68,6 +68,33 @@ export const plannedActivities = pgTable(
     check('planned_activities_minutes_range', sql`${t.minutesPerSession} between 10 and 240`),
     check('planned_activities_label_length', sql`${t.label} is null or length(${t.label}) <= 40`),
     pgPolicy('planned_activities_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+/**
+ * What the user trains for (spec 004): one row per user, which sets the macros (`targets-v3`). Stage E5
+ * adds experience, training days and equipment to it (BLUEPRINT §5).
+ * RLS: users may only read their own row; every write goes through apps/api.
+ */
+export const trainingProfiles = pgTable(
+  'training_profiles',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    focus: trainingFocusEnum('focus').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    pgPolicy('training_profiles_select_own', {
       for: 'select',
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,
