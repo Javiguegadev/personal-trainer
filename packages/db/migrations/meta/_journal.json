@@ -43,6 +43,13 @@
       "when": 1794583216071,
       "tag": "0005_training_focus_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794785597367,
+      "tag": "0006_food_log",
+      "breakpoints": true
     }
   ]
 }

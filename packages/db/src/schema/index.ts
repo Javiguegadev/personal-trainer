@@ -7,5 +7,6 @@ export * from './profiles';
 export * from './lifestyle';
 export * from './body';
 export * from './nutrition';
+export * from './food';
 export * from './privacy';
 export * from './ai';
