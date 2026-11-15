@@ -30,7 +30,10 @@ describe('profileNotices', () => {
 
   it('explains the activity ceiling and the high training load (spec 002 AC10, AC11)', () => {
     expect(
-      profileNotices({ flags: ['high_training_load'] }, { clampedReason: 'activity_ceiling', carbsG: 739 }),
+      profileNotices(
+        { flags: ['high_training_load'] },
+        { clampedReason: 'activity_ceiling', carbsG: 739 },
+      ),
     ).toEqual(['high_training_load', 'activity_ceiling']);
   });
 

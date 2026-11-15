@@ -24,7 +24,8 @@ export default function TodayScreen() {
   if (!me.data?.profile) return <BlockingState />;
 
   const { profile, targets } = me.data;
-  const notices = profileNotices({ flags: profile.safetyFlags }, targets);
+  // No breakdown here: `profileNotices` derives the sport notices from the profile (spec 004 AC5, AC8).
+  const notices = profileNotices({ flags: profile.safetyFlags }, targets, profile);
   return (
     <Screen testID="today-screen">
       <View>
@@ -43,7 +44,7 @@ export default function TodayScreen() {
         floorKcal={targets?.clampedReason === 'calorie_floor' ? targets.kcal : undefined}
       />
       <WeightCard profile={profile} />
-      <TrainingLine activities={profile.plannedActivities} />
+      <TrainingLine activities={profile.plannedActivities} focus={profile.trainingFocus} />
     </Screen>
   );
 }

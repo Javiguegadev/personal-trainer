@@ -3,7 +3,7 @@ import { tokens } from '@pt/ui';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useI18n } from '@/hooks/useI18n';
-import { useRejectedWeightWrite, useWeightTargetsChange } from '@/lib/api';
+import { useMe, useRejectedWeightWrite, useWeightTargetsChange } from '@/lib/api';
 import { Button } from './Button';
 import { Notice } from './Notice';
 import { SafetyNotices } from './SafetyNotices';
@@ -18,6 +18,7 @@ export function TargetsChangeNotice({ withSafety = false }: { withSafety?: boole
   const { t, format, locale } = useI18n();
   const router = useRouter();
   const { change, dismiss } = useWeightTargetsChange();
+  const profile = useMe().data?.profile;
   if (!change?.previous || !change.current) return null;
   const { previous, current } = change;
   const message =
@@ -44,7 +45,12 @@ export function TargetsChangeNotice({ withSafety = false }: { withSafety?: boole
       </View>
       {withSafety ? (
         <SafetyNotices
-          notices={profileNotices(change.safety, current)}
+          notices={profileNotices(
+            change.safety,
+            current,
+            // The sport notices of spec 004 (AC5, AC8), with the goal the new evaluation applied.
+            profile ? { ...profile, goal: change.safety.appliedGoal } : undefined,
+          )}
           floorKcal={current.clampedReason === 'calorie_floor' ? current.kcal : undefined}
         />
       ) : null}

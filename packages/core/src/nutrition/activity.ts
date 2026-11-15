@@ -50,6 +50,20 @@ export function trainingSessionsPerWeek(activities: readonly PlannedActivity[]):
 }
 
 /**
+ * The names of the sport activities, once each (case-insensitive) and as typed: "For: perform in
+ * football and padel" on "Today" (spec 004 AC12).
+ */
+export function sportActivityNames(activities: readonly PlannedActivity[]): string[] {
+  const names = new Map<string, string>();
+  for (const activity of activities) {
+    const name = activity.kind === 'sport' ? (activity.label?.trim() ?? '') : '';
+    if (name !== '' && !names.has(name.toLocaleLowerCase()))
+      names.set(name.toLocaleLowerCase(), name);
+  }
+  return [...names.values()];
+}
+
+/**
  * Share of the BMR that the planned training adds, averaged over the week: for each activity, hours per
  * week × (MET − 1), added up and divided by the hours in a week. MET − 1 because the resting part of
  * each hour is already in the job factor. 1 MET is taken as the user's own BMR per hour, so the result

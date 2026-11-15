@@ -158,12 +158,16 @@ function Breakdown({ targets, breakdown }: { targets: Targets; breakdown: Target
     }),
     format(b.adjustment, { value: signed(breakdown.goalAdjustmentKcal) }),
     format(b.floor, { value: n(breakdown.floorKcal) }),
+    // The focus sets the protein per kg and, for sport performance, the carbohydrate minimum (AC4).
+    format(b.focus, { focus: t.onboarding.form.focusOptions[breakdown.trainingFocus] }),
     format(b.protein, {
       perKg: n(breakdown.proteinGPerKg, 1),
       weight: n(breakdown.referenceWeightKg, 1),
     }),
     b.fat,
-    b.carbs,
+    breakdown.carbsMinGPerKg === null
+      ? b.carbs
+      : format(b.carbsMin, { perKg: n(breakdown.carbsMinGPerKg) }),
     b.fiber,
   ];
   return (

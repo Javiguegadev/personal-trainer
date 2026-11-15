@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACTIVITY_MET,
   isHighTrainingLoad,
+  sportActivityNames,
   jobFactor,
   trainingFactor,
   trainingMinutesPerWeek,
@@ -87,5 +88,32 @@ describe('weekly totals', () => {
   it('flags a high training load from 600 minutes per week (AC11)', () => {
     expect(isHighTrainingLoad(599)).toBe(false);
     expect(isHighTrainingLoad(600)).toBe(true);
+  });
+});
+
+describe('sportActivityNames', () => {
+  const sport = (label: string | null) =>
+    ({
+      kind: 'sport',
+      label,
+      sessionsPerWeek: 2,
+      minutesPerSession: 60,
+      intensity: 'moderate',
+    }) as const;
+
+  it('lists the named sport activities once each, as typed (spec 004 AC12)', () => {
+    expect(
+      sportActivityNames([
+        sport(' Fútbol '),
+        { ...sport('Yoga'), kind: 'other' },
+        sport('fútbol'),
+        sport(null),
+        sport('pádel'),
+      ]),
+    ).toEqual(['Fútbol', 'pádel']);
+  });
+
+  it('is empty without named sports', () => {
+    expect(sportActivityNames([sport(null), sport('  ')])).toEqual([]);
   });
 });

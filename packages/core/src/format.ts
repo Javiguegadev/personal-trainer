@@ -55,3 +55,14 @@ export function formatShortDate(isoDate: string, locale: Locale, withYear = fals
 export function formatWeekdayDay(isoDate: string, locale: Locale): string {
   return formatDay(isoDate, locale, { weekday: 'short', day: 'numeric' });
 }
+
+/**
+ * "fútbol, pádel y tenis" / "football, padel and tennis". Spanish uses "e" before an /i/ sound
+ * ("fútbol e hípica"). Written by hand: Hermes may lack `Intl.ListFormat`.
+ */
+export function formatList(items: readonly string[], locale: Locale): string {
+  if (items.length <= 1) return items[0] ?? '';
+  const last = items[items.length - 1] ?? '';
+  const conjunction = locale === 'es' ? (/^h?[ií](?![aeoáéó])/i.test(last) ? 'e' : 'y') : 'and';
+  return `${items.slice(0, -1).join(', ')} ${conjunction} ${last}`;
+}

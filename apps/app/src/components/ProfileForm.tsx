@@ -1,6 +1,13 @@
-import { DietTypeSchema, GoalSchema, JobActivitySchema, SexSchema } from '@pt/contracts';
+import {
+  DietTypeSchema,
+  GoalSchema,
+  JobActivitySchema,
+  SexSchema,
+  TrainingFocusSchema,
+} from '@pt/contracts';
 import {
   convertFormUnits,
+  newSportActivity,
   type FormErrorCode,
   type ProfileFormErrors,
   type ProfileFormValues,
@@ -22,7 +29,7 @@ interface ProfileFormProps {
 
 /**
  * Every profile field, editable (onboarding form and summary, Settings). Choices, the job and the weekly
- * training are taps (ADR 004, spec 002 AC1–AC3); typed values stay as typed and @pt/core parses and
+ * training are taps (ADR 004, spec 002 AC1–AC3), and so is what the user trains for (spec 004 AC1–AC3); typed values stay as typed and @pt/core parses and
  * validates them (decimal comma, imperial units, ranges).
  */
 export function ProfileForm({ values, onChange, errors }: ProfileFormProps) {
@@ -181,15 +188,42 @@ export function ProfileForm({ values, onChange, errors }: ProfileFormProps) {
             ? f.trainingTooMuch
             : error(errors.plannedActivities)
         }
+        sportNameRequired={values.trainingFocus === 'sport_performance'}
+        nameErrors={values.plannedActivities.map((_, index) =>
+          error(errors[`plannedActivities.${index}.label`]),
+        )}
+        // Sport performance needs a sport (spec 004 AC3): one tap adds the card.
+        onAddSport={
+          errors.plannedActivities === 'sport_required'
+            ? () => set('plannedActivities', [...values.plannedActivities, newSportActivity()])
+            : undefined
+        }
       />
 
+      {/* The weight question sets the calories; its hint points to the focus just below (AC1). */}
       <ChoiceGroup
         label={f.goal}
+        hint={f.goalHint}
         options={GoalSchema.options.map((value) => ({ value, label: f.goalOptions[value] }))}
         value={values.goal}
         onChange={(value) => set('goal', value)}
         error={error(errors.goal)}
         testID="field-goal"
+      />
+
+      <ChoiceGroup
+        label={f.focus}
+        hint={f.focusHint}
+        layout="list"
+        options={TrainingFocusSchema.options.map((value) => ({
+          value,
+          label: f.focusOptions[value],
+          description: f.focusDescriptions[value],
+        }))}
+        value={values.trainingFocus}
+        onChange={(value) => set('trainingFocus', value)}
+        error={error(errors.trainingFocus)}
+        testID="field-focus"
       />
 
       <ChoiceGroup

@@ -114,6 +114,7 @@ export const es = {
       kind: 'Tipo',
       kindOptions: { strength: 'Fuerza', cardio: 'Cardio', sport: 'Deporte', other: 'Otra' },
       activityName: 'Nombre (opcional)',
+      activityNameRequired: 'Nombre del deporte',
       activityNamePlaceholder: 'Fútbol, pádel, yoga…',
       sessions: 'Veces por semana',
       sessionsDecrease: 'Una vez menos por semana',
@@ -270,7 +271,7 @@ export const es = {
     performance_deficit: {
       title: 'Pierdes grasa más despacio',
       message:
-        'Como entrenas para rendir en tu deporte, el déficit es más pequeño (como mucho un 10 % y 300 kcal) para proteger tu rendimiento.',
+        'Como entrenas para rendir en tu deporte, el déficit es más pequeño (como mucho un 10 % y 300 kcal) para proteger tu rendimiento.',
     },
     carbs_below_sport_minimum: {
       title: 'Faltan carbohidratos para tu entrenamiento',

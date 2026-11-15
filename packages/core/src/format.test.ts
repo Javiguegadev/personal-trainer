@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDecimal,
+  formatList,
   formatLongDate,
   formatNumber,
   formatShortDate,
@@ -49,5 +50,22 @@ describe('date labels', () => {
     expect(formatShortDate('2026-11-01', 'es')).toMatch(/^1 nov/);
     expect(formatShortDate('2025-11-13', 'en', true)).toMatch(/13 Nov.*2025/);
     expect(formatWeekdayDay('2026-11-13', 'es')).toMatch(/vie.*13/);
+  });
+});
+
+describe('formatList', () => {
+  it('joins with commas and the locale conjunction', () => {
+    expect(formatList([], 'es')).toBe('');
+    expect(formatList(['fútbol'], 'es')).toBe('fútbol');
+    expect(formatList(['fútbol', 'pádel'], 'es')).toBe('fútbol y pádel');
+    expect(formatList(['fútbol', 'pádel', 'tenis'], 'es')).toBe('fútbol, pádel y tenis');
+    expect(formatList(['football', 'padel', 'tennis'], 'en')).toBe('football, padel and tennis');
+  });
+
+  it('uses "e" before an /i/ sound in Spanish', () => {
+    expect(formatList(['fútbol', 'hípica'], 'es')).toBe('fútbol e hípica');
+    expect(formatList(['tenis', 'Ironman'], 'es')).toBe('tenis e Ironman');
+    // "hie-" and "hia-" start with a consonant sound: "y" stays.
+    expect(formatList(['tenis', 'hielo'], 'es')).toBe('tenis y hielo');
   });
 });

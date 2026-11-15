@@ -114,6 +114,7 @@ export const en: DeepStringRecord<typeof es> = {
       kind: 'Type',
       kindOptions: { strength: 'Strength', cardio: 'Cardio', sport: 'Sport', other: 'Other' },
       activityName: 'Name (optional)',
+      activityNameRequired: 'Sport name',
       activityNamePlaceholder: 'Football, padel, yoga…',
       sessions: 'Times per week',
       sessionsDecrease: 'One less per week',

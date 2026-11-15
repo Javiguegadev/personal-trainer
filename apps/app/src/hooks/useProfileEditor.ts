@@ -73,8 +73,13 @@ export function useProfileEditor(values: ProfileFormValues) {
     };
   } else targets = { status: 'loading' };
 
+  // The training notices (spec 004 AC5, AC8) use the input of the preview shown, with the applied goal.
   const notices: ProfileNotice[] = preview.data
-    ? profileNotices(preview.data.safety, preview.data.targets)
+    ? profileNotices(
+        preview.data.safety,
+        preview.data.targets,
+        previewInput ? { ...previewInput, goal: preview.data.safety.appliedGoal } : undefined,
+      )
     : [];
 
   return {

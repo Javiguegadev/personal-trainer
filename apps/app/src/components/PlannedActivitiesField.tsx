@@ -26,6 +26,12 @@ interface PlannedActivitiesFieldProps {
   values: PlannedActivityFormValue[];
   onChange: (values: PlannedActivityFormValue[]) => void;
   error?: string | null;
+  /** The "Name your sport" error of each card, by index (spec 004 AC3). */
+  nameErrors?: readonly (string | null)[];
+  /** Shown with the error when sport performance has no sport yet: adds a sport card (spec 004 AC3). */
+  onAddSport?: (() => void) | undefined;
+  /** Sport performance: a sport needs its name, so its field is not labelled optional (spec 004 AC3). */
+  sportNameRequired?: boolean;
 }
 
 /** Kinds that have many variants: the user can name the activity (e.g. "fútbol"). */
@@ -35,7 +41,14 @@ const NAMED_KINDS: readonly ActivityKind[] = ['sport', 'other'];
  * The weekly training outside work (spec 002 AC2–AC4): a short list of activity cards, each edited with
  * taps. An empty list means "I don't train" and is valid.
  */
-export function PlannedActivitiesField({ values, onChange, error }: PlannedActivitiesFieldProps) {
+export function PlannedActivitiesField({
+  values,
+  onChange,
+  error,
+  nameErrors = [],
+  onAddSport,
+  sportNameRequired = false,
+}: PlannedActivitiesFieldProps) {
   const { t, format } = useI18n();
   const { colors } = useTheme();
   const f = t.onboarding.form;
@@ -102,11 +115,16 @@ export function PlannedActivitiesField({ values, onChange, error }: PlannedActiv
             />
             {NAMED_KINDS.includes(activity.kind) ? (
               <TextField
-                label={f.activityName}
+                label={
+                  sportNameRequired && activity.kind === 'sport'
+                    ? f.activityNameRequired
+                    : f.activityName
+                }
                 placeholder={f.activityNamePlaceholder}
                 value={activity.label}
                 onChangeText={(label) => update(index, { label })}
                 maxLength={TRAINING_LIMITS.labelMax}
+                error={nameErrors[index] ?? null}
                 testID={`${id}-name`}
               />
             ) : null}
@@ -155,6 +173,9 @@ export function PlannedActivitiesField({ values, onChange, error }: PlannedActiv
         <AppText variant="caption" tone="danger" role="alert" testID="training-error">
           {error}
         </AppText>
+      ) : null}
+      {onAddSport && canAdd ? (
+        <Button variant="primary" label={f.addSport} onPress={onAddSport} testID="add-sport" />
       ) : null}
       {canAdd ? (
         <Button
