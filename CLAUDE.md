@@ -88,5 +88,5 @@ pnpm format
   version, chat retired) and spec 003 (tabs Today/Progress/Profile, weight log with trend, offline cache
   and write queue; ADR 005), plus spec 004 (training focus: muscle, strength, sport performance, general
   fitness; `targets-v3`, `context-v3`).
-- Next (ADR 003): E4 food logging (spec 005 not written yet) → E5 workout logging & daily
+- Next (ADR 003): E4 food logging (spec 005 approved: catalog, search, log; slices b and c to spec) → E5 workout logging & daily
   context → E5b adaptive loop → beta without paywall → E7 premium AI → E6 payments.
