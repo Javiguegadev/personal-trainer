@@ -408,6 +408,8 @@ export const en: DeepStringRecord<typeof es> = {
     title: 'Profile',
     details: 'My details',
     privacy: 'Privacy and data',
+    appearance: 'Appearance',
+    theme: { system: 'Same as device', light: 'Light', dark: 'Dark' },
     signOutPendingOne: 'You have 1 change waiting to sync. If you sign out now, it will be lost.',
     signOutPendingOther:
       'You have {count} changes waiting to sync. If you sign out now, they will be lost.',

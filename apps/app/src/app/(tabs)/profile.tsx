@@ -4,18 +4,23 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { useI18n } from '@/hooks/useI18n';
+import { THEME_PREFERENCES } from '@/lib/colorScheme';
 import { signOut } from '@/lib/session';
+import { setThemePreference, useThemePreference } from '@/lib/themePreference';
 
 /**
- * Profile tab (spec 003 AC2, AC22): the profile form, privacy, and sign out. Signing out deletes the
- * queue of writes, so with writes waiting it asks first and says how many would be lost.
+ * Profile tab (spec 003 AC2, AC22): the profile form, privacy, appearance (system, light or dark, per
+ * device) and sign out. Signing out deletes the queue of writes, so with writes waiting it asks first
+ * and says how many would be lost.
  */
 export default function ProfileTabScreen() {
   const { t, format } = useI18n();
+  const themePreference = useThemePreference();
   const router = useRouter();
   const pending = useIsMutating({ mutationKey: weightKeys.mutations });
   const [confirming, setConfirming] = useState(false);
@@ -36,6 +41,13 @@ export default function ProfileTabScreen() {
         label={p.privacy}
         onPress={() => router.push('/settings/privacy')}
         testID="open-privacy"
+      />
+      <ChoiceGroup
+        label={p.appearance}
+        options={THEME_PREFERENCES.map((value) => ({ value, label: p.theme[value] }))}
+        value={themePreference}
+        onChange={setThemePreference}
+        testID="theme-preference"
       />
       {confirming && pending > 0 ? (
         <Notice

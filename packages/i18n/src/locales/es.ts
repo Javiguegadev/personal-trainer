@@ -411,6 +411,8 @@ export const es = {
     title: 'Perfil',
     details: 'Mis datos',
     privacy: 'Privacidad y datos',
+    appearance: 'Apariencia',
+    theme: { system: 'Como el sistema', light: 'Claro', dark: 'Oscuro' },
     signOutPendingOne: 'Tienes 1 cambio sin sincronizar. Si cierras sesión ahora, se perderá.',
     signOutPendingOther:
       'Tienes {count} cambios sin sincronizar. Si cierras sesión ahora, se perderán.',
