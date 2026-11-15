@@ -164,7 +164,7 @@ function Breakdown({ targets, breakdown }: { targets: Targets; breakdown: Target
       perKg: n(breakdown.proteinGPerKg, 1),
       weight: n(breakdown.referenceWeightKg, 1),
     }),
-    b.fat,
+    breakdown.fatLoweredForCarbs ? b.fatLowered : b.fat,
     breakdown.carbsMinGPerKg === null
       ? b.carbs
       : format(b.carbsMin, { perKg: n(breakdown.carbsMinGPerKg) }),

@@ -62,6 +62,11 @@ export function applyLatestWeight(
     safetyFlags: evaluation.flags,
     targetsChange: sameTargets(targets, evaluation.targets)
       ? null
-      : { previous: targets, current: evaluation.targets, safety: evaluation.safety },
+      : {
+          previous: targets,
+          current: evaluation.targets,
+          safety: evaluation.safety,
+          weightKg: latest.weightKg,
+        },
   };
 }

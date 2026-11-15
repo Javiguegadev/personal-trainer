@@ -48,8 +48,11 @@ export function TargetsChangeNotice({ withSafety = false }: { withSafety?: boole
           notices={profileNotices(
             change.safety,
             current,
-            // The sport notices of spec 004 (AC5, AC8), with the goal the new evaluation applied.
-            profile ? { ...profile, goal: change.safety.appliedGoal } : undefined,
+            // The sport notices of spec 004 (AC5, AC8), with the weight and goal of the new evaluation
+            // (the cached profile may still hold the previous weight).
+            profile
+              ? { ...profile, weightKg: change.weightKg, goal: change.safety.appliedGoal }
+              : undefined,
           )}
           floorKcal={current.clampedReason === 'calorie_floor' ? current.kcal : undefined}
         />

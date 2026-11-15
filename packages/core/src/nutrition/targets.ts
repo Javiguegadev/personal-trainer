@@ -40,6 +40,11 @@ const SURPLUS_RATIO = 0.1;
 const SURPLUS_MAX_KCAL = 300;
 const FAT_KCAL_RATIO = 0.25;
 const FAT_MIN_G_PER_KG = 0.6;
+/**
+ * Fat never drops below 20 % of the calories to make room for carbohydrates (spec 004): the lower end
+ * of the ACSM/AND/DC 2016 position stand (Thomas, Erdman & Burke) and of the IOM AMDR.
+ */
+const FAT_MIN_KCAL_RATIO = 0.2;
 const FIBER_G_PER_1000_KCAL = 14; // IOM 2005
 const FIBER_MIN_G = 25; // EFSA adequate intake for adults
 const PROTEIN_MAX_KCAL_RATIO = 0.35; // top of the IOM AMDR
@@ -105,24 +110,30 @@ export function computeTargets(
     Math.round(proteinGPerKg * referenceWeightKg),
     Math.floor((kcal * PROTEIN_MAX_KCAL_RATIO) / KCAL_PER_G.protein),
   );
-  const fatMinG = FAT_MIN_G_PER_KG * referenceWeightKg;
-  let fatG = Math.round(Math.max((kcal * FAT_KCAL_RATIO) / KCAL_PER_G.fat, fatMinG));
+  // Rounded up, so the stored grams never fall below the minimum.
+  const fatMinG = Math.ceil(FAT_MIN_G_PER_KG * referenceWeightKg);
+  let fatG = Math.max(Math.round((kcal * FAT_KCAL_RATIO) / KCAL_PER_G.fat), fatMinG);
+  let fatLoweredForCarbs = false;
 
   const carbsFor = (fat: number) =>
     Math.round((kcal - proteinG * KCAL_PER_G.protein - fat * KCAL_PER_G.fat) / KCAL_PER_G.carbs);
   let carbsG = carbsFor(fatG);
   const carbsMin = sportCarbsMinimum(focus, minutesPerWeek, referenceWeightKg);
   if (carbsMin && carbsG < carbsMin.grams) {
-    // Sport performance (spec 004 AC7, AC8): fat makes room for the carbohydrate minimum, down to its
-    // own minimum; calories never change. Fat is rounded down so the carbs reach the minimum.
+    // Sport performance (spec 004 AC7, AC8): fat makes room for the carbohydrate minimum, down to
+    // 0.6 g/kg and 20 % of the calories; calories never change. Fat is rounded down so the carbs reach
+    // the minimum when it fits.
     const fatRoom = Math.floor(
       (kcal - proteinG * KCAL_PER_G.protein - carbsMin.grams * KCAL_PER_G.carbs) / KCAL_PER_G.fat,
     );
-    fatG = Math.max(fatRoom, Math.round(fatMinG));
+    const sportFatMinG = Math.max(fatMinG, Math.ceil((kcal * FAT_MIN_KCAL_RATIO) / KCAL_PER_G.fat));
+    const lowered = Math.max(fatRoom, sportFatMinG);
+    fatLoweredForCarbs = lowered < fatG;
+    fatG = Math.min(fatG, lowered);
     carbsG = Math.max(0, carbsFor(fatG));
   } else if (carbsG < 0) {
     // Protein is kept; fat drops to its minimum; carbs never go negative.
-    fatG = Math.round(fatMinG);
+    fatG = fatMinG;
     carbsG = Math.max(0, carbsFor(fatG));
   }
 
@@ -150,6 +161,7 @@ export function computeTargets(
       referenceWeightKg: Math.round(referenceWeightKg * 10) / 10,
       trainingFocus: focus,
       carbsMinGPerKg: carbsMin?.gPerKg ?? null,
+      fatLoweredForCarbs,
     },
   };
 }

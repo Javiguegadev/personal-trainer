@@ -13,6 +13,7 @@ const TONE: Record<ProfileNotice, 'danger' | 'warning' | 'info'> = {
   teen_limited: 'info',
   calorie_floor: 'info',
   carbs_below_sport_minimum: 'warning',
+  sport_underfuelling: 'warning',
   high_training_load: 'warning',
   performance_deficit: 'info',
   activity_ceiling: 'info',

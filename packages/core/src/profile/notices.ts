@@ -15,6 +15,7 @@ export type ProfileNotice =
   | 'teen_limited'
   | 'calorie_floor'
   | 'carbs_below_sport_minimum'
+  | 'sport_underfuelling'
   | 'high_training_load'
   | 'performance_deficit'
   | 'activity_ceiling'
@@ -28,6 +29,7 @@ const ORDER: readonly ProfileNotice[] = [
   'teen_limited',
   'calorie_floor',
   'carbs_below_sport_minimum',
+  'sport_underfuelling',
   'high_training_load',
   'performance_deficit',
   'activity_ceiling',
@@ -63,7 +65,11 @@ export function profileNotices(
       trainingMinutesPerWeek(training.plannedActivities),
       referenceWeightKg(training.heightCm, training.weightKg),
     );
-    if (minimum && targets.carbsG < minimum.grams) notices.add('carbs_below_sport_minimum');
+    if (minimum && targets.carbsG < minimum.grams) {
+      // Losing fat: the deficit leaves the carbohydrates short, so "keep my weight" helps. Without a
+      // deficit that advice does nothing (or cuts calories): a possible under-fuelling, see a professional.
+      notices.add(training.goal === 'lose' ? 'carbs_below_sport_minimum' : 'sport_underfuelling');
+    }
   }
   return ORDER.filter((notice) => notices.has(notice));
 }

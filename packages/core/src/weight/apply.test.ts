@@ -66,6 +66,8 @@ describe('applyLatestWeight (spec 003 AC10–AC13)', () => {
         previous: before.targets,
         current: viaForm.targets,
         safety: viaForm.safety,
+        // The weight behind `current`, for the carbohydrate notice of spec 004 (AC8).
+        weightKg: 66,
       },
     });
     expect(viaForm.targets?.kcal).toBeLessThan(before.targets?.kcal ?? 0);

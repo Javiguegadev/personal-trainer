@@ -290,6 +290,7 @@ describe('computeTargets — targets-v2 numbers under targets-v3 (spec 002 AC6)'
       referenceWeightKg: 80,
       trainingFocus: 'general_fitness',
       carbsMinGPerKg: null,
+      fatLoweredForCarbs: false,
     });
   });
 
@@ -629,6 +630,8 @@ describe('targets-v3: what the user trains for (spec 004)', () => {
     const sport = targetsFor({ ...person, focus: 'sport_performance' }, s);
     expect(sport.targets).toMatchObject({ kcal: 2090, proteinG: 108, fatG: 50, carbsG: 302 });
     expect(sport.breakdown.carbsMinGPerKg).toBe(5);
+    expect(sport.breakdown.fatLoweredForCarbs).toBe(true);
+    expect(health.breakdown.fatLoweredForCarbs).toBe(false);
   });
 
   it('leaves the macros alone when the carbohydrates already reach the minimum (AC7)', () => {
@@ -639,12 +642,13 @@ describe('targets-v3: what the user trains for (spec 004)', () => {
     const sport = targetsFor({ ...person, focus: 'sport_performance' }, safety('maintain'));
     expect(sport.targets).toEqual(health.targets);
     expect(sport.breakdown.carbsMinGPerKg).toBe(3);
+    expect(sport.breakdown.fatLoweredForCarbs).toBe(false);
   });
 
   it('carbs are what fits when fat is already at its minimum (AC8)', () => {
     // Woman, 60 y, 155 cm, 55 kg, seated, sport 7 × 120 hard (840 min → 6 g/kg = 330 g)
     // BMR 1057.75 · TDEE × (1.4 + 14 × 7 / 168) = 2097.9 · − 209.8 → 1888.1 → 1890
-    // P 99 · F minimum 0.6 × 55 = 33 · C (1890 − 396 − 297) / 4 = 299.25 → 299 < 330
+    // P 99 · F minimum max(0.6 × 55 = 33, 20 % × 1890 / 9 = 42) = 42 · C (1890 − 396 − 378) / 4 = 279 < 330
     const { targets } = targetsFor(
       {
         sex: 'female',
@@ -657,7 +661,7 @@ describe('targets-v3: what the user trains for (spec 004)', () => {
       },
       safety('lose', { flags: ['high_training_load'] }),
     );
-    expect(targets).toMatchObject({ kcal: 1890, proteinG: 99, fatG: 33, carbsG: 299 });
+    expect(targets).toMatchObject({ kcal: 1890, proteinG: 99, fatG: 42, carbsG: 279 });
   });
 
   it('uses the reference weight for the carbohydrate minimum from BMI 30 (AC7)', () => {
@@ -676,13 +680,21 @@ describe('targets-v3: what the user trains for (spec 004)', () => {
     expect(breakdown.carbsMinGPerKg).toBe(3);
   });
 
-  it('the focus never raises the calories nor lowers the floor (AC9)', () => {
+  it('the focus never raises the calories nor lowers the floor or the fat minimums (AC7, AC9)', () => {
     const focuses = ['hypertrophy', 'strength', 'sport_performance', 'general_fitness'] as const;
     const people: Person[] = [
       { ...man, job: 'sedentary', training: [football(3, 90)] },
       { ...woman, training: [football(6, 120)] },
       { sex: 'other', birthDate: '1950-01-01', heightCm: 150, weightKg: 40, job: 'sedentary' },
       { ...man, weightKg: 130, job: 'physical', training: [activity('strength', 4, 60)] },
+      {
+        sex: 'female',
+        birthDate: '1966-11-11',
+        heightCm: 155,
+        weightKg: 55.4,
+        job: 'sedentary',
+        training: [activity('sport', 7, 120, 'hard')],
+      },
     ];
     for (const person of people) {
       for (const goal of ['lose', 'maintain', 'gain'] as const) {
@@ -701,6 +713,10 @@ describe('targets-v3: what the user trains for (spec 004)', () => {
           }
           expect(targets.proteinG * 4).toBeLessThanOrEqual(targets.kcal * 0.35);
           expect(targets.carbsG).toBeGreaterThanOrEqual(0);
+          // Fat never rounds below 0.6 g/kg (the breakdown's weight is rounded to 0.1 kg) and never
+          // drops under 20 % of the calories to make room for carbohydrates (ACSM 2016).
+          expect(targets.fatG).toBeGreaterThanOrEqual(0.6 * breakdown.referenceWeightKg - 0.03);
+          expect(targets.fatG * 9).toBeGreaterThanOrEqual(targets.kcal * 0.2);
           const macroKcal = 4 * targets.proteinG + 4 * targets.carbsG + 9 * targets.fatG;
           expect(Math.abs(macroKcal - targets.kcal)).toBeLessThanOrEqual(10);
         }

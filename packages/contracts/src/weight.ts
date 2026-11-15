@@ -50,6 +50,8 @@ export const TargetsChangeSchema = z.object({
   current: TargetsSchema.nullable(),
   /** The safety evaluation behind `current`, so the app can show the matching notices (AC12). */
   safety: SafetyEvaluationSchema,
+  /** The profile weight behind `current`, so the app checks the carbohydrate minimum with it (spec 004 AC8). */
+  weightKg: z.number(),
 });
 export type TargetsChange = z.infer<typeof TargetsChangeSchema>;
 

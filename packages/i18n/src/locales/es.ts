@@ -141,9 +141,9 @@ export const es = {
       },
       focusDescriptions: {
         hypertrophy: 'Más masa muscular. Más proteína para construirla.',
-        strength: 'Levantar más peso. Más proteína para recuperarte.',
+        strength: 'Levantar más peso. Más proteína para mantener y ganar músculo.',
         sport_performance:
-          'Rendir mejor en tu deporte. Carbohidratos suficientes para tus entrenos y partidos.',
+          'Rendir mejor en tu deporte. Más carbohidratos para tus entrenos y partidos.',
         general_fitness: 'Estar en forma y sentirte bien, sin un objetivo deportivo concreto.',
       },
       addSport: 'Añadir un deporte',
@@ -216,14 +216,16 @@ export const es = {
       floor: 'Mínimo de seguridad: {value} kcal (nunca por debajo de tu metabolismo basal)',
       protein: 'Proteína: {perKg} g por kg × {weight} kg de peso de referencia',
       fat: 'Grasa: 25 % de las calorías, con un mínimo de 0,6 g por kg',
+      fatLowered:
+        'Grasa: menos del 25 % de las calorías para dejar sitio a los carbohidratos, sin bajar del 20 % ni de 0,6 g por kg',
       carbs: 'Carbohidratos: las calorías restantes',
       carbsMin:
-        'Carbohidratos: las calorías restantes, con un mínimo de {perKg} g por kg para tu entrenamiento (la grasa baja para dejarles sitio)',
+        'Carbohidratos: las calorías restantes, con un mínimo de {perKg} g por kg de peso de referencia para tu entrenamiento, si las calorías lo permiten',
       focus: 'Para qué entrenas: {focus}',
       fiber: 'Fibra: 14 g por cada 1000 kcal, con un mínimo de 25 g',
       sources: 'Fuentes',
       sourceList:
-        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · FAO/OMS/UNU (2004), necesidades de energía y niveles de actividad física · Valores por sesión adaptados de Ainsworth BE y cols. (2011), Compendio de actividades físicas · ISSN, postura sobre la proteína y el ejercicio · IOM (2005), ingestas dietéticas de referencia (fibra y máximo de proteína) · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo',
+        'Mifflin MD, St Jeor ST y cols. (1990), ecuación del metabolismo basal · FAO/OMS/UNU (2004), necesidades de energía y niveles de actividad física · Valores por sesión adaptados de Ainsworth BE y cols. (2011), Compendio de actividades físicas · ISSN, postura sobre la proteína y el ejercicio · IOM (2005), ingestas dietéticas de referencia (fibra y máximo de proteína) · EFSA, valores dietéticos de referencia · ESPEN/GLIM, criterios de IMC bajo · Burke LM y cols. (2011, COI), hidratos de carbono para el entrenamiento y la competición · Thomas DT, Erdman KA y Burke LM (2016, ACSM/AND/DC), nutrición y rendimiento deportivo · Morton RW y cols. (2018), proteína y masa muscular con entrenamiento de fuerza',
       version: 'Fórmula {version}',
     },
   },
@@ -276,7 +278,12 @@ export const es = {
     carbs_below_sport_minimum: {
       title: 'Faltan carbohidratos para tu entrenamiento',
       message:
-        'Con estas calorías no llegas a los carbohidratos que necesita lo que entrenas. Mientras entrenes tanto, plantéate elegir «Mantener mi peso».',
+        'Con estas calorías no llegas a los carbohidratos que necesita lo que entrenas. Mientras entrenes tanto, plantéate elegir «Mantener mi peso» y consulta con un profesional de la nutrición deportiva.',
+    },
+    sport_underfuelling: {
+      title: 'Puede que te falte energía para tu entrenamiento',
+      message:
+        'Puede que nuestra estimación se quede corta para lo que entrenas. Si a menudo notas cansancio o bajas de rendimiento, consulta con un profesional de la nutrición deportiva.',
     },
     activity_ceiling: {
       title: 'Estimación limitada',

@@ -73,12 +73,23 @@ describe('profileNotices: what the user trains for (spec 004)', () => {
   it('says when the calories cannot cover the carbohydrates the training needs (AC8)', () => {
     const maintain = { ...profile, goal: 'maintain' as const };
     expect(profileNotices({ flags: [] }, targets(300), maintain)).toEqual([]);
-    expect(profileNotices({ flags: [] }, targets(299), maintain)).toEqual([
-      'carbs_below_sport_minimum',
-    ]);
     expect(
       profileNotices({ flags: [] }, targets(10), { ...maintain, trainingFocus: 'hypertrophy' }),
     ).toEqual([]);
+    // Losing fat: the deficit is what leaves the carbohydrates short, so "keep my weight" helps.
+    expect(profileNotices({ flags: [] }, targets(299), profile)).toEqual([
+      'carbs_below_sport_minimum',
+      'performance_deficit',
+    ]);
+  });
+
+  it('without a deficit, a carbohydrate shortfall points to a professional, not to a goal (AC8)', () => {
+    // Keeping or gaining weight already: suggesting "keep my weight" would do nothing, or cut calories.
+    for (const goal of ['maintain', 'gain'] as const) {
+      expect(profileNotices({ flags: [] }, targets(299), { ...profile, goal })).toEqual([
+        'sport_underfuelling',
+      ]);
+    }
   });
 
   it('orders them with the other training notices', () => {

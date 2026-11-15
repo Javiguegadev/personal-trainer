@@ -140,9 +140,9 @@ export const en: DeepStringRecord<typeof es> = {
       },
       focusDescriptions: {
         hypertrophy: 'More muscle mass. More protein to build it.',
-        strength: 'Lift heavier. More protein to recover.',
+        strength: 'Lift heavier. More protein to keep and build muscle.',
         sport_performance:
-          'Perform better in your sport. Enough carbohydrates for your sessions and matches.',
+          'Perform better in your sport. More carbohydrates for your sessions and matches.',
         general_fitness: 'Be fit and feel good, without a specific sport goal.',
       },
       addSport: 'Add a sport',
@@ -215,14 +215,16 @@ export const en: DeepStringRecord<typeof es> = {
       floor: 'Safety minimum: {value} kcal (never below your resting metabolism)',
       protein: 'Protein: {perKg} g per kg × {weight} kg reference weight',
       fat: 'Fat: 25% of calories, at least 0.6 g per kg',
+      fatLowered:
+        'Fat: under 25% of calories to make room for carbohydrates, never below 20% or 0.6 g per kg',
       carbs: 'Carbs: the remaining calories',
       carbsMin:
-        'Carbs: the remaining calories, at least {perKg} g per kg for your training (fat goes down to make room)',
+        'Carbs: the remaining calories, at least {perKg} g per kg of reference weight for your training, if the calories allow it',
       focus: 'What you train for: {focus}',
       fiber: 'Fibre: 14 g per 1000 kcal, at least 25 g',
       sources: 'Sources',
       sourceList:
-        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · FAO/WHO/UNU (2004), human energy requirements and physical activity levels · Session values adapted from Ainsworth BE et al. (2011), Compendium of Physical Activities · ISSN position stand on protein and exercise · IOM (2005), dietary reference intakes (fibre and protein ceiling) · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria',
+        'Mifflin MD, St Jeor ST et al. (1990), resting metabolic rate equation · FAO/WHO/UNU (2004), human energy requirements and physical activity levels · Session values adapted from Ainsworth BE et al. (2011), Compendium of Physical Activities · ISSN position stand on protein and exercise · IOM (2005), dietary reference intakes (fibre and protein ceiling) · EFSA dietary reference values · ESPEN/GLIM low-BMI criteria · Burke LM et al. (2011, IOC), carbohydrates for training and competition · Thomas DT, Erdman KA & Burke LM (2016, ACSM/AND/DC), nutrition and athletic performance · Morton RW et al. (2018), protein and muscle mass with resistance training',
       version: 'Formula {version}',
     },
   },
@@ -275,7 +277,12 @@ export const en: DeepStringRecord<typeof es> = {
     carbs_below_sport_minimum: {
       title: 'Not enough carbohydrates for your training',
       message:
-        'These calories don\'t cover the carbohydrates your training needs. While you train this much, consider choosing "Keep my weight".',
+        'These calories don\'t cover the carbohydrates your training needs. While you train this much, consider choosing "Keep my weight" and talk to a sports nutrition professional.',
+    },
+    sport_underfuelling: {
+      title: 'You may be short of energy for your training',
+      message:
+        'Our estimate may fall short of what your training needs. If you often feel tired or your performance drops, talk to a sports nutrition professional.',
     },
     activity_ceiling: {
       title: 'Limited estimate',

@@ -1,6 +1,6 @@
 # 004 — Training focus: muscle, strength, sport performance
 
-- Status: approved (2026-11-13)
+- Status: done (2026-11-15)
 - Phase: E2b (third spec; after 002 and 003, before E4 food logging)
 - Tier: free
 
@@ -64,13 +64,18 @@ food and training suggestions of later stages fit it too.
 - **AC7** — Given focus `sport_performance`, then carbohydrates are at least a minimum per kg of
   reference weight, from the planned training minutes per week (IOC/ACSM bands, lower bound): under 420
   min (under 1 h a day) 3 g/kg · 420–839 min 5 g/kg · 840 min or more 6 g/kg. When the remainder after
-  protein and fat is below it, fat goes down (never below its 0.6 g/kg minimum) to make room. Calories
+  protein and fat is below it, fat goes down (never below 0.6 g/kg nor 20 % of the calories, the ACSM
+  2016 lower limit; amended 2026-11-15 after the domain review) to make room. Calories
   never change for it. Example: woman, 30, 165 cm, 60 kg, seated, football 6 × 120 min moderate (720
   min, high load), lose: TDEE 2319.9, deficit 232 → 2090 kcal; protein 108 g; health focus: fat 58 g,
   carbs 284 g; sport performance: minimum 5 × 60 = 300 g, so fat 50 g and carbs 302 g. _(free)_
 - **AC8** — Given focus `sport_performance` and calories that cannot hold the carbohydrate minimum even
   with fat at its minimum, then carbs are what fits and a notice says that these calories do not cover
-  the carbohydrates the training needs, suggesting "keep my weight" while training this much. _(free)_
+  the carbohydrates the training needs, suggesting "keep my weight" while training this much and a sports
+  nutrition professional. Amended 2026-11-15: when the applied goal is already "keep my weight" or "gain
+  weight", the notice (`sport_underfuelling`) says the estimate may fall short and points to a sports
+  nutrition professional instead of a goal change (RED-S, IOC consensus). Example: woman, 60, 155 cm,
+  55 kg, seated, sport 7 × 120 min hard, lose: 1890 kcal, fat 42 g (20 %), carbs 279 g < 330 g. _(free)_
 - **AC9** — Given any focus, then every rule of `targets-v2` and spec 003 holds: the calorie floor, no
   deficit at 16–17 / low BMI / low target BMI / `ed_soft_stop`, the low-BMI recovery margin, no numbers in
   pregnancy, the activity ceiling, the high-training-load deficit. The focus never raises calories and
@@ -162,7 +167,9 @@ food and training suggestions of later stages fit it too.
 - For the professional reviewer: 2.0 g/kg of protein in a deficit for muscle and strength; protein above
   1.6 g/kg at 16–17; carbohydrate bands from minutes only (no intensity), capped at 6 g/kg (endurance
   athletes may need 8–12); the 10 % / 300 kcal deficit for sport performance; whether the carbohydrate
-  minimum should also apply to other focuses with a high training load.
+  minimum should also apply to other focuses with a high training load; whether the bands should count
+  only sport, cardio and strength minutes, or only moderate and hard ones (today light walking or yoga
+  minutes also move a user into the 5–6 g/kg bands); the 20 % fat floor of the sport branch.
 
 ## Progress
 
@@ -186,7 +193,7 @@ food and training suggestions of later stages fit it too.
   5. e2e: strength protein in `onboarding.spec.ts`; a new sport-performance journey (blocked, "Add a
      sport", name, carbohydrate minimum); E2E helpers learn the focus. Web check at 390 px, light and dark.
   6. close: domain review, Progress, CLAUDE.md status (food logging becomes spec 005), memory.
-- State (2026-11-15, steps 1–5 committed, `pnpm check` green, `pnpm e2e` 8/8 green):
+- State (2026-11-15, all steps done, `pnpm check` green, `pnpm e2e` 8/8 green):
   - Done: contracts, core (AC3 helpers, AC5–AC11), db (`0004_training_profiles` applied to dev), api
     (store reads/writes `training_profiles`, export, AC3 400 and AC10 route tests, deletion table list),
     api-client mock (`MOCK_DB_KEY` v4, AC3/AC6/AC14 tests), i18n es/en, app UI (AC1–AC5, AC8, AC12) and
@@ -195,8 +202,9 @@ food and training suggestions of later stages fit it too.
   - AC13 backfill: `0005_training_focus_backfill.sql` (pasted by the human; the guard hook blocks
     editing migration files). Dev recorded 0005 as applied while it was still empty, so its INSERT was
     run once by hand on dev (0 profiles there, nothing to fill). Other databases apply it normally.
-  - Next: step 6 (domain review, CLAUDE.md status, memory). The human checks the form on a phone (Expo
-    Go): the focus list, "Add a sport" and the sport name field with the keyboard open.
+  - Step 6: domain review done and applied (see the last decision), CLAUDE.md status and memory updated.
+  - Left for the human: check the form on a phone (Expo Go): the focus list, "Add a sport" and the sport
+    name field with the keyboard open. The professional reviewer gets the open questions before the beta.
 - Decisions taken during implementation:
   - **One commit for steps 1–3**: the required `ProfileInput.trainingFocus` breaks api, api-client and
     app types at once (as in spec 002), so `pnpm check` can only be green once the API, the mock and the
@@ -221,3 +229,12 @@ food and training suggestions of later stages fit it too.
     Progress passes the profile with the goal the new evaluation applied.
   - **E2E**: the journeys live in a new `training-focus.spec.ts` (not `onboarding.spec.ts`);
     `weight.spec.ts` now reads `pt.mock-db.v4` (it still read v3 after step 3 bumped `MOCK_DB_KEY`).
+  - **Domain review (2026-11-15), applied with the human's approval**: fat in the sport branch never
+    below 20 % of the calories (AC7/AC8 amended; the AC8 fixture moves to fat 42 g, carbs 279 g); the fat
+    minimum is rounded up (`⌈0.6 g/kg⌉`, it could be stored 0.5 g below); the AC8 notice splits by applied
+    goal (`carbs_below_sport_minimum` when losing fat, `sport_underfuelling` otherwise, both with a
+    professional referral); `TargetsBreakdown.fatLoweredForCarbs` picks the fat line of the breakdown, and
+    the carbohydrate line says "of reference weight" and "if the calories allow it"; IOC 2011, ACSM 2016
+    and Morton 2018 join the sources; option copy no longer promises "enough" carbohydrates or protein "to
+    recover"; `TargetsChange.weightKg` lets the weight-change notice check the carbohydrate minimum with
+    the new weight instead of the cached profile's.

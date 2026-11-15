@@ -233,6 +233,8 @@ export const TargetsBreakdownSchema = z.object({
   trainingFocus: TrainingFocusSchema,
   /** Carbohydrate minimum per kg of reference weight; null outside sport performance (spec 004 AC7). */
   carbsMinGPerKg: z.number().nullable(),
+  /** Fat went below 25 % of the calories to make room for the carbohydrate minimum (spec 004 AC7). */
+  fatLoweredForCarbs: z.boolean(),
 });
 export type TargetsBreakdown = z.infer<typeof TargetsBreakdownSchema>;
 

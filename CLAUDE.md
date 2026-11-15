@@ -86,6 +86,7 @@ pnpm format
   Supabase auth adapter is left; it waits for dashboard settings.
 - E2b logging & context foundations ✅: spec 002 (job, weekly training, `targets-v2`, user context, consent
   version, chat retired) and spec 003 (tabs Today/Progress/Profile, weight log with trend, offline cache
-  and write queue; ADR 005).
-- Next (ADR 003): E4 food logging (spec 004 not written yet) → E5 workout logging & daily
+  and write queue; ADR 005), plus spec 004 (training focus: muscle, strength, sport performance, general
+  fitness; `targets-v3`, `context-v3`).
+- Next (ADR 003): E4 food logging (spec 005 not written yet) → E5 workout logging & daily
   context → E5b adaptive loop → beta without paywall → E7 premium AI → E6 payments.
