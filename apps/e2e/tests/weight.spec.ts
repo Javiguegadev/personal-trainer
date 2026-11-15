@@ -21,7 +21,8 @@ async function localToday(page: Page): Promise<string> {
 /** The weight log stored by the mock backend (what the server has), for the only user. */
 async function storedWeights(page: Page) {
   return page.evaluate(() => {
-    const db = JSON.parse(localStorage.getItem('pt.mock-db.v3') ?? '{}') as Record<
+    // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
+    const db = JSON.parse(localStorage.getItem('pt.mock-db.v4') ?? '{}') as Record<
       string,
       { weights: { localDate: string; weightKg: number }[] }
     >;

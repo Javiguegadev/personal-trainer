@@ -90,6 +90,8 @@ export interface FormAnswers {
   /** Weekly training outside work. Omitted means "I don't train". */
   training?: Activity[];
   goal: 'lose' | 'maintain' | 'gain';
+  /** What the user trains for (spec 004 AC2). Omitted keeps the preselected health and general fitness. */
+  focus?: 'hypertrophy' | 'strength' | 'sport_performance' | 'general_fitness';
 }
 
 /** Fills the profile form with taps and fields; imperial units when the height is in feet. */
@@ -109,6 +111,7 @@ export async function fillForm(form: Locator, answers: FormAnswers): Promise<voi
   await form.getByTestId(`field-job-${answers.job}`).click();
   for (const activity of answers.training ?? []) await addActivity(form, activity);
   await form.getByTestId(`field-goal-${answers.goal}`).click();
+  if (answers.focus) await form.getByTestId(`field-focus-${answers.focus}`).click();
   await form.getByTestId('field-diet-omnivore').click();
 }
 

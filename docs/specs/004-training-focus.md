@@ -166,7 +166,7 @@ food and training suggestions of later stages fit it too.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
 - Plan (2026-11-13), one green commit per dependency step:
   1. contracts + core (test-first): `TrainingFocusSchema`, `ProfileInputSchema.trainingFocus` and the
      AC3 check (`contracts/profile.ts`, `profile.test.ts`); `context-v3` (`contracts/context.ts`,
@@ -186,20 +186,17 @@ food and training suggestions of later stages fit it too.
   5. e2e: strength protein in `onboarding.spec.ts`; a new sport-performance journey (blocked, "Add a
      sport", name, carbohydrate minimum); E2E helpers learn the focus. Web check at 390 px, light and dark.
   6. close: domain review, Progress, CLAUDE.md status (food logging becomes spec 005), memory.
-- State (2026-11-13, steps 1–3 committed, `pnpm check` green + API integration test green):
+- State (2026-11-15, steps 1–5 committed, `pnpm check` green, `pnpm e2e` 8/8 green):
   - Done: contracts, core (AC3 helpers, AC5–AC11), db (`0004_training_profiles` applied to dev), api
     (store reads/writes `training_profiles`, export, AC3 400 and AC10 route tests, deletion table list),
-    api-client mock (`MOCK_DB_KEY` v4, AC3/AC6/AC14 tests), i18n es/en for every key of the spec, the
-    tones of the two new notices in `SafetyNotices`.
+    api-client mock (`MOCK_DB_KEY` v4, AC3/AC6/AC14 tests), i18n es/en, app UI (AC1–AC5, AC8, AC12) and
+    E2E (`training-focus.spec.ts`: strength protein, sport performance blocked → "Add a sport" → name →
+    carbohydrate minimum). Web checked at 390 px light and dark and at 1280 px, no console errors.
   - AC13 backfill: `0005_training_focus_backfill.sql` (pasted by the human; the guard hook blocks
     editing migration files). Dev recorded 0005 as applied while it was still empty, so its INSERT was
     run once by hand on dev (0 profiles there, nothing to fill). Other databases apply it normally.
-  - Next: step 4 (app UI: `ProfileForm` goal hint + focus list + "Add a sport" + name error,
-    `TargetsCard` breakdown, notices with the third argument of `profileNotices` in
-    `useProfileEditor`, `(tabs)/index.tsx` and `WeightNotices`, `TrainingLine` "For: …"). The i18n keys
-    already exist (`onboarding.form.goalHint/focus*/addSport`, `errors.sport_*`,
-    `targets.breakdown.focus/carbsMin`, `safety.performance_deficit/carbs_below_sport_minimum`,
-    `today.trainingFor*`).
+  - Next: step 6 (domain review, CLAUDE.md status, memory). The human checks the form on a phone (Expo
+    Go): the focus list, "Add a sport" and the sport name field with the keyboard open.
 - Decisions taken during implementation:
   - **One commit for steps 1–3**: the required `ProfileInput.trainingFocus` breaks api, api-client and
     app types at once (as in spec 002), so `pnpm check` can only be green once the API, the mock and the
@@ -215,3 +212,12 @@ food and training suggestions of later stages fit it too.
     `plannedActivities.N.label`, the API path); `formErrorFromApi` maps the API's `too_small` to them.
   - `Profile.trainingFocus` null (never after the backfill) is treated as `general_fitness` by core and
     the form.
+  - **Form order**: weekly training → "Your weight" (its hint points "below") → "What do you train for?".
+    "Add a sport" is a primary button under the list error, shown only while `sport_required` is shown.
+    Under sport performance a sport's name field reads "Sport name" instead of "Name (optional)".
+  - **"For: …" on Today**: sport names from `sportActivityNames` (unique, as typed) joined with
+    `formatList` (core; hand-written, since Hermes may lack `Intl.ListFormat`; Spanish "e" before /i/).
+  - **Sport notices outside the form**: "Today" passes the stored profile; the weight-change notice on
+    Progress passes the profile with the goal the new evaluation applied.
+  - **E2E**: the journeys live in a new `training-focus.spec.ts` (not `onboarding.spec.ts`);
+    `weight.spec.ts` now reads `pt.mock-db.v4` (it still read v3 after step 3 bumped `MOCK_DB_KEY`).
