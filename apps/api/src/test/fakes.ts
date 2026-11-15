@@ -163,6 +163,8 @@ export class FakeStore implements Store {
       dietaryPrefs: rows.dietaryPrefs,
       targets: rows.targets,
       weights: rows.weights,
+      mealItems: [],
+      favouriteFoods: [],
       consents: rows.consents,
       aiUsage: rows.aiUsage.map((u) => ({
         feature: u.feature,

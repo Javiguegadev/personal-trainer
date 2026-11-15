@@ -96,6 +96,8 @@ describe('createApiClient', () => {
             dietaryPrefs: null,
             targets: [],
             weights: [],
+            mealItems: [],
+            favouriteFoods: [],
             consents: [],
             aiUsage: [],
           }),

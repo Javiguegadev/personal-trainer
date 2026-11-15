@@ -1,0 +1,86 @@
+import type { MealItem, MealItemUpsertRequest, MealType, Portion } from '@pt/contracts';
+import { addDays } from '../dates';
+
+const itemsOf = (items: readonly MealItem[], mealType: MealType, localDate: string) =>
+  items
+    .filter((i) => i.mealType === mealType && i.localDate === localDate)
+    .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
+
+/**
+ * "Repetir lo de ayer" (spec 005 AC13): offered when the meal is empty on `day` and had items the day
+ * before. Returns how many items and their kcal, or null.
+ */
+export function repeatableMeal(
+  items: readonly MealItem[],
+  mealType: MealType,
+  day: string,
+): { count: number; kcal: number } | null {
+  if (itemsOf(items, mealType, day).length > 0) return null;
+  const previous = itemsOf(items, mealType, addDays(day, -1));
+  if (previous.length === 0) return null;
+  const kcal = previous.reduce((sum, i) => sum + i.nutrients.kcal, 0);
+  return { count: previous.length, kcal: Math.round(kcal) };
+}
+
+export interface RepeatMealInput {
+  items: readonly MealItem[];
+  mealType: MealType;
+  from: string;
+  to: string;
+  /** One new client id per copied item. */
+  ids: readonly string[];
+  recordedAt: string;
+  today: string;
+}
+
+/**
+ * The writes that copy a meal of `from` to `to` (AC13): catalog items keep their portion, so the API
+ * computes the snapshot again; quick adds (and items whose food left the catalog) are copied as they are.
+ */
+export function repeatMeal(
+  input: RepeatMealInput,
+): { id: string; request: MealItemUpsertRequest }[] {
+  const source = itemsOf(input.items, input.mealType, input.from);
+  if (input.ids.length < source.length) throw new Error('repeatMeal needs one id per item');
+  const placement = {
+    localDate: input.to,
+    mealType: input.mealType,
+    recordedAt: input.recordedAt,
+    today: input.today,
+  };
+  return source.map((item, index) => {
+    const id = input.ids[index]!;
+    const portion: Portion | null =
+      item.servingId !== null && item.servings !== null
+        ? { kind: 'serving', servingId: item.servingId, servings: item.servings }
+        : item.grams !== null
+          ? { kind: 'grams', grams: item.grams }
+          : null;
+    if (item.foodId !== null && portion !== null) {
+      return {
+        id,
+        request: {
+          kind: 'food',
+          foodId: item.foodId,
+          portion,
+          inputMethod: 'repeat',
+          ...placement,
+        },
+      };
+    }
+    const n = item.nutrients;
+    return {
+      id,
+      request: {
+        kind: 'quick_add',
+        label: item.label,
+        kcal: n.kcal,
+        proteinG: n.proteinG,
+        carbsG: n.carbsG,
+        fatG: n.fatG,
+        inputMethod: 'repeat',
+        ...placement,
+      },
+    };
+  });
+}

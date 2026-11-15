@@ -17,3 +17,7 @@ export * from './profile/notices';
 export * from './weight/apply';
 export * from './weight/form';
 export * from './weight/trend';
+export * from './food/meal-type';
+export * from './food/nutrition';
+export * from './food/quick-add';
+export * from './food/repeat';

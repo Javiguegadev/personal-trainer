@@ -4,6 +4,7 @@
  */
 export * from './context';
 export * from './errors';
+export * from './food';
 export * from './health';
 export * from './onboarding';
 export * from './privacy';

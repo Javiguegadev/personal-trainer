@@ -59,7 +59,7 @@ export const en: DeepStringRecord<typeof es> = {
     intro:
       'To calculate your targets we need some health data. Before you continue, this is what we do with it:',
     points: {
-      what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log and, if you fill them in, your sleep and stress check-ins.',
+      what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log, what you eat (your food log) and, if you fill them in, your sleep and stress check-ins.',
       where: 'It is stored on servers in the European Union and only you can see it.',
       use: 'We use it to calculate your targets and adapt your recommendations. No AI provider processes your data right now; if that changes, we will ask for your consent again.',
       control: 'You can download or delete all your data at any time in Settings → Privacy.',
@@ -429,7 +429,7 @@ export const en: DeepStringRecord<typeof es> = {
     title: 'Privacy and data',
     export: {
       title: 'Download my data',
-      text: 'A JSON file with everything we store for your account: profile, preferences, targets, weight log, consents and assistant usage.',
+      text: 'A JSON file with everything we store for your account: profile, preferences, targets, weight log, food log, favourite foods, consents and assistant usage.',
       button: 'Download my data',
       done: 'File ready: {file}',
     },

@@ -422,6 +422,9 @@ export function createDrizzleStore(db: Db): Store {
           validTo: t.validTo?.toISOString() ?? null,
         })),
         weights: weights.map(toWeight),
+        // The food log tables arrive with the db step of spec 005; the export reads them from then on.
+        mealItems: [],
+        favouriteFoods: [],
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

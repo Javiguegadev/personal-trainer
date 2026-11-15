@@ -56,7 +56,7 @@ export const es = {
     intro:
       'Para calcular tus objetivos necesitamos algunos datos de salud. Antes de seguir, esto es lo que hacemos con ellos:',
     points: {
-      what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso y, si los rellenas, tus registros de sueño y estrés.',
+      what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso, lo que comes (tu registro de comidas) y, si los rellenas, tus registros de sueño y estrés.',
       where: 'Se guardan en servidores de la Unión Europea y solo tú puedes verlos.',
       use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Ahora mismo ningún proveedor de IA procesa tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
       control: 'Puedes descargar o borrar todos tus datos cuando quieras en Ajustes → Privacidad.',
@@ -432,7 +432,7 @@ export const es = {
     title: 'Privacidad y datos',
     export: {
       title: 'Descargar mis datos',
-      text: 'Un archivo JSON con todo lo que guardamos de tu cuenta: perfil, preferencias, objetivos, registro de peso, consentimientos y uso del asistente.',
+      text: 'Un archivo JSON con todo lo que guardamos de tu cuenta: perfil, preferencias, objetivos, registro de peso, registro de comidas, alimentos favoritos, consentimientos y uso del asistente.',
       button: 'Descargar mis datos',
       done: 'Archivo preparado: {file}',
     },

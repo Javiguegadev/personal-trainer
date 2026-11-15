@@ -354,6 +354,8 @@ export function createMockApiClient({
         dietaryPrefs: record.dietaryPrefs,
         targets: record.targets,
         weights: record.weights,
+        mealItems: [],
+        favouriteFoods: [],
         consents: record.consents,
         aiUsage: record.aiUsage,
       };
