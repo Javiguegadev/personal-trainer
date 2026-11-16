@@ -295,7 +295,7 @@ this catalog and this log.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
 - Done so far (2026-11-16), one commit per step: contracts + core (`154c3bf`), tables and migration
   `0006` applied to dev (`b8b1d3d`), core search and write rules (`f4ba1df`), curated catalog of 811
   foods and the Ciqual importer, run on dev (`6e76648`), API routes (`4079202`), `GET /foods/:foodId`,
@@ -324,7 +324,23 @@ this catalog and this log.
   Checked on web with Playwright at 390 px (light and dark) and 1280 px, without console errors: add
   by serving, by grams and by quick add, edit and move, delete and undo, repeat yesterday, favourites,
   an add without connection that syncs afterwards, and a reload.
-- Next: E2E, and the BLUEPRINT §5 note (no `meals` table yet). The search eval
+- E2E (2026-11-16): `apps/e2e/tests/food.spec.ts`, five journeys on the mock backend: breakfast by
+  serving and lunch by grams with the totals on Food and Today, and an add from Today with the meal
+  chips (AC4, AC7–AC9, AC12, AC15–AC17); favourites, quick add with its confirmation, delete with undo
+  and without it, another portion and meal (AC6, AC10, AC11, AC14); repeat yesterday with undo (AC13);
+  an add without connection that survives a reload and syncs once (AC6, AC19, AC20); a 5-meal day from
+  recents in under 60 s. The helpers shared with the weight journeys moved to `tests/app.ts`, and the
+  weight journey reads the mock database under its current key (`pt.mock-db.v5`). BLUEPRINT §5 says
+  that there is no `meals` table yet.
+- Not covered by a test: AC18 on screen (no numbers with `ed_soft_stop`). The flag cannot be reached
+  from the onboarding form, so only `showsFoodNumbers` is tested (core); check it by hand, or add a
+  mock account with the flag.
+- Known limit: the recents are refreshed while the add screen is open. A food added and closed within
+  the latency of the write shows in the recents the next time the screen opens with a connection, not
+  offline.
+- Left for the human: the phone check in Expo Go (keyboard over the portion sheet and the quick-add
+  form, the modal gestures, `expo-crypto` ids), and the review of 100 foods and of the servings.
+- The search eval
   runs with `pnpm --filter @pt/api eval:food-search` (cases in `apps/api/evals/food-search.jsonl`).
 - Tests by criterion so far: AC1–AC2 `db/knowledge/*.test.ts` (parsers, values, report) and the import
   run on dev; AC3–AC4, AC6 (API part), AC8–AC10, AC14, AC20, AC23 `api/routes/foods/foods.test.ts`; AC4

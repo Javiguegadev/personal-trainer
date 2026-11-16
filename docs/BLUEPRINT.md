@@ -227,7 +227,9 @@ Changes from v2:
   The latest entry is copied to `profiles.weight_kg` and recomputes the targets (ADR 005).
 - **Injuries are structured**, so programs can filter exercises.
 - **`meals` → `meal_items`** replaces the flat `meal_entries`: a photo or a sentence is one meal with
-  several foods.
+  several foods. Until a meal has data of its own (the plate photo, saved meals), spec 005 stores only
+  `meal_items` with `user_id`, `local_date` and `meal_type`: a meal is the items of one day and meal
+  type. The `meals` row arrives with slice (c).
 
 ### User context (read model)
 

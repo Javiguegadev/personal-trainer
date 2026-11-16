@@ -2,54 +2,22 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   acceptConsent,
   confirmSummary,
+  emulateOnlineState,
   fillForm,
+  hasSavedWrites,
+  localToday,
+  mockRecord,
   openTab,
   screen,
+  setOffline,
   signInWithEmail,
   signInWithGoogle,
 } from './app';
 
-/** The user's day in the test time zone (Europe/Madrid, see playwright.config.ts). */
-async function localToday(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  });
-}
-
 /** The weight log stored by the mock backend (what the server has), for the only user. */
 async function storedWeights(page: Page) {
-  return page.evaluate(() => {
-    // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
-    const db = JSON.parse(localStorage.getItem('pt.mock-db.v4') ?? '{}') as Record<
-      string,
-      { weights: { localDate: string; weightKg: number }[] }
-    >;
-    return Object.values(db)[0]?.weights ?? [];
-  });
-}
-
-/**
- * Offline without blocking the dev server: the app reads `navigator.onLine` and the online/offline
- * events (lib/online.web.ts). A flag in sessionStorage keeps the state across a reload.
- */
-async function emulateOnlineState(page: Page) {
-  await page.addInitScript(() => {
-    Object.defineProperty(Navigator.prototype, 'onLine', {
-      configurable: true,
-      get: () => sessionStorage.getItem('e2e-offline') !== '1',
-    });
-  });
-}
-
-async function setOffline(page: Page, offline: boolean) {
-  await page.evaluate((off) => {
-    if (off) sessionStorage.setItem('e2e-offline', '1');
-    else sessionStorage.removeItem('e2e-offline');
-    // In the page `globalThis` is `window`.
-    (globalThis as unknown as EventTarget).dispatchEvent(new Event(off ? 'offline' : 'online'));
-  }, offline);
+  const record = await mockRecord<{ weights: { localDate: string; weightKg: number }[] }>(page);
+  return record?.weights ?? [];
 }
 
 test.describe('weight log (spec 003)', () => {
@@ -172,17 +140,7 @@ test.describe('weight log (spec 003)', () => {
     await profile.getByRole('button', { name: 'Cancelar' }).click();
 
     // The queue is saved on the device (the cache is written about a second after a change).
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          Object.keys(localStorage).some(
-            (key) =>
-              key.startsWith('pt.query-cache.') &&
-              (localStorage.getItem(key) ?? '').includes('"mutations":[{'),
-          ),
-        ),
-      )
-      .toBe(true);
+    await expect.poll(() => hasSavedWrites(page)).toBe(true);
 
     // The app is closed and opened again, still offline: the entry and its mark are still there.
     await page.reload();

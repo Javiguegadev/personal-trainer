@@ -125,6 +125,7 @@ export async function confirmSummary(page: Page): Promise<Locator> {
 
 const TAB_SCREENS = {
   today: 'today-screen',
+  food: 'food-screen',
   progress: 'progress-screen',
   profile: 'profile-tab-screen',
 } as const;
@@ -135,4 +136,56 @@ export async function openTab(page: Page, tab: keyof typeof TAB_SCREENS): Promis
   await button.click();
   await expect(button).toHaveAttribute('aria-selected', 'true');
   return screen(page, TAB_SCREENS[tab]);
+}
+
+/** The user's day in the test time zone (Europe/Madrid, see playwright.config.ts). */
+export async function localToday(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
+}
+
+/** What the mock backend has stored (what the server has) for the only user of the test. */
+export async function mockRecord<T>(page: Page): Promise<T | undefined> {
+  return page.evaluate(() => {
+    // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
+    const db = JSON.parse(localStorage.getItem('pt.mock-db.v5') ?? '{}') as Record<string, unknown>;
+    return Object.values(db)[0];
+  }) as Promise<T | undefined>;
+}
+
+/**
+ * Offline without blocking the dev server: the app reads `navigator.onLine` and the online/offline
+ * events (lib/online.web.ts). A flag in sessionStorage keeps the state across a reload. Call it before
+ * the first navigation.
+ */
+export async function emulateOnlineState(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'onLine', {
+      configurable: true,
+      get: () => sessionStorage.getItem('e2e-offline') !== '1',
+    });
+  });
+}
+
+export async function setOffline(page: Page, offline: boolean): Promise<void> {
+  await page.evaluate((off) => {
+    if (off) sessionStorage.setItem('e2e-offline', '1');
+    else sessionStorage.removeItem('e2e-offline');
+    // In the page `globalThis` is `window`.
+    (globalThis as unknown as EventTarget).dispatchEvent(new Event(off ? 'offline' : 'online'));
+  }, offline);
+}
+
+/** True once the queue of offline writes is saved on the device (about a second after a change). */
+export async function hasSavedWrites(page: Page): Promise<boolean> {
+  return page.evaluate(() =>
+    Object.keys(localStorage).some(
+      (key) =>
+        key.startsWith('pt.query-cache.') &&
+        (localStorage.getItem(key) ?? '').includes('"mutations":[{'),
+    ),
+  );
 }
