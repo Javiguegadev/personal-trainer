@@ -85,6 +85,16 @@ describe('repeatMeal (AC13)', () => {
     expect(result.map((r) => r.id)).toEqual(ids);
   });
 
+  it('gives a preview of each copy for the optimistic log', () => {
+    expect(result[0]!.preview).toEqual({
+      ...items[1],
+      id: 'n1',
+      localDate: TODAY,
+      recordedAt: RECORDED_AT,
+      inputMethod: 'repeat',
+    });
+  });
+
   it('keeps the portion of catalog items, so the API computes the snapshot again', () => {
     expect(result[0]!.request).toEqual({
       kind: 'food',

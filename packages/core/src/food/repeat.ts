@@ -1,5 +1,6 @@
-import type { Locale, MealItem, MealItemUpsertRequest, MealType, Portion } from '@pt/contracts';
+import type { Locale, MealItem, MealItemUpsertRequest, MealType } from '@pt/contracts';
 import { addDays } from '../dates';
+import { itemToRequest } from './item-request';
 
 const itemsOf = (items: readonly MealItem[], mealType: MealType, localDate: string) =>
   items
@@ -35,13 +36,18 @@ export interface RepeatMealInput {
   locale?: Locale;
 }
 
+export interface RepeatedItem {
+  id: string;
+  request: MealItemUpsertRequest;
+  /** The copy as the log shows it until the API answers (its snapshot is the source item's). */
+  preview: MealItem;
+}
+
 /**
  * The writes that copy a meal of `from` to `to` (AC13): catalog items keep their portion, so the API
  * computes the snapshot again; quick adds (and items whose food left the catalog) are copied as they are.
  */
-export function repeatMeal(
-  input: RepeatMealInput,
-): { id: string; request: MealItemUpsertRequest }[] {
+export function repeatMeal(input: RepeatMealInput): RepeatedItem[] {
   const source = itemsOf(input.items, input.mealType, input.from);
   if (input.ids.length < source.length) throw new Error('repeatMeal needs one id per item');
   const placement = {
@@ -53,36 +59,15 @@ export function repeatMeal(
   };
   return source.map((item, index) => {
     const id = input.ids[index]!;
-    const portion: Portion | null =
-      item.servingId !== null && item.servings !== null
-        ? { kind: 'serving', servingId: item.servingId, servings: item.servings }
-        : item.grams !== null
-          ? { kind: 'grams', grams: item.grams }
-          : null;
-    if (item.foodId !== null && portion !== null) {
-      return {
-        id,
-        request: {
-          kind: 'food',
-          foodId: item.foodId,
-          portion,
-          inputMethod: 'repeat',
-          ...placement,
-        },
-      };
-    }
-    const n = item.nutrients;
     return {
       id,
-      request: {
-        kind: 'quick_add',
-        label: item.label,
-        kcal: n.kcal,
-        proteinG: n.proteinG,
-        carbsG: n.carbsG,
-        fatG: n.fatG,
+      request: itemToRequest(item, placement, 'repeat'),
+      preview: {
+        ...item,
+        id,
+        localDate: input.to,
+        recordedAt: input.recordedAt,
         inputMethod: 'repeat',
-        ...placement,
       },
     };
   });
