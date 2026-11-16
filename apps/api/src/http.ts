@@ -19,6 +19,12 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   ai_unavailable: 'The assistant is unavailable, use the form instead',
   not_found: 'Not found',
   internal_error: 'Something went wrong',
+  product_not_found: 'Unknown product',
+  product_incomplete: 'The product has no usable nutrition values',
+  lookup_unavailable: 'The product database did not answer, try again',
+  ai_cap_reached: 'Daily limit of label photos reached, fill in the form instead',
+  image_too_large: 'The image is too large',
+  food_limit_reached: 'Too many foods of your own',
 };
 
 export function errorBody(code: ApiErrorCode, fields?: Record<string, string>): ApiErrorBody {

@@ -29,6 +29,7 @@ function toMealItem(row: MealItemRow): MealItem {
     servings: row.servings,
     servingLabel: row.servingLabel,
     grams: row.grams,
+    unit: 'g',
     label: row.label,
     nutrients: {
       kcal: row.kcal,
@@ -215,6 +216,7 @@ export async function exportFoodLog(db: Db, userId: string) {
   ]);
   return {
     mealItems: items.map(toMealItem),
+    customFoods: [],
     favouriteFoods: favourites.map((f) => ({ ...f, createdAt: f.createdAt.toISOString() })),
   };
 }

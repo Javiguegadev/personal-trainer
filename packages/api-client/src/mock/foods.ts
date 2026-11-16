@@ -3,7 +3,7 @@
  * the mock backend and the E2E journeys (spec 005). Generated once from the dev database; the ids are
  * fixed so a reload keeps the mock food log valid.
  */
-import type { Food, Locale } from '@pt/contracts';
+import { CATALOG_FOOD_FIELDS, type Food, type Locale } from '@pt/contracts';
 import type { SearchableFood } from '@pt/core';
 
 type Row = [
@@ -996,5 +996,6 @@ export function toMockFood(food: MockCatalogFood, locale: Locale): Food {
       grams: s.grams,
     })),
     source: MOCK_SOURCE,
+    ...CATALOG_FOOD_FIELDS,
   };
 }

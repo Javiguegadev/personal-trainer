@@ -1,4 +1,4 @@
-import type { Food, MealItemUpsertRequest } from '@pt/contracts';
+import { CATALOG_FOOD_FIELDS, type Food, type MealItemUpsertRequest } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { checkFoodLogRange, checkFoodLogWrite, mealItemFromRequest, writeWins } from './write';
 
@@ -14,6 +14,7 @@ const EGG: Food = {
   per100g: { kcal: 155, proteinG: 12.6, carbsG: 1.1, fatG: 10.6, fiberG: null },
   servings: [{ id: SERVING, label: '1 huevo mediano', grams: 55 }],
   source: 'ciqual-2025',
+  ...CATALOG_FOOD_FIELDS,
 };
 
 const placement = {
@@ -72,6 +73,7 @@ describe('mealItemFromRequest (AC9, AC10)', () => {
       servings: 2,
       servingLabel: '1 huevo mediano',
       grams: 110,
+      unit: 'g',
       label: 'Huevo entero',
       nutrients: { kcal: 170.5, proteinG: 13.86, carbsG: 1.21, fatG: 11.66, fiberG: null },
       inputMethod: 'search',

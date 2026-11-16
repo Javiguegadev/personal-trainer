@@ -251,6 +251,7 @@ export class FakeStore implements Store {
       targets: rows.targets,
       weights: rows.weights,
       mealItems: this.live(rows).sort(byDayThenTime),
+      customFoods: [],
       favouriteFoods: rows.favourites.map((f) => ({
         foodId: f.foodId,
         key: this.catalog.find((c) => c.id === f.foodId)?.key ?? '',

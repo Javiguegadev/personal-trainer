@@ -56,9 +56,9 @@ export const es = {
     intro:
       'Para calcular tus objetivos necesitamos algunos datos de salud. Antes de seguir, esto es lo que hacemos con ellos:',
     points: {
-      what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso, lo que comes (tu registro de comidas) y, si los rellenas, tus registros de sueño y estrés.',
+      what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso, lo que comes (tu registro de comidas y los alimentos que creas) y, si los rellenas, tus registros de sueño y estrés.',
       where: 'Se guardan en servidores de la Unión Europea y solo tú puedes verlos.',
-      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Ahora mismo ningún proveedor de IA procesa tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
+      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Si haces una foto a la etiqueta de un producto, la lee un proveedor de IA (Anthropic): la foto no se guarda y viaja sin tus datos de salud. Ningún proveedor de IA procesa el resto de tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
       control: 'Puedes descargar o borrar todos tus datos cuando quieras en Ajustes → Privacidad.',
       advice:
         'Las recomendaciones son orientativas y no sustituyen el consejo de un profesional sanitario.',
@@ -538,7 +538,7 @@ export const es = {
     title: 'Privacidad y datos',
     export: {
       title: 'Descargar mis datos',
-      text: 'Un archivo JSON con todo lo que guardamos de tu cuenta: perfil, preferencias, objetivos, registro de peso, registro de comidas, alimentos favoritos, consentimientos y uso del asistente.',
+      text: 'Un archivo JSON con todo lo que guardamos de tu cuenta: perfil, preferencias, objetivos, registro de peso, registro de comidas, alimentos favoritos, alimentos que has creado, consentimientos y uso del asistente.',
       button: 'Descargar mis datos',
       done: 'Archivo preparado: {file}',
     },
@@ -558,6 +558,13 @@ export const es = {
     rate_limited: 'Has alcanzado el límite de mensajes por hoy.',
     ai_unavailable: 'El asistente no está disponible ahora mismo.',
     not_found: 'No hemos encontrado lo que buscabas.',
+    product_not_found: 'No tenemos este producto.',
+    product_incomplete: 'Este producto no tiene los valores nutricionales completos.',
+    lookup_unavailable: 'No hemos podido consultar el producto. Vuelve a intentarlo.',
+    ai_cap_reached:
+      'Has llegado al límite de fotos de etiqueta por hoy. Puedes rellenar el formulario a mano.',
+    image_too_large: 'La imagen es demasiado grande.',
+    food_limit_reached: 'Has llegado al máximo de alimentos propios. Borra alguno para crear otro.',
     internal_error: 'Algo ha fallado en el servidor. Vuelve a intentarlo.',
     network: 'No hay conexión con el servidor. Comprueba tu red.',
     unknown: 'Algo ha fallado. Vuelve a intentarlo.',

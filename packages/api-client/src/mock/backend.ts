@@ -121,6 +121,12 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   ai_unavailable: 'The assistant is unavailable, use the form instead',
   not_found: 'Not found',
   internal_error: 'Something went wrong',
+  product_not_found: 'Unknown product',
+  product_incomplete: 'The product has no usable nutrition values',
+  lookup_unavailable: 'The product database did not answer, try again',
+  ai_cap_reached: 'Daily limit of label photos reached, fill in the form instead',
+  image_too_large: 'The image is too large',
+  food_limit_reached: 'Too many foods of your own',
 };
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -132,6 +138,12 @@ const STATUS: Record<ApiErrorCode, number> = {
   ai_unavailable: 503,
   not_found: 404,
   internal_error: 500,
+  product_not_found: 404,
+  product_incomplete: 404,
+  lookup_unavailable: 503,
+  ai_cap_reached: 429,
+  image_too_large: 413,
+  food_limit_reached: 400,
 };
 
 const fail = (code: ApiErrorCode, fields?: Record<string, string>) =>
@@ -546,6 +558,7 @@ export function createMockApiClient({
         targets: record.targets,
         weights: record.weights,
         mealItems: live(record),
+        customFoods: [],
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

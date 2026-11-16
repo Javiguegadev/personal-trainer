@@ -10,6 +10,13 @@ export const ApiErrorCodeSchema = z.enum([
   'ai_unavailable',
   'not_found',
   'internal_error',
+  // Scanned products, custom foods and the label photo (spec 006)
+  'product_not_found',
+  'product_incomplete',
+  'lookup_unavailable',
+  'ai_cap_reached',
+  'image_too_large',
+  'food_limit_reached',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;
 

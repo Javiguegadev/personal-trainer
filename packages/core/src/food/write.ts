@@ -60,6 +60,7 @@ export function mealItemFromRequest(
       servings: null,
       servingLabel: null,
       grams: null,
+      unit: 'g',
       label: request.label,
       nutrients: {
         kcal: request.kcal,
@@ -85,6 +86,7 @@ export function mealItemFromRequest(
     servings: request.portion.kind === 'serving' ? request.portion.servings : null,
     servingLabel: serving?.label ?? null,
     grams,
+    unit: food.unit,
     label: food.name,
     nutrients: itemNutrition(food.per100g, grams),
   };

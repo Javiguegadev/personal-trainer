@@ -1,4 +1,11 @@
-import type { Food, Locale, MealItem, Portion, RecentFood } from '@pt/contracts';
+import {
+  CATALOG_FOOD_FIELDS,
+  type Food,
+  type Locale,
+  type MealItem,
+  type Portion,
+  type RecentFood,
+} from '@pt/contracts';
 import { buildFoodSearchIndex, type FoodSearchIndex } from '@pt/core';
 import type { CatalogFood, Store } from '../deps';
 
@@ -15,6 +22,7 @@ export function toFood(food: CatalogFood, locale: Locale): Food {
       grams: s.grams,
     })),
     source: food.source,
+    ...CATALOG_FOOD_FIELDS,
   };
 }
 

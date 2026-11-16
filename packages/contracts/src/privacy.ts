@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { DietaryPrefsSchema, ProfileSchema, StoredTargetsSchema } from './profile';
 import { WeightEntrySchema } from './weight';
-import { MealItemSchema } from './food';
+import { FoodSchema, MealItemSchema } from './food';
 
 /**
  * Version of the consent text shown to the user. Bump it when the text changes: a consent given to an
  * older version no longer counts, so the app asks again (spec 002 AC13, AC14).
  */
-export const CONSENT_VERSION = '2026-11-v3';
+export const CONSENT_VERSION = '2026-11-v4';
 
 export const ConsentKindSchema = z.enum(['health_data']);
 export type ConsentKind = z.infer<typeof ConsentKindSchema>;
@@ -34,6 +34,8 @@ export const ExportResponseSchema = z.object({
   mealItems: z.array(MealItemSchema),
   /** Starred foods (spec 005 AC23). */
   favouriteFoods: z.array(z.object({ foodId: z.uuid(), key: z.string(), createdAt: datetime })),
+  /** The foods the user created, in Spanish (spec 006 AC22). */
+  customFoods: z.array(FoodSchema),
   consents: z.array(
     z.object({
       kind: ConsentKindSchema,

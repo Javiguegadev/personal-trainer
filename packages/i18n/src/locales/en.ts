@@ -59,9 +59,9 @@ export const en: DeepStringRecord<typeof es> = {
     intro:
       'To calculate your targets we need some health data. Before you continue, this is what we do with it:',
     points: {
-      what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log, what you eat (your food log) and, if you fill them in, your sleep and stress check-ins.',
+      what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log, what you eat (your food log and the foods you create) and, if you fill them in, your sleep and stress check-ins.',
       where: 'It is stored on servers in the European Union and only you can see it.',
-      use: 'We use it to calculate your targets and adapt your recommendations. No AI provider processes your data right now; if that changes, we will ask for your consent again.',
+      use: 'We use it to calculate your targets and adapt your recommendations. If you take a photo of a product label, an AI provider (Anthropic) reads it: the photo is not stored and travels without your health data. No AI provider processes the rest of your data; if that changes, we will ask for your consent again.',
       control: 'You can download or delete all your data at any time in Settings → Privacy.',
       advice: 'Recommendations are for guidance only and do not replace a healthcare professional.',
     },
@@ -535,7 +535,7 @@ export const en: DeepStringRecord<typeof es> = {
     title: 'Privacy and data',
     export: {
       title: 'Download my data',
-      text: 'A JSON file with everything we store for your account: profile, preferences, targets, weight log, food log, favourite foods, consents and assistant usage.',
+      text: 'A JSON file with everything we store for your account: profile, preferences, targets, weight log, food log, favourite foods, foods you created, consents and assistant usage.',
       button: 'Download my data',
       done: 'File ready: {file}',
     },
@@ -555,6 +555,14 @@ export const en: DeepStringRecord<typeof es> = {
     rate_limited: "You've reached today's message limit.",
     ai_unavailable: 'The assistant is not available right now.',
     not_found: "We couldn't find what you were looking for.",
+    product_not_found: "We don't have this product.",
+    product_incomplete: "This product doesn't have complete nutrition values.",
+    lookup_unavailable: "We couldn't look up the product. Please try again.",
+    ai_cap_reached:
+      "You've reached today's limit of label photos. You can fill in the form by hand.",
+    image_too_large: 'The image is too large.',
+    food_limit_reached:
+      "You've reached the maximum number of your own foods. Delete one to create another.",
     internal_error: 'Something went wrong on the server. Please try again.',
     network: 'No connection to the server. Check your network.',
     unknown: 'Something went wrong. Please try again.',

@@ -21,6 +21,7 @@ const item: MealItem = {
   servings: 2,
   servingLabel: '1 huevo mediano',
   grams: 120,
+  unit: 'g',
   label: 'Huevo',
   nutrients: { kcal: 168, proteinG: 15, carbsG: 0.6, fatG: 11, fiberG: 0 },
   inputMethod: 'favourite',

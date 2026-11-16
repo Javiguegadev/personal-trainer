@@ -233,6 +233,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       servings: 2,
       servingLabel: egg.servings[0]!.labelEs,
       grams: egg.servings[0]!.grams * 2,
+      unit: 'g' as const,
       label: egg.nameEs,
       nutrients: { kcal: 150.25, proteinG: 12.5, carbsG: 1, fatG: 10, fiberG: null },
       inputMethod: 'search' as const,

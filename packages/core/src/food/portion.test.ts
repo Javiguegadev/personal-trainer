@@ -1,4 +1,4 @@
-import type { Food } from '@pt/contracts';
+import { CATALOG_FOOD_FIELDS, type Food } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   formatPortion,
@@ -23,6 +23,7 @@ const egg: Food = {
     { id: DOZEN, label: '1 docena', grams: 720 },
   ],
   source: 'ciqual-2025',
+  ...CATALOG_FOOD_FIELDS,
 };
 const noServings: Food = { ...egg, servings: [] };
 

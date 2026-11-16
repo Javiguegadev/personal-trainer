@@ -16,6 +16,7 @@ const base: Omit<MealItem, 'id' | 'recordedAt'> = {
   servings: null,
   servingLabel: null,
   grams: null,
+  unit: 'g',
   label: 'x',
   nutrients: { kcal: 100, proteinG: 1, carbsG: 2, fatG: 3, fiberG: null },
   inputMethod: 'search',

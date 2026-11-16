@@ -1,4 +1,4 @@
-import { CONSENT_VERSION, type MealItemUpsertRequest } from '@pt/contracts';
+import { CATALOG_FOOD_FIELDS, CONSENT_VERSION, type MealItemUpsertRequest } from '@pt/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, createApiClient, isApiError } from './client';
 import { meBody, profileInput } from './test/fixtures';
@@ -114,6 +114,7 @@ describe('createApiClient', () => {
             weights: [],
             mealItems: [],
             favouriteFoods: [],
+            customFoods: [],
             consents: [],
             aiUsage: [],
           }),
@@ -168,6 +169,7 @@ describe('createApiClient', () => {
             per100g: { kcal: 140, proteinG: 12.6, carbsG: 0.3, fatG: 9.8, fiberG: 0 },
             servings: [],
             source: 'ciqual-2025',
+            ...CATALOG_FOOD_FIELDS,
           }),
       },
       {
