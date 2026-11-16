@@ -60,6 +60,7 @@ describe('portionPreview (AC8)', () => {
       servings: 2,
       servingLabel: '1 huevo mediano',
       grams: 120,
+      unit: 'g',
       nutrients: { kcal: 168, proteinG: 15.24, carbsG: 0.36, fatG: 11.76, fiberG: 0 },
     });
   });
@@ -80,25 +81,36 @@ describe('portionPreview (AC8)', () => {
 
 describe('formatPortion', () => {
   it('shows the serving alone for one serving', () => {
-    expect(formatPortion({ servings: 1, servingLabel: '1 huevo mediano', grams: 60 }, 'es')).toBe(
-      '1 huevo mediano (60 g)',
-    );
+    expect(
+      formatPortion({ servings: 1, servingLabel: '1 huevo mediano', grams: 60, unit: 'g' }, 'es'),
+    ).toBe('1 huevo mediano (60 g)');
   });
 
   it('multiplies the serving, with the locale decimal separator', () => {
-    const portion = { servings: 1.5, servingLabel: '1 taza', grams: 300 };
+    const portion = { servings: 1.5, servingLabel: '1 taza', grams: 300, unit: 'g' as const };
     expect(formatPortion(portion, 'es')).toBe('1,5 × 1 taza (300 g)');
     expect(formatPortion(portion, 'en')).toBe('1.5 × 1 taza (300 g)');
   });
 
   it('shows grams alone, to one decimal at most', () => {
-    expect(formatPortion({ servings: null, servingLabel: null, grams: 152.5 }, 'es')).toBe(
-      '152,5 g',
-    );
+    expect(
+      formatPortion({ servings: null, servingLabel: null, grams: 152.5, unit: 'g' }, 'es'),
+    ).toBe('152,5 g');
+  });
+
+  it('shows millilitres for a food labelled per 100 ml (spec 006)', () => {
+    expect(
+      formatPortion({ servings: null, servingLabel: null, grams: 330, unit: 'ml' }, 'es'),
+    ).toBe('330 ml');
+    expect(
+      formatPortion({ servings: 2, servingLabel: '1 vaso', grams: 400, unit: 'ml' }, 'es'),
+    ).toBe('2 × 1 vaso (400 ml)');
   });
 
   it('is null for a quick add (no grams)', () => {
-    expect(formatPortion({ servings: null, servingLabel: null, grams: null }, 'es')).toBeNull();
+    expect(
+      formatPortion({ servings: null, servingLabel: null, grams: null, unit: 'g' }, 'es'),
+    ).toBeNull();
   });
 });
 

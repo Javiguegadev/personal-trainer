@@ -5,6 +5,7 @@ import {
   type MealItem,
   type Nutrients,
   type Portion,
+  type QuantityUnit,
 } from '@pt/contracts';
 import { formatDecimal, formatNumber, parseDecimal } from '../format';
 import type { FormErrorCode } from '../profile/form';
@@ -30,13 +31,15 @@ export function initialPortion(food: Pick<Food, 'servings'>, last: Portion | nul
 export interface PortionPreview {
   servings: number | null;
   servingLabel: string | null;
+  /** In `unit`. */
   grams: number;
+  unit: QuantityUnit;
   nutrients: Nutrients;
 }
 
 /** What a portion of a food adds (AC8), computed like the stored snapshot (AC9). Null for an unknown serving. */
 export function portionPreview(
-  food: Pick<Food, 'per100g' | 'servings'>,
+  food: Pick<Food, 'per100g' | 'servings' | 'unit'>,
   portion: Portion,
 ): PortionPreview | null {
   const grams = portionGrams(portion, food.servings);
@@ -47,20 +50,21 @@ export function portionPreview(
     servings: portion.kind === 'serving' ? portion.servings : null,
     servingLabel: serving?.label ?? null,
     grams,
+    unit: food.unit,
     nutrients: itemNutrition(food.per100g, grams),
   };
 }
 
 /**
- * A portion in words: "1 huevo mediano (60 g)", "1,5 × 1 taza (300 g)" or "150 g". Null for a quick add,
- * which has no grams.
+ * A portion in words: "1 huevo mediano (60 g)", "1,5 × 1 taza (300 g)", "150 g" or "330 ml". Null for a
+ * quick add, which has no grams.
  */
 export function formatPortion(
-  portion: Pick<MealItem, 'servings' | 'servingLabel' | 'grams'>,
+  portion: Pick<MealItem, 'servings' | 'servingLabel' | 'grams' | 'unit'>,
   locale: Locale,
 ): string | null {
   if (portion.grams === null) return null;
-  const grams = `${formatNumber(portion.grams, locale, 1)} g`;
+  const grams = `${formatNumber(portion.grams, locale, 1)} ${portion.unit}`;
   if (portion.servings === null || portion.servingLabel === null) return grams;
   const serving =
     portion.servings === 1

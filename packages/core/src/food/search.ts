@@ -183,18 +183,23 @@ function tier(
   return 0;
 }
 
-/** Ids of the best matches, best first (AC4). With the English locale, English names count too. */
+/**
+ * Ids of the best matches, best first (AC4). With the English locale, English names count too. `extra`
+ * is a second index ranked together with the first: the user's own foods and the products they logged
+ * (spec 006 AC11), which are never part of the shared catalog.
+ */
 export function searchFoods(
   index: FoodSearchIndex,
   query: string,
   locale: Locale,
   limit: number,
+  extra?: FoodSearchIndex,
 ): string[] {
   const text = normalizeSearchText(query);
   if (text.length < 2) return [];
   const normalized = { text, tokens: queryTokens(text) };
   const scored: { food: SearchableFood; score: number; length: number }[] = [];
-  for (const entry of index.foods) {
+  for (const entry of extra ? [...index.foods, ...extra.foods] : index.foods) {
     const names = locale === 'en' ? [entry.nameEs, entry.nameEn] : [entry.nameEs];
     const score = tier(normalized, names, entry.synonyms);
     if (score > 0) {
