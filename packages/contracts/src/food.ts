@@ -211,7 +211,9 @@ export const FavouriteFoodsResponseSchema = z.object({
 });
 export type FavouriteFoodsResponse = z.infer<typeof FavouriteFoodsResponseSchema>;
 
-export const FavouriteFoodParamSchema = z.object({ foodId: z.uuid() });
+/** `GET /foods/:foodId` (to edit a logged portion, AC11) and the favourite routes. */
+export const FoodIdParamSchema = z.object({ foodId: z.uuid() });
+export const FavouriteFoodParamSchema = FoodIdParamSchema;
 
 /** One row of the "Fuentes de datos" screen (AC3). */
 export const KnowledgeSourceSchema = z.object({

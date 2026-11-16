@@ -4,6 +4,7 @@ import {
   ExportResponseSchema,
   FavouriteFoodsResponseSchema,
   FoodLogResponseSchema,
+  FoodSchema,
   FoodSearchResponseSchema,
   KnowledgeSourcesResponseSchema,
   MealItemSaveResponseSchema,
@@ -77,6 +78,7 @@ const log = async (from = TODAY, to = TODAY) =>
 
 const ROUTES = [
   ['GET', '/foods/search?q=leche', undefined],
+  ['GET', `/foods/${FOOD.egg}`, undefined],
   ['GET', `/me/food-log?from=${TODAY}&to=${TODAY}`, undefined],
   ['PUT', `/me/food-log/items/${ITEM}`, eggs()],
   ['DELETE', `/me/food-log/items/${ITEM}?recordedAt=${encodeURIComponent(at(0))}`, undefined],
@@ -133,6 +135,27 @@ describe('GET /foods/search (AC4)', () => {
   it('rejects a query shorter than 2 characters', async () => {
     const res = await t.call('GET', '/foods/search?q=l');
     expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /foods/:foodId (AC11)', () => {
+  beforeEach(consent);
+
+  it('returns one food in the requested language, to edit a logged portion', async () => {
+    const res = await t.call('GET', `/foods/${FOOD.milk}?locale=en`);
+    expect(res.status).toBe(200);
+    expect(FoodSchema.parse(await res.json())).toMatchObject({
+      id: FOOD.milk,
+      name: 'Semi-skimmed milk',
+      servings: [{ id: FOOD.milkGlass, label: '1 glass' }],
+    });
+  });
+
+  it('rejects an unknown food (404) and an id that is not a uuid (400)', async () => {
+    const unknown = await t.call('GET', '/foods/f1000000-0000-4000-8000-0000000000ff');
+    expect(unknown.status).toBe(404);
+    expect((await errorOf(unknown)).code).toBe('not_found');
+    expect((await t.call('GET', '/foods/huevo')).status).toBe(400);
   });
 });
 

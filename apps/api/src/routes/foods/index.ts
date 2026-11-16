@@ -6,7 +6,9 @@ import {
   FavouriteFoodsResponseSchema,
   FoodLocaleQuerySchema,
   FoodLogQuerySchema,
+  FoodIdParamSchema,
   FoodLogResponseSchema,
+  FoodSchema,
   FoodSearchQuerySchema,
   FoodSearchResponseSchema,
   KnowledgeSourcesResponseSchema,
@@ -69,6 +71,21 @@ export function foodRoutes(deps: Deps) {
     responses: {
       200: json('Knowledge sources with their attribution (AC3)', KnowledgeSourcesResponseSchema),
       401: error('Unauthenticated'),
+    },
+  });
+
+  const getFood = createRoute({
+    method: 'get',
+    path: '/foods/{foodId}',
+    tags: ['foods'],
+    middleware: [auth, consent] as const,
+    request: { params: FoodIdParamSchema, query: FoodLocaleQuerySchema },
+    responses: {
+      200: json('One catalog food, to edit a logged portion (AC11)', FoodSchema),
+      400: error('Invalid food id'),
+      401: error('Unauthenticated'),
+      403: error('Consent required'),
+      404: error('Unknown food'),
     },
   });
 
@@ -172,102 +189,112 @@ export function foodRoutes(deps: Deps) {
     responses: favouriteResponses,
   });
 
-  return createRouter()
-    .openapi(search, async (c) => {
-      const { q, locale } = c.req.valid('query');
-      const catalog = await getCatalog();
-      const ids = searchFoods(catalog.index, q, locale, FOOD_LOG_LIMITS.searchResultsMax);
-      const foods = ids.flatMap((id) => {
-        const food = catalog.byId.get(id);
-        return food ? [toFood(food, locale)] : [];
-      });
-      return c.json({ foods }, 200);
-    })
-    .openapi(sources, async (c) => {
-      const { locale } = c.req.valid('query');
-      const rows = await deps.store.listKnowledgeSources();
-      return c.json(
-        {
-          sources: rows.map(({ attributionEs, attributionEn, ...source }) => ({
-            ...source,
-            attribution: locale === 'en' ? attributionEn : attributionEs,
-          })),
-        },
-        200,
-      );
-    })
-    .openapi(listLog, async (c) => {
-      const { from, to } = c.req.valid('query');
-      const invalid = checkFoodLogRange(from, to);
-      if (invalid) return apiError(c, 400, 'validation_error', invalid);
-      const items = await deps.store.listMealItems(c.var.user.userId, from, to);
-      return c.json({ items }, 200);
-    })
-    .openapi(putItem, async (c) => {
-      const { id } = c.req.valid('param');
-      const body = c.req.valid('json');
-      const { userId } = c.var.user;
-      const invalid = checkFoodLogWrite(body, deps.now());
-      if (invalid) return apiError(c, 400, 'validation_error', invalid);
-      const catalogFood =
-        body.kind === 'food' ? ((await getCatalog()).byId.get(body.foodId) ?? null) : null;
-      const item = mealItemFromRequest(id, body, catalogFood && toFood(catalogFood, body.locale));
-      if ('error' in item) {
-        return item.error === 'food_not_found'
-          ? apiError(c, 404, 'not_found', { foodId: 'not_found' })
-          : apiError(c, 400, 'validation_error', { 'portion.servingId': 'not_found' });
-      }
-      const onDay = await deps.store.countMealItems(userId, body.localDate);
-      if (onDay >= FOOD_LOG_LIMITS.itemsPerDayMax) {
-        const existing = await deps.store.listMealItems(userId, body.localDate, body.localDate);
-        if (!existing.some((i) => i.id === id)) {
-          return apiError(c, 400, 'validation_error', { localDate: 'too_many_items' });
+  return (
+    createRouter()
+      .openapi(search, async (c) => {
+        const { q, locale } = c.req.valid('query');
+        const catalog = await getCatalog();
+        const ids = searchFoods(catalog.index, q, locale, FOOD_LOG_LIMITS.searchResultsMax);
+        const foods = ids.flatMap((id) => {
+          const food = catalog.byId.get(id);
+          return food ? [toFood(food, locale)] : [];
+        });
+        return c.json({ foods }, 200);
+      })
+      .openapi(sources, async (c) => {
+        const { locale } = c.req.valid('query');
+        const rows = await deps.store.listKnowledgeSources();
+        return c.json(
+          {
+            sources: rows.map(({ attributionEs, attributionEn, ...source }) => ({
+              ...source,
+              attribution: locale === 'en' ? attributionEn : attributionEs,
+            })),
+          },
+          200,
+        );
+      })
+      // After the fixed `/foods/*` paths, so they are never read as an id.
+      .openapi(getFood, async (c) => {
+        const { foodId } = c.req.valid('param');
+        const { locale } = c.req.valid('query');
+        const food = (await getCatalog()).byId.get(foodId);
+        if (!food) return apiError(c, 404, 'not_found', { foodId: 'not_found' });
+        return c.json(toFood(food, locale), 200);
+      })
+      .openapi(listLog, async (c) => {
+        const { from, to } = c.req.valid('query');
+        const invalid = checkFoodLogRange(from, to);
+        if (invalid) return apiError(c, 400, 'validation_error', invalid);
+        const items = await deps.store.listMealItems(c.var.user.userId, from, to);
+        return c.json({ items }, 200);
+      })
+      .openapi(putItem, async (c) => {
+        const { id } = c.req.valid('param');
+        const body = c.req.valid('json');
+        const { userId } = c.var.user;
+        const invalid = checkFoodLogWrite(body, deps.now());
+        if (invalid) return apiError(c, 400, 'validation_error', invalid);
+        const catalogFood =
+          body.kind === 'food' ? ((await getCatalog()).byId.get(body.foodId) ?? null) : null;
+        const item = mealItemFromRequest(id, body, catalogFood && toFood(catalogFood, body.locale));
+        if ('error' in item) {
+          return item.error === 'food_not_found'
+            ? apiError(c, 404, 'not_found', { foodId: 'not_found' })
+            : apiError(c, 400, 'validation_error', { 'portion.servingId': 'not_found' });
         }
-      }
-      return c.json({ item: await deps.store.upsertMealItem(userId, item) }, 200);
-    })
-    .openapi(deleteItem, async (c) => {
-      const { id } = c.req.valid('param');
-      const { recordedAt } = c.req.valid('query');
-      if (Date.parse(recordedAt) > deps.now().getTime() + 24 * 60 * 60 * 1000) {
-        return apiError(c, 400, 'validation_error', { recordedAt: 'in_future' });
-      }
-      await deps.store.deleteMealItem(c.var.user.userId, id, recordedAt);
-      return c.json({ item: null }, 200);
-    })
-    .openapi(recents, async (c) => {
-      const { locale } = c.req.valid('query');
-      const since = addDays(deps.now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
-      const items = await deps.store.listRecentFoodItems(
-        c.var.user.userId,
-        since,
-        FOOD_LOG_LIMITS.recentsMax,
-      );
-      return c.json({ recents: toRecentFoods(items, await getCatalog(), locale) }, 200);
-    })
-    .openapi(favourites, async (c) => {
-      const { locale } = c.req.valid('query');
-      const [ids, catalog] = await Promise.all([
-        deps.store.listFavouriteFoodIds(c.var.user.userId),
-        getCatalog(),
-      ]);
-      const foods = ids.flatMap((id) => {
-        const food = catalog.byId.get(id);
-        return food ? [toFood(food, locale)] : [];
-      });
-      return c.json({ foods }, 200);
-    })
-    .openapi(putFavourite, async (c) => {
-      const { foodId } = c.req.valid('param');
-      if (!(await getCatalog()).byId.has(foodId)) {
-        return apiError(c, 404, 'not_found', { foodId: 'not_found' });
-      }
-      await deps.store.setFavouriteFood(c.var.user.userId, foodId, true, deps.now());
-      return c.body(null, 204);
-    })
-    .openapi(deleteFavourite, async (c) => {
-      const { foodId } = c.req.valid('param');
-      await deps.store.setFavouriteFood(c.var.user.userId, foodId, false, deps.now());
-      return c.body(null, 204);
-    });
+        const onDay = await deps.store.countMealItems(userId, body.localDate);
+        if (onDay >= FOOD_LOG_LIMITS.itemsPerDayMax) {
+          const existing = await deps.store.listMealItems(userId, body.localDate, body.localDate);
+          if (!existing.some((i) => i.id === id)) {
+            return apiError(c, 400, 'validation_error', { localDate: 'too_many_items' });
+          }
+        }
+        return c.json({ item: await deps.store.upsertMealItem(userId, item) }, 200);
+      })
+      .openapi(deleteItem, async (c) => {
+        const { id } = c.req.valid('param');
+        const { recordedAt } = c.req.valid('query');
+        if (Date.parse(recordedAt) > deps.now().getTime() + 24 * 60 * 60 * 1000) {
+          return apiError(c, 400, 'validation_error', { recordedAt: 'in_future' });
+        }
+        await deps.store.deleteMealItem(c.var.user.userId, id, recordedAt);
+        return c.json({ item: null }, 200);
+      })
+      .openapi(recents, async (c) => {
+        const { locale } = c.req.valid('query');
+        const since = addDays(deps.now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
+        const items = await deps.store.listRecentFoodItems(
+          c.var.user.userId,
+          since,
+          FOOD_LOG_LIMITS.recentsMax,
+        );
+        return c.json({ recents: toRecentFoods(items, await getCatalog(), locale) }, 200);
+      })
+      .openapi(favourites, async (c) => {
+        const { locale } = c.req.valid('query');
+        const [ids, catalog] = await Promise.all([
+          deps.store.listFavouriteFoodIds(c.var.user.userId),
+          getCatalog(),
+        ]);
+        const foods = ids.flatMap((id) => {
+          const food = catalog.byId.get(id);
+          return food ? [toFood(food, locale)] : [];
+        });
+        return c.json({ foods }, 200);
+      })
+      .openapi(putFavourite, async (c) => {
+        const { foodId } = c.req.valid('param');
+        if (!(await getCatalog()).byId.has(foodId)) {
+          return apiError(c, 404, 'not_found', { foodId: 'not_found' });
+        }
+        await deps.store.setFavouriteFood(c.var.user.userId, foodId, true, deps.now());
+        return c.body(null, 204);
+      })
+      .openapi(deleteFavourite, async (c) => {
+        const { foodId } = c.req.valid('param');
+        await deps.store.setFavouriteFood(c.var.user.userId, foodId, false, deps.now());
+        return c.body(null, 204);
+      })
+  );
 }
