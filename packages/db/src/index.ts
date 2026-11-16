@@ -5,4 +5,4 @@
 export * as schema from './schema';
 export { createDb, type Db } from './client';
 // Query operators re-exported so apps/api uses the same drizzle-orm instance as the schema.
-export { and, asc, count, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+export { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, sql } from 'drizzle-orm';

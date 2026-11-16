@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<TABLE>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 328 </const_code>
+      <teneur> 899 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 25000 </const_code>
+      <teneur> 0,25 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 31000 </const_code>
+      <teneur> traces </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 34100 </const_code>
+      <teneur> 0 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 40000 </const_code>
+      <teneur> 99,9 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 60000 </const_code>
+      <teneur> 0 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 17270 </alim_code>
+      <const_code> 10110 </const_code>
+      <teneur> 4,5 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 36017 </alim_code>
+      <const_code> 328 </const_code>
+      <teneur> 110 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 36017 </alim_code>
+      <const_code> 25000 </const_code>
+      <teneur> 23,4 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 36017 </alim_code>
+      <const_code> 31000 </const_code>
+      <teneur> 0 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 36017 </alim_code>
+      <const_code> 34100 </const_code>
+      <teneur> - </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 36017 </alim_code>
+      <const_code> 40000 </const_code>
+      <teneur> 1,5 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 19024 </alim_code>
+      <const_code> 328 </const_code>
+      <teneur> 61,8 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 19024 </alim_code>
+      <const_code> 25000 </const_code>
+      <teneur> 3,3 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 19024 </alim_code>
+      <const_code> 31000 </const_code>
+      <teneur> 4,8 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 19024 </alim_code>
+      <const_code> 34100 </const_code>
+      <teneur> 0 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 19024 </alim_code>
+      <const_code> 40000 </const_code>
+      <teneur> &lt; 3,5 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 99999 </alim_code>
+      <const_code> 328 </const_code>
+      <teneur> 120 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 99999 </alim_code>
+      <const_code> 25000 </const_code>
+      <teneur> 2 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 99999 </alim_code>
+      <const_code> 31000 </const_code>
+      <teneur> 25 </teneur>
+      <code_confiance> A </code_confiance>
+   </COMPO>
+   <COMPO>
+      <alim_code> 99999 </alim_code>
+      <const_code> 40000 </const_code>
+      <teneur missing=" " />
+      <code_confiance> A </code_confiance>
+   </COMPO>
+</TABLE>
