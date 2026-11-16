@@ -1,5 +1,6 @@
 import {
   ApiErrorSchema,
+  CustomFoodsResponseSchema,
   ExportResponseSchema,
   FavouriteFoodsResponseSchema,
   FoodLogResponseSchema,
@@ -7,6 +8,7 @@ import {
   FoodSearchResponseSchema,
   HealthResponseSchema,
   KnowledgeSourcesResponseSchema,
+  LabelScanResponseSchema,
   MealItemSaveResponseSchema,
   MeResponseSchema,
   RecentFoodsResponseSchema,
@@ -15,6 +17,8 @@ import {
   WeightSaveResponseSchema,
   type ApiErrorCode,
   type ConsentRequest,
+  type CustomFoodUpsertRequest,
+  type CustomFoodsResponse,
   type ExportResponse,
   type FavouriteFoodsResponse,
   type Food,
@@ -23,6 +27,8 @@ import {
   type FoodSearchResponse,
   type HealthResponse,
   type KnowledgeSourcesResponse,
+  type LabelScanRequest,
+  type LabelScanResponse,
   type Locale,
   type MealItemDeleteQuery,
   type MealItemSaveResponse,
@@ -44,6 +50,7 @@ const FALLBACK_CODES: Partial<Record<number, ApiErrorCode>> = {
   400: 'validation_error',
   401: 'unauthorized',
   404: 'not_found',
+  413: 'image_too_large',
   429: 'rate_limited',
 };
 
@@ -205,6 +212,33 @@ export function createApiClient({
     setFavouriteFood: async (foodId: string, favourite: boolean): Promise<void> => {
       await send(`/me/foods/favourites/${foodId}`, { method: favourite ? 'PUT' : 'DELETE' });
     },
+
+    /**
+     * `GET /foods/barcode/:code`: the user's own food with that barcode, else the product of Open Food
+     * Facts. 404 `product_not_found` or `product_incomplete`, 503 `lookup_unavailable` (spec 006 AC3).
+     */
+    foodByBarcode: (code: string, locale: Locale): Promise<Food> =>
+      request(`/foods/barcode/${code}?locale=${locale}`, FoodSchema),
+
+    /** `GET /me/foods`: the user's own foods, most recently changed first (spec 006 AC12). */
+    customFoods: (locale: Locale): Promise<CustomFoodsResponse> =>
+      request(`/me/foods?locale=${locale}`, CustomFoodsResponseSchema),
+
+    /** `PUT /me/foods/:id`: a food of the user's own under a client id; idempotent (spec 006 AC11). */
+    saveCustomFood: (id: string, body: CustomFoodUpsertRequest): Promise<Food> =>
+      request(`/me/foods/${id}`, FoodSchema, { method: 'PUT', json: body }),
+
+    /** `DELETE /me/foods/:id`: succeeds when the food does not exist (spec 006 AC12). */
+    deleteCustomFood: async (id: string): Promise<void> => {
+      await send(`/me/foods/${id}`, { method: 'DELETE' });
+    },
+
+    /**
+     * `POST /me/foods/label-scan`: the editable draft of a label photo, or why it cannot be read. 429
+     * `ai_cap_reached`, 503 `ai_unavailable`, 413 `image_too_large` (spec 006 AC14–AC18).
+     */
+    scanLabel: (body: LabelScanRequest): Promise<LabelScanResponse> =>
+      request('/me/foods/label-scan', LabelScanResponseSchema, { method: 'POST', json: body }),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */
     exportData: (): Promise<ExportResponse> => request('/me/export', ExportResponseSchema),

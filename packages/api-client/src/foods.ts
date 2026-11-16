@@ -1,17 +1,20 @@
 /**
  * Food search and food log (spec 005): one cached list of the last days, optimistic writes, and mutation
  * defaults registered by key so a write queued offline is sent after the app was closed and opened again
- * (AC19–AC21, the spec 003 pattern).
+ * (AC19–AC21, the spec 003 pattern). Spec 006 adds the user's own foods (same queue, so a new food is
+ * sent before its first item) and the lookup of a barcode.
  */
 import {
   FOOD_LOG_LIMITS,
+  type CustomFoodUpsertRequest,
   type Food,
   type Locale,
   type MealItem,
   type MealItemSaveResponse,
   type MealItemUpsertRequest,
+  type RecentFood,
 } from '@pt/contracts';
-import { addDays, mealItemFromRequest } from '@pt/core';
+import { addDays, customFoodAsFood, mealItemFromRequest } from '@pt/core';
 import { keepPreviousData, queryOptions, skipToken, type QueryClient } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
 import { isRejected } from './weights';
@@ -25,7 +28,11 @@ export const FOOD_LOG_DAYS = 8;
 export const foodKeys = {
   /** The items of the last `FOOD_LOG_DAYS` days. One list for every screen, so optimistic writes hit it. */
   log: ['food-log'] as const,
+  /** Prefix of every search: its results change when the user creates or deletes a food. */
+  searchAll: ['food-search'] as const,
   search: (q: string, locale: Locale) => ['food-search', locale, q] as const,
+  /** Prefix of every single food of every locale. */
+  foodAll: ['food'] as const,
   food: (foodId: string, locale: Locale) => ['food', foodId, locale] as const,
   sources: (locale: Locale) => ['food-sources', locale] as const,
   /** Prefix of the recents of every locale. */
@@ -34,6 +41,10 @@ export const foodKeys = {
   /** Prefix of the favourites of every locale. */
   favouritesAll: ['food-favourites'] as const,
   favourites: (locale: Locale) => ['food-favourites', locale] as const,
+  /** Prefix of the user's own foods of every locale (spec 006). */
+  customFoodsAll: ['food-custom'] as const,
+  customFoods: (locale: Locale) => ['food-custom', locale] as const,
+  barcode: (barcode: string, locale: Locale) => ['food-barcode', barcode, locale] as const,
   /** The last write the API rejected, until the user dismisses it (AC21). */
   rejected: ['food-log-rejected'] as const,
   /** Prefix of every food-log mutation (items and favourites). */
@@ -41,6 +52,8 @@ export const foodKeys = {
   saveItem: ['food-log', 'save'] as const,
   deleteItem: ['food-log', 'delete'] as const,
   favourite: ['food-log', 'favourite'] as const,
+  saveFood: ['food-log', 'food-save'] as const,
+  deleteFood: ['food-log', 'food-delete'] as const,
 };
 
 export interface SaveMealItemVariables {
@@ -62,6 +75,16 @@ export interface FavouriteFoodVariables {
   favourite: boolean;
   /** Locale of the favourites list the food is added to. */
   locale: Locale;
+}
+
+export interface SaveCustomFoodVariables {
+  /** Client-generated food id. */
+  id: string;
+  request: CustomFoodUpsertRequest;
+}
+
+export interface DeleteCustomFoodVariables {
+  food: Food;
 }
 
 /** A write the API refused: the optimistic change was undone (AC21). */
@@ -166,6 +189,46 @@ export function favouriteFoodsQueryOptions(api: ApiClient, locale: Locale) {
     queryFn: async () => (await api.favouriteFoods(locale)).foods,
     retry,
   });
+}
+
+export function customFoodsQueryOptions(api: ApiClient, locale: Locale) {
+  return queryOptions({
+    queryKey: foodKeys.customFoods(locale),
+    queryFn: async () => (await api.customFoods(locale)).foods,
+    retry,
+  });
+}
+
+/**
+ * The food of a scanned barcode (spec 006 AC3). Fetched on demand with `queryClient.fetchQuery`: a
+ * "not found" is an answer, not a failure to retry, and the same code is not asked twice in a row.
+ */
+export function foodByBarcodeQueryOptions(api: ApiClient, barcode: string, locale: Locale) {
+  return queryOptions({
+    queryKey: foodKeys.barcode(barcode, locale),
+    queryFn: () => api.foodByBarcode(barcode, locale),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    // An error is never served from the cache: "Reintentar" asks again.
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * A food with that barcode among those the device already holds: the user's own foods, the recents and
+ * the favourites. It is what a scan can find without a connection (spec 006 AC8).
+ */
+export function cachedFoodByBarcode(
+  queryClient: QueryClient,
+  barcode: string,
+  locale: Locale,
+): Food | null {
+  const own = queryClient.getQueryData<Food[]>(foodKeys.customFoods(locale)) ?? [];
+  const recents = queryClient.getQueryData<RecentFood[]>(foodKeys.recents(locale)) ?? [];
+  const favourites = queryClient.getQueryData<Food[]>(foodKeys.favourites(locale)) ?? [];
+  // The user's own food first, as the API does (AC3).
+  const foods = [...own, ...recents.map((r) => r.food), ...favourites];
+  return foods.find((food) => food.barcode === barcode) ?? null;
 }
 
 function rejection(id: string, error: unknown): RejectedFoodWrite {
@@ -274,6 +337,103 @@ export function registerFoodMutations(queryClient: QueryClient, api: ApiClient):
       if (!lastInQueue()) return;
       await queryClient.invalidateQueries({ queryKey: foodKeys.favouritesAll });
     },
+  });
+}
+
+/**
+ * Registers the mutations of the user's own foods (spec 006 AC11, AC12). They share the queue of the
+ * food log, so a food created without a connection is sent before the item that uses it.
+ */
+export function registerCustomFoodMutations(queryClient: QueryClient, api: ApiClient): void {
+  type Lists = [readonly unknown[], Food[] | undefined][];
+  const queue = {
+    scope: { id: 'food-log' },
+    retry: (_failureCount: number, error: unknown) => !isRejected(error),
+    retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 30_000),
+  };
+  const lastInQueue = () => queryClient.isMutating({ mutationKey: foodKeys.mutations }) <= 1;
+  const ownLists = () => queryClient.getQueriesData<Food[]>({ queryKey: foodKeys.customFoodsAll });
+  /** A custom food has one name for every locale, so every cached list gets the same change. */
+  const setOwnLists = (change: (foods: Food[]) => Food[]) => {
+    for (const locale of ['es', 'en'] as const) {
+      queryClient.setQueryData<Food[]>(foodKeys.customFoods(locale), (foods = []) => change(foods));
+    }
+  };
+  const restore = (lists: Lists | undefined) => {
+    for (const [key, foods] of lists ?? []) queryClient.setQueryData(key, foods);
+  };
+  const refresh = async () => {
+    if (!lastInQueue()) return;
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: foodKeys.customFoodsAll }),
+      queryClient.invalidateQueries({ queryKey: foodKeys.searchAll }),
+      queryClient.invalidateQueries({ queryKey: foodKeys.recentsAll }),
+      queryClient.invalidateQueries({ queryKey: foodKeys.favouritesAll }),
+      queryClient.invalidateQueries({ queryKey: foodKeys.log }),
+    ]);
+  };
+
+  queryClient.setMutationDefaults(foodKeys.saveFood, {
+    ...queue,
+    mutationFn: ({ id, request }: SaveCustomFoodVariables) => api.saveCustomFood(id, request),
+    onMutate: async ({ id, request }: SaveCustomFoodVariables) => {
+      await queryClient.cancelQueries({ queryKey: foodKeys.customFoodsAll });
+      const previous = ownLists();
+      const food = customFoodAsFood(id, request);
+      setOwnLists((foods) => [food, ...foods.filter((f) => f.id !== id)]);
+      // The portion sheet and the item sheet read one food by its id.
+      for (const locale of ['es', 'en'] as const) {
+        queryClient.setQueryData(foodKeys.food(id, locale), food);
+      }
+      queryClient.setQueryData(foodKeys.rejected, null);
+      return { previous };
+    },
+    onError: (
+      error: unknown,
+      { id }: SaveCustomFoodVariables,
+      context: { previous: Lists } | undefined,
+    ) => {
+      restore(context?.previous);
+      queryClient.removeQueries({ queryKey: [...foodKeys.foodAll, id] });
+      queryClient.setQueryData(foodKeys.rejected, rejection(id, error));
+    },
+    onSettled: refresh,
+  });
+
+  queryClient.setMutationDefaults(foodKeys.deleteFood, {
+    ...queue,
+    mutationFn: ({ food }: DeleteCustomFoodVariables) => api.deleteCustomFood(food.id),
+    onMutate: async ({ food }: DeleteCustomFoodVariables) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: foodKeys.customFoodsAll }),
+        queryClient.cancelQueries({ queryKey: foodKeys.log }),
+      ]);
+      const previous = ownLists();
+      const previousLog = queryClient.getQueryData<MealItem[]>(foodKeys.log);
+      setOwnLists((foods) => foods.filter((f) => f.id !== food.id));
+      // The logged items stay with their snapshot, without the food (AC12), as the API leaves them.
+      queryClient.setQueryData<MealItem[]>(foodKeys.log, (items) =>
+        items?.map((i) => (i.foodId === food.id ? { ...i, foodId: null, servingId: null } : i)),
+      );
+      queryClient.setQueriesData<Food[]>({ queryKey: foodKeys.favouritesAll }, (foods) =>
+        foods?.filter((f) => f.id !== food.id),
+      );
+      queryClient.setQueriesData<RecentFood[]>({ queryKey: foodKeys.recentsAll }, (recents) =>
+        recents?.filter((r) => r.food.id !== food.id),
+      );
+      queryClient.setQueryData(foodKeys.rejected, null);
+      return { previous, previousLog };
+    },
+    onError: (
+      error: unknown,
+      { food }: DeleteCustomFoodVariables,
+      context: { previous: Lists; previousLog: MealItem[] | undefined } | undefined,
+    ) => {
+      restore(context?.previous);
+      if (context?.previousLog) queryClient.setQueryData(foodKeys.log, context.previousLog);
+      queryClient.setQueryData(foodKeys.rejected, rejection(food.id, error));
+    },
+    onSettled: refresh,
   });
 }
 

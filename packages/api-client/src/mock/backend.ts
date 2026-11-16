@@ -5,13 +5,18 @@
  * Never use it in production builds: the app enables it only with `__DEV__` and an explicit flag.
  */
 import {
+  BarcodeParamSchema,
   CONSENT_VERSION,
+  CUSTOM_FOOD_LIMITS,
   ConsentRequestSchema,
+  CustomFoodUpsertRequestSchema,
   FOOD_LOG_LIMITS,
   FoodIdParamSchema,
   FoodLocaleQuerySchema,
   FoodLogQuerySchema,
   FoodSearchQuerySchema,
+  LABEL_SCAN_LIMITS,
+  LabelScanRequestSchema,
   MealItemDeleteQuerySchema,
   MealItemIdParamSchema,
   MealItemUpsertRequestSchema,
@@ -24,6 +29,9 @@ import {
   type ApiErrorCode,
   type DietaryPrefs,
   type ExportResponse,
+  type Food,
+  type LabelReading,
+  type Locale,
   type MealItem,
   type MeResponse,
   type Portion,
@@ -35,19 +43,26 @@ import {
   addDays,
   applyLatestWeight,
   buildFoodSearchIndex,
+  checkCustomFood,
   checkFoodLogRange,
   checkFoodLogWrite,
   checkWeightWrite,
+  customFoodAsFood,
   daysBetween,
   evaluateProfileInput,
+  isInStoreBarcode,
+  labelDraft,
   mealItemFromRequest,
+  normalizeBarcode,
   searchFoods,
+  searchableBrandedFood,
   targetsOnly,
   writeWins,
 } from '@pt/core';
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
-import { MOCK_CATALOG, MOCK_SOURCE, toMockFood, type MockCatalogFood } from './foods';
+import { MOCK_CATALOG, MOCK_SOURCE, toMockFood } from './foods';
+import { mockProduct, mockProductById } from './products';
 import { parseMockToken, type MockUser } from './identity';
 
 export interface KeyValueStorage {
@@ -79,20 +94,41 @@ interface UserRecord {
   /** The food log, deletes included as tombstones (`deleted`, spec 005 AC20). */
   mealItems: StoredMealItem[];
   favourites: { foodId: string; createdAt: string }[];
+  /** The user's own foods, most recently changed first (spec 006). One name for every locale. */
+  customFoods: Food[];
 }
 
 type StoredMealItem = MealItem & { deleted: boolean };
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v5: spec 005). */
-export const MOCK_DB_KEY = 'pt.mock-db.v5';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v6: spec 006). */
+export const MOCK_DB_KEY = 'pt.mock-db.v6';
+
+/** What the mock "reads" from every label photo (spec 006 AC15): a pack of biscuits. */
+const MOCK_LABEL_READING: LabelReading = {
+  status: 'ok',
+  basis: 'per_100g',
+  servingSize: 30,
+  servingUnit: 'g',
+  energyKcal: 436,
+  energyKj: 1836,
+  fatG: 10.5,
+  carbsG: 76,
+  proteinG: 7.1,
+  fiberG: null,
+  productName: 'Galletas María',
+  brand: null,
+};
+
+/** A photo this small cannot be a label: the mock answers "not a label" (AC17), for tests. */
+const MOCK_UNREADABLE_BELOW = 200;
 
 const catalogById = new Map(MOCK_CATALOG.map((f) => [f.id, f]));
 const searchIndex = buildFoodSearchIndex(MOCK_CATALOG);
 
 /** The portion of a logged item, to preselect it in the portion sheet (same rule as the API). */
-function lastPortion(item: MealItem, food: MockCatalogFood): Portion | null {
+function lastPortion(item: MealItem, food: Food): Portion | null {
   if (item.servingId !== null && item.servings !== null) {
     if (food.servings.some((s) => s.id === item.servingId)) {
       return { kind: 'serving', servingId: item.servingId, servings: item.servings };
@@ -175,6 +211,7 @@ const emptyUser = (email: string | null): UserRecord => ({
   weights: [],
   mealItems: [],
   favourites: [],
+  customFoods: [],
 });
 
 export function createMockApiClient({
@@ -213,6 +250,13 @@ export function createMockApiClient({
     record.consents.findLast((c) => c.kind === 'health_data' && c.revokedAt === null);
   // A consent given to an older version of the text does not count (spec 002 AC14).
   const hasConsent = (record: UserRecord) => activeConsent(record)?.version === CONSENT_VERSION;
+
+  /** A food the user may read: of the catalog, a product or one of their own (spec 006 AC13). */
+  const findFood = (record: UserRecord, id: string, locale: Locale): Food | null => {
+    const catalogFood = catalogById.get(id);
+    if (catalogFood) return toMockFood(catalogFood, locale);
+    return record.customFoods.find((f) => f.id === id) ?? mockProductById(id, locale);
+  };
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -406,18 +450,38 @@ export function createMockApiClient({
     },
 
     searchFoods: async (q, locale) => {
-      await authenticateWithConsent();
+      const { record } = await authenticateWithConsent();
       const query = parse(FoodSearchQuerySchema, { q, locale });
-      const ids = searchFoods(searchIndex, query.q, query.locale, FOOD_LOG_LIMITS.searchResultsMax);
-      return { foods: ids.map((id) => toMockFood(catalogById.get(id)!, query.locale)) };
+      // The user's own foods and the products they logged rank with the catalog (spec 006 AC11).
+      const logged = new Set(live(record).map((i) => i.foodId));
+      const products = [...logged].flatMap((id) => {
+        const product = id ? mockProductById(id, query.locale) : null;
+        return product ? [product] : [];
+      });
+      const mine = buildFoodSearchIndex(
+        [...record.customFoods, ...products].map(searchableBrandedFood),
+      );
+      const ids = searchFoods(
+        searchIndex,
+        query.q,
+        query.locale,
+        FOOD_LOG_LIMITS.searchResultsMax,
+        mine,
+      );
+      return {
+        foods: ids.flatMap((id) => {
+          const food = findFood(record, id, query.locale);
+          return food ? [food] : [];
+        }),
+      };
     },
 
     getFood: async (id, locale) => {
-      await authenticateWithConsent();
+      const { record } = await authenticateWithConsent();
       const { foodId } = parse(FoodIdParamSchema, { foodId: id });
-      const food = catalogById.get(foodId);
+      const food = findFood(record, foodId, parse(FoodLocaleQuerySchema, { locale }).locale);
       if (!food) throw fail('not_found', { foodId: 'not_found' });
-      return toMockFood(food, parse(FoodLocaleQuerySchema, { locale }).locale);
+      return food;
     },
 
     foodSources: async (locale) => {
@@ -434,6 +498,17 @@ export function createMockApiClient({
               locale === 'en'
                 ? 'Nutrition values: Anses, Ciqual French food composition table 2025.'
                 : 'Valores nutricionales: Anses, tabla de composición nutricional Ciqual 2025.',
+          },
+          {
+            id: 'open-food-facts',
+            name: 'Open Food Facts',
+            url: 'https://world.openfoodfacts.org',
+            license: 'Open Database License (ODbL) 1.0',
+            version: 'live',
+            attribution:
+              locale === 'en'
+                ? 'Products with a barcode: contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). It is written by volunteers and may contain errors: always check the package.'
+                : 'Productos con código de barras: contiene datos de Open Food Facts (https://openfoodfacts.org), disponibles bajo la Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). Los escriben voluntarios y pueden tener errores: comprueba siempre el envase.',
           },
         ],
       };
@@ -453,12 +528,9 @@ export function createMockApiClient({
       const request = parse(MealItemUpsertRequestSchema, body);
       const invalid = checkFoodLogWrite(request, now());
       if (invalid) throw fail('validation_error', invalid);
-      const catalogFood = request.kind === 'food' ? catalogById.get(request.foodId) : undefined;
-      const item = mealItemFromRequest(
-        id,
-        request,
-        catalogFood ? toMockFood(catalogFood, request.locale) : null,
-      );
+      const food =
+        request.kind === 'food' ? findFood(record, request.foodId, request.locale) : null;
+      const item = mealItemFromRequest(id, request, food);
       if ('error' in item) {
         throw item.error === 'food_not_found'
           ? fail('not_found', { foodId: 'not_found' })
@@ -519,9 +591,9 @@ export function createMockApiClient({
         .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
         .slice(0, FOOD_LOG_LIMITS.recentsMax)
         .flatMap((item) => {
-          const food = item.foodId ? catalogById.get(item.foodId) : undefined;
+          const food = item.foodId ? findFood(record, item.foodId, locale) : null;
           const portion = food ? lastPortion(item, food) : null;
-          return food && portion ? [{ food: toMockFood(food, locale), lastPortion: portion }] : [];
+          return food && portion ? [{ food, lastPortion: portion }] : [];
         });
       return { recents };
     },
@@ -531,8 +603,8 @@ export function createMockApiClient({
       const foods = [...record.favourites]
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .flatMap((f) => {
-          const food = catalogById.get(f.foodId);
-          return food ? [toMockFood(food, locale)] : [];
+          const food = findFood(record, f.foodId, locale);
+          return food ? [food] : [];
         });
       return { foods };
     },
@@ -540,11 +612,113 @@ export function createMockApiClient({
     setFavouriteFood: async (id, favourite) => {
       const { record } = await authenticateWithConsent();
       const { foodId } = parse(FoodIdParamSchema, { foodId: id });
-      if (favourite && !catalogById.has(foodId)) throw fail('not_found', { foodId: 'not_found' });
+      if (favourite && !findFood(record, foodId, 'es')) {
+        throw fail('not_found', { foodId: 'not_found' });
+      }
       const has = record.favourites.some((f) => f.foodId === foodId);
       if (favourite && !has) record.favourites.push({ foodId, createdAt: now().toISOString() });
       if (!favourite) record.favourites = record.favourites.filter((f) => f.foodId !== foodId);
       persist();
+    },
+
+    foodByBarcode: async (code, locale) => {
+      const { record } = await authenticateWithConsent();
+      const params = parse(BarcodeParamSchema, { code });
+      const query = parse(FoodLocaleQuerySchema, { locale });
+      const barcode = normalizeBarcode(params.code);
+      if (barcode === null) throw fail('validation_error', { code: 'invalid' });
+      // The user's own food first, then the product (AC3).
+      const own = record.customFoods.find((f) => f.barcode === barcode);
+      if (own) return own;
+      const product = isInStoreBarcode(barcode) ? null : mockProduct(barcode, query.locale);
+      if (product === 'incomplete') throw fail('product_incomplete');
+      if (!product) throw fail('product_not_found');
+      return product;
+    },
+
+    customFoods: async () => {
+      const { record } = await authenticateWithConsent();
+      return { foods: record.customFoods };
+    },
+
+    saveCustomFood: async (id, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { foodId } = parse(FoodIdParamSchema, { foodId: id });
+      const request = parse(CustomFoodUpsertRequestSchema, body);
+      const invalid = checkCustomFood(request);
+      if (invalid) throw fail('validation_error', invalid);
+      if (request.barcode !== null && normalizeBarcode(request.barcode) !== request.barcode) {
+        throw fail('validation_error', { barcode: 'invalid' });
+      }
+      const mine = record.customFoods.some((f) => f.id === foodId);
+      if (!mine && record.customFoods.length >= CUSTOM_FOOD_LIMITS.foodsMax) {
+        throw fail('food_limit_reached');
+      }
+      // The id of a catalog food, a product or another user's food is never overwritten (AC13).
+      const taken =
+        catalogById.has(foodId) ||
+        mockProductById(foodId, 'es') !== null ||
+        Object.entries(db).some(
+          ([owner, other]) =>
+            owner !== user.userId && other.customFoods.some((f) => f.id === foodId),
+        );
+      if (taken) throw fail('not_found', { foodId: 'not_found' });
+      if (
+        request.barcode !== null &&
+        record.customFoods.some((f) => f.id !== foodId && f.barcode === request.barcode)
+      ) {
+        throw fail('validation_error', { barcode: 'already_used' });
+      }
+      const food = customFoodAsFood(foodId, request);
+      record.customFoods = [food, ...record.customFoods.filter((f) => f.id !== foodId)];
+      persist();
+      return food;
+    },
+
+    deleteCustomFood: async (id) => {
+      const { record } = await authenticateWithConsent();
+      const { foodId } = parse(FoodIdParamSchema, { foodId: id });
+      if (!record.customFoods.some((f) => f.id === foodId)) return;
+      record.customFoods = record.customFoods.filter((f) => f.id !== foodId);
+      // The logged items keep their snapshot without the food (AC12); the favourite goes.
+      for (const item of record.mealItems) {
+        if (item.foodId === foodId) {
+          item.foodId = null;
+          item.servingId = null;
+        }
+      }
+      record.favourites = record.favourites.filter((f) => f.foodId !== foodId);
+      persist();
+    },
+
+    scanLabel: async (body) => {
+      const { record } = await authenticateWithConsent();
+      const { image } = parse(LabelScanRequestSchema, body);
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(image.data)) {
+        throw fail('validation_error', { 'image.data': 'invalid' });
+      }
+      if ((image.data.length * 3) / 4 > LABEL_SCAN_LIMITS.imageBytesMax) {
+        throw fail('image_too_large');
+      }
+      const today = now().toISOString().slice(0, 10);
+      const used = record.aiUsage.filter(
+        (u) => u.feature === 'label_scan' && u.createdAt.slice(0, 10) === today,
+      ).length;
+      if (used >= LABEL_SCAN_LIMITS.perDay) throw fail('ai_cap_reached');
+      record.aiUsage.push({
+        feature: 'label_scan',
+        model: 'claude-haiku-5-5',
+        inputTokens: 1200,
+        outputTokens: 150,
+        createdAt: now().toISOString(),
+      });
+      persist();
+      // The image is read and dropped: nothing of it is stored (AC19).
+      return labelDraft(
+        image.data.length < MOCK_UNREADABLE_BELOW
+          ? { ...MOCK_LABEL_READING, status: 'not_a_label' }
+          : MOCK_LABEL_READING,
+      );
     },
 
     exportData: async () => {
@@ -558,7 +732,7 @@ export function createMockApiClient({
         targets: record.targets,
         weights: record.weights,
         mealItems: live(record),
-        customFoods: [],
+        customFoods: record.customFoods,
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',
