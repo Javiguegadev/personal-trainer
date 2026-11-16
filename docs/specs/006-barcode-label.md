@@ -262,9 +262,45 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Done so far (2026-11-16), one commit per step: contracts (`bc67d47`), db schema and migration
-  `0007` (`bcd8c74`), core (`d5335c0`), API and `@pt/ai` (`fc8574d`).
+  `0007` (`bcd8c74`), core (`d5335c0`), API and `@pt/ai` (`fc8574d`), client and mock backend
+  (`7deaa4c`).
+- Client (2026-11-16): `@pt/api-client` has `foodByBarcode`, `customFoods`, `saveCustomFood`,
+  `deleteCustomFood` and `scanLabel`; `foods.ts` adds `customFoodsQueryOptions`,
+  `foodByBarcodeQueryOptions` (fetched on demand, a "not found" is not retried),
+  `cachedFoodByBarcode` (AC8) and `registerCustomFoodMutations` (`foodKeys.saveFood`,
+  `foodKeys.deleteFood`, in the queue of the food log, so a food made offline is sent before its
+  first item). The mock backend (`mock/products.ts`, storage key `pt.mock-db.v6`) serves ten
+  recorded products, custom foods and a fixed label reading with the rules of the API. Tests:
+  `api-client/src/products.test.ts` (AC3, AC8, AC11, AC12 and the mock).
+- **Next: UI, then E2E** (nothing of the app is written yet). Notes for that step:
+  - `apps/app/src/lib/api.ts` must call `registerCustomFoodMutations` beside `registerFoodMutations`.
+  - Dependencies: `expo-camera`, `expo-image-picker` and `expo-image-manipulator`, added with
+    `expo install` (see CLAUDE.md); the `expo-camera` config plugin sets `cameraPermission` (es, en).
+    Check the SDK 58 docs first (`apps/app/AGENTS.md`). Read on 2026-11-16: `CameraView` has
+    `onBarcodeScanned`, `barcodeScannerSettings.barcodeTypes` (`ean13`, `ean8`, `upc_a`, `upc_e`)
+    and `useCameraPermissions`, and runs in Expo Go; the docs list web without saying which barcode
+    types work there, so `food/scan.web.tsx` keeps the code field unless a test in a browser shows
+    that EAN-13 is read. Images: `ImageManipulator.manipulate(uri).resize(...)`, `renderAsync()`,
+    `saveAsync({ format: SaveFormat.JPEG, compress, base64: true })`.
+  - Scan flow: `normalizeBarcode(data, type)` → `cachedFoodByBarcode` → online:
+    `queryClient.fetchQuery(foodByBarcodeQueryOptions(...))` → the portion sheet with
+    `inputMethod: 'barcode'`. `product_not_found` and `product_incomplete` → the options of AC6;
+    `lookup_unavailable` and `rate_limited` → "Reintentar" plus the same options.
+  - Form: `parseCustomFoodFields`, `customFoodEnergyMismatch` (confirmation), `customFoodFields`
+    (edit), `customFoodFieldsFromDraft` (label photo; it returns the fields the photo filled), all in
+    `@pt/core`. The first item of a new food uses `inputMethod: 'custom'`, or `'label'` when a photo
+    filled the form.
+  - Deleting an own food (AC12): hold `foodKeys.deleteFood` for the 5 seconds of the undo toast and
+    send it when the toast ends or the screen closes. An undo after the delete reached the API would
+    bring the food back without the link to its logged items.
+  - `PortionSheet`: brand, unit (`formatPortion` already prints `ml`), the notes of AC5
+    (`food.energyMismatch`, `food.sourceUrl`, `food.allergens`, `food.traces`: tags such as
+    `en:milk`, to translate in i18n), and no numbers with `ed_soft_stop`.
+  - Mock codes for the E2E journeys: Nutella `3017620422003`, Coca-Cola `5449000214911` (ml), wine
+    `8410261211015` (energy note), unknown `8410000000009`, incomplete `3033710065967`. A label image
+    of 200 base64 characters or more gives the "Galletas María" draft; a smaller one is "not a label".
 - **Migration `0007_barcode_custom_foods` is generated and not applied to dev yet.** It only adds:
   two enums, three values of `food_input_method`, the new columns (with defaults), `barcode_misses`,
   and the stricter `select` policies of `foods` and `food_servings`. After applying it, run
