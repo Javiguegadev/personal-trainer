@@ -1,0 +1,222 @@
+[
+  {
+    "barcode": "20724696",
+    "name": "Alesto almendras al natural",
+    "grams": 30,
+    "label": {
+      "kcal": 186,
+      "proteinG": 7.35,
+      "carbsG": 1.44,
+      "fatG": 16
+    },
+    "verified": false
+  },
+  {
+    "barcode": "3017620422003",
+    "name": "Nutella",
+    "grams": null,
+    "label": null,
+    "verified": false
+  },
+  {
+    "barcode": "3033710065967",
+    "name": "Nesquik",
+    "grams": null,
+    "label": null,
+    "verified": false
+  },
+  {
+    "barcode": "3046920022651",
+    "name": "Noir Intense",
+    "grams": 10,
+    "label": {
+      "kcal": 56.6,
+      "proteinG": 0.95,
+      "carbsG": 3.5,
+      "fatG": 4.1
+    },
+    "verified": false
+  },
+  {
+    "barcode": "3159470000120",
+    "name": "Corn Flakes",
+    "grams": 30,
+    "label": {
+      "kcal": 113,
+      "proteinG": 2.1,
+      "carbsG": 25.2,
+      "fatG": 0.27
+    },
+    "verified": false
+  },
+  {
+    "barcode": "4008713756661",
+    "name": "Copos de avena",
+    "grams": 40,
+    "label": {
+      "kcal": 150,
+      "proteinG": 5.6,
+      "carbsG": 23.6,
+      "fatG": 2.8
+    },
+    "verified": false
+  },
+  {
+    "barcode": "4056489216162",
+    "name": "High Protein Chocolate Pudding",
+    "grams": 200,
+    "label": {
+      "kcal": 152,
+      "proteinG": 20,
+      "carbsG": 10.4,
+      "fatG": 3
+    },
+    "verified": false
+  },
+  {
+    "barcode": "5010029000023",
+    "name": "Original",
+    "grams": 37.5,
+    "label": {
+      "kcal": 136,
+      "proteinG": 4.5,
+      "carbsG": 25.9,
+      "fatG": 0.75
+    },
+    "verified": false
+  },
+  {
+    "barcode": "5410041001204",
+    "name": "Tuc Original",
+    "grams": 30,
+    "label": {
+      "kcal": 145,
+      "proteinG": 2.49,
+      "carbsG": 20.1,
+      "fatG": 5.7
+    },
+    "verified": false
+  },
+  {
+    "barcode": "5411188112709",
+    "name": "Sin Azúcar Almendras",
+    "grams": 100,
+    "label": {
+      "kcal": 15,
+      "proteinG": 0.5,
+      "carbsG": 0,
+      "fatG": 1.1
+    },
+    "verified": false
+  },
+  {
+    "barcode": "5449000131805",
+    "name": "Coca Cola Zero",
+    "grams": 330,
+    "label": {
+      "kcal": 0,
+      "proteinG": 0,
+      "carbsG": 0,
+      "fatG": 0
+    },
+    "verified": false
+  },
+  {
+    "barcode": "5449000214911",
+    "name": "Coca-Cola",
+    "grams": 330,
+    "label": {
+      "kcal": 139,
+      "proteinG": 0,
+      "carbsG": 35,
+      "fatG": 0
+    },
+    "verified": false
+  },
+  {
+    "barcode": "5942219000059",
+    "name": "Borsec, regina apelor minerale apă minerală, natura carbogozoasă",
+    "grams": null,
+    "label": null,
+    "verified": false
+  },
+  {
+    "barcode": "7300400481588",
+    "name": "Tostadas crujientes de fibra",
+    "grams": 10,
+    "label": {
+      "kcal": 33.3,
+      "proteinG": 1.2,
+      "carbsG": 4.7,
+      "fatG": 0.5
+    },
+    "verified": false
+  },
+  {
+    "barcode": "7613034947611",
+    "name": "Chocapic",
+    "grams": 30,
+    "label": {
+      "kcal": 116,
+      "proteinG": 2.64,
+      "carbsG": 22.1,
+      "fatG": 1.44
+    },
+    "verified": false
+  },
+  {
+    "barcode": "7622210449283",
+    "name": "Príncipe Galletas de Chocolate",
+    "grams": 20,
+    "label": {
+      "kcal": 93.4,
+      "proteinG": 1.26,
+      "carbsG": 13.8,
+      "fatG": 3.4
+    },
+    "verified": false
+  },
+  {
+    "barcode": "80042556",
+    "name": "Tomate Triturado",
+    "grams": 400,
+    "label": {
+      "kcal": 104,
+      "proteinG": 4.8,
+      "carbsG": 15.6,
+      "fatG": 0.8
+    },
+    "verified": false
+  },
+  {
+    "barcode": "80052760",
+    "name": "kinder bueno",
+    "grams": 21.5,
+    "label": {
+      "kcal": 124,
+      "proteinG": 1.85,
+      "carbsG": 11.2,
+      "fatG": 7.96
+    },
+    "verified": false
+  },
+  {
+    "barcode": "8480000671400",
+    "name": "Crema de cacahuete",
+    "grams": null,
+    "label": null,
+    "verified": false
+  },
+  {
+    "barcode": "87157215",
+    "name": "Ketchup",
+    "grams": 10,
+    "label": {
+      "kcal": 10.2,
+      "proteinG": 0.12,
+      "carbsG": 2.32,
+      "fatG": 0.01
+    },
+    "verified": false
+  }
+]

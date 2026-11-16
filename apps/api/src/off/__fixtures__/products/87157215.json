@@ -1,0 +1,31 @@
+{
+  "code": "87157215",
+  "status": 1,
+  "product": {
+    "product_name": "Tomato Ketchup",
+    "product_name_es": "Ketchup",
+    "generic_name": "Ketchup",
+    "generic_name_es": "",
+    "brands": "Heinz",
+    "quantity": "250g",
+    "product_quantity": 250,
+    "product_quantity_unit": "g",
+    "serving_size": "10 gram",
+    "serving_quantity": 10,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:celery"],
+    "traces_tags": [],
+    "nutriments": {
+      "energy-kcal_100g": 102,
+      "energy-kcal_serving": 10.2,
+      "energy-kj_100g": 435,
+      "energy-kj_serving": 43.5,
+      "proteins_100g": 1.2,
+      "proteins_serving": 0.12,
+      "carbohydrates_100g": 23.2,
+      "carbohydrates_serving": 2.32,
+      "fat_100g": 0.1,
+      "fat_serving": 0.01
+    }
+  }
+}

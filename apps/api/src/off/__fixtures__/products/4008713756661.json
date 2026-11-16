@@ -1,0 +1,33 @@
+{
+  "code": "4008713756661",
+  "status": 1,
+  "product": {
+    "product_name": "Copos de avena",
+    "product_name_es": "Copos de avena",
+    "generic_name": "rolled oats",
+    "generic_name_es": "Copos laminados de avena integral",
+    "brands": "H. & J. Brüggen KG",
+    "quantity": "500 g",
+    "product_quantity": 500,
+    "product_quantity_unit": "g",
+    "serving_size": "40g",
+    "serving_quantity": 40,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:gluten"],
+    "traces_tags": ["en:gluten"],
+    "nutriments": {
+      "energy-kcal_100g": 375,
+      "energy-kcal_serving": 150,
+      "energy-kj_100g": 1580,
+      "energy-kj_serving": 632,
+      "proteins_100g": 14,
+      "proteins_serving": 5.6,
+      "carbohydrates_100g": 59,
+      "carbohydrates_serving": 23.6,
+      "fat_100g": 7,
+      "fat_serving": 2.8,
+      "fiber_100g": 10,
+      "fiber_serving": 4
+    }
+  }
+}

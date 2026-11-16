@@ -1,0 +1,33 @@
+{
+  "code": "80042556",
+  "status": 1,
+  "product": {
+    "product_name": "",
+    "product_name_es": "Tomate Triturado",
+    "generic_name": "",
+    "generic_name_es": "Pulpa de tomate",
+    "brands": "Mutti",
+    "quantity": "400g",
+    "product_quantity": 400,
+    "product_quantity_unit": "g",
+    "serving_size": "1 serving (400 g)",
+    "serving_quantity": 400,
+    "serving_quantity_unit": "g",
+    "allergens_tags": [],
+    "traces_tags": ["en:none"],
+    "nutriments": {
+      "energy-kcal_100g": 26,
+      "energy-kcal_serving": 104,
+      "energy-kj_100g": 110,
+      "energy-kj_serving": 440,
+      "proteins_100g": 1.2,
+      "proteins_serving": 4.8,
+      "carbohydrates_100g": 3.9,
+      "carbohydrates_serving": 15.6,
+      "fat_100g": 0.2,
+      "fat_serving": 0.8,
+      "fiber_100g": 1.9,
+      "fiber_serving": 7.6
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "code": "5010029000023",
+  "status": 1,
+  "product": {
+    "product_name": "Original",
+    "product_name_es": "",
+    "generic_name": "",
+    "generic_name_es": "",
+    "brands": "Weetabix",
+    "quantity": "430 gram",
+    "product_quantity": 430,
+    "product_quantity_unit": "g",
+    "serving_size": "37.5 gram",
+    "serving_quantity": 37.5,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:gluten"],
+    "traces_tags": [],
+    "nutriments": {
+      "energy-kcal_100g": 362,
+      "energy-kcal_serving": 136,
+      "energy-kj_100g": 1531,
+      "energy-kj_serving": 574,
+      "proteins_100g": 12,
+      "proteins_serving": 4.5,
+      "carbohydrates_100g": 69,
+      "carbohydrates_serving": 25.9,
+      "fat_100g": 2,
+      "fat_serving": 0.75,
+      "fiber_100g": 10,
+      "fiber_serving": 3.75
+    }
+  }
+}

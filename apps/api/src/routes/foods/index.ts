@@ -24,11 +24,18 @@ import {
   checkFoodLogWrite,
   mealItemFromRequest,
   searchFoods,
+  USER_FOOD_SOURCE,
 } from '@pt/core';
 import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
-import { createCatalogCache, toFood, toRecentFoods } from '../../services/foods';
+import {
+  createCatalogCache,
+  resolveFoods,
+  toFood,
+  toRecentFoods,
+  userSearchFoods,
+} from '../../services/foods';
 
 const error = (description: string) => ({
   description,
@@ -41,12 +48,16 @@ const json = <T>(description: string, schema: T) => ({
 
 /**
  * Food catalog, search and food log (spec 005). Every route that touches what the user eats needs the
- * current consent, search included: the query says what the user eats.
+ * current consent, search included: the query says what the user eats. A food id may also be a scanned
+ * product or one of the user's own foods (spec 006): those are read per request, never cached.
  */
 export function foodRoutes(deps: Deps) {
   const auth = requireAuth(deps.verifyToken);
   const consent = requireConsent(deps.store);
   const getCatalog = createCatalogCache(deps.store, deps.now);
+  /** A food the user may read: of the catalog, a scanned product or one of their own. */
+  const findFood = async (userId: string, foodId: string) =>
+    (await resolveFoods(deps.store, await getCatalog(), userId, [foodId])).get(foodId) ?? null;
 
   const search = createRoute({
     method: 'get',
@@ -193,10 +204,20 @@ export function foodRoutes(deps: Deps) {
     createRouter()
       .openapi(search, async (c) => {
         const { q, locale } = c.req.valid('query');
-        const catalog = await getCatalog();
-        const ids = searchFoods(catalog.index, q, locale, FOOD_LOG_LIMITS.searchResultsMax);
+        // The user's own foods and the products they logged rank with the catalog (spec 006 AC11).
+        const [catalog, mine] = await Promise.all([
+          getCatalog(),
+          userSearchFoods(deps.store, c.var.user.userId),
+        ]);
+        const ids = searchFoods(
+          catalog.index,
+          q,
+          locale,
+          FOOD_LOG_LIMITS.searchResultsMax,
+          mine.index,
+        );
         const foods = ids.flatMap((id) => {
-          const food = catalog.byId.get(id);
+          const food = mine.byId.get(id) ?? catalog.byId.get(id);
           return food ? [toFood(food, locale)] : [];
         });
         return c.json({ foods }, 200);
@@ -206,10 +227,13 @@ export function foodRoutes(deps: Deps) {
         const rows = await deps.store.listKnowledgeSources();
         return c.json(
           {
-            sources: rows.map(({ attributionEs, attributionEn, ...source }) => ({
-              ...source,
-              attribution: locale === 'en' ? attributionEn : attributionEs,
-            })),
+            // The source of the user's own foods is a technical row, not a source of data.
+            sources: rows
+              .filter((source) => source.id !== USER_FOOD_SOURCE)
+              .map(({ attributionEs, attributionEn, ...source }) => ({
+                ...source,
+                attribution: locale === 'en' ? attributionEn : attributionEs,
+              })),
           },
           200,
         );
@@ -218,7 +242,7 @@ export function foodRoutes(deps: Deps) {
       .openapi(getFood, async (c) => {
         const { foodId } = c.req.valid('param');
         const { locale } = c.req.valid('query');
-        const food = (await getCatalog()).byId.get(foodId);
+        const food = await findFood(c.var.user.userId, foodId);
         if (!food) return apiError(c, 404, 'not_found', { foodId: 'not_found' });
         return c.json(toFood(food, locale), 200);
       })
@@ -235,8 +259,8 @@ export function foodRoutes(deps: Deps) {
         const { userId } = c.var.user;
         const invalid = checkFoodLogWrite(body, deps.now());
         if (invalid) return apiError(c, 400, 'validation_error', invalid);
-        const catalogFood =
-          body.kind === 'food' ? ((await getCatalog()).byId.get(body.foodId) ?? null) : null;
+        // Another user's own food is not found: an item cannot point to it (spec 006 AC13).
+        const catalogFood = body.kind === 'food' ? await findFood(userId, body.foodId) : null;
         const item = mealItemFromRequest(id, body, catalogFood && toFood(catalogFood, body.locale));
         if ('error' in item) {
           return item.error === 'food_not_found'
@@ -269,23 +293,31 @@ export function foodRoutes(deps: Deps) {
           since,
           FOOD_LOG_LIMITS.recentsMax,
         );
-        return c.json({ recents: toRecentFoods(items, await getCatalog(), locale) }, 200);
+        const foods = await resolveFoods(
+          deps.store,
+          await getCatalog(),
+          c.var.user.userId,
+          items.flatMap((i) => (i.foodId ? [i.foodId] : [])),
+        );
+        return c.json({ recents: toRecentFoods(items, foods, locale) }, 200);
       })
       .openapi(favourites, async (c) => {
         const { locale } = c.req.valid('query');
+        const { userId } = c.var.user;
         const [ids, catalog] = await Promise.all([
-          deps.store.listFavouriteFoodIds(c.var.user.userId),
+          deps.store.listFavouriteFoodIds(userId),
           getCatalog(),
         ]);
+        const byId = await resolveFoods(deps.store, catalog, userId, ids);
         const foods = ids.flatMap((id) => {
-          const food = catalog.byId.get(id);
+          const food = byId.get(id);
           return food ? [toFood(food, locale)] : [];
         });
         return c.json({ foods }, 200);
       })
       .openapi(putFavourite, async (c) => {
         const { foodId } = c.req.valid('param');
-        if (!(await getCatalog()).byId.has(foodId)) {
+        if (!(await findFood(c.var.user.userId, foodId))) {
           return apiError(c, 404, 'not_found', { foodId: 'not_found' });
         }
         await deps.store.setFavouriteFood(c.var.user.userId, foodId, true, deps.now());

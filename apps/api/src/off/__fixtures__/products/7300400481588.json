@@ -1,0 +1,33 @@
+{
+  "code": "7300400481588",
+  "status": 1,
+  "product": {
+    "product_name": "Fibres",
+    "product_name_es": "Tostadas crujientes de fibra",
+    "generic_name": "Pain croustillant à la farine complète de seigle, avoine et sésame.",
+    "generic_name_es": "",
+    "brands": "wasa, Barilla Sverige AB",
+    "quantity": "230 g",
+    "product_quantity": 230,
+    "product_quantity_unit": "g",
+    "serving_size": "10 g (1 tranche)",
+    "serving_quantity": 10,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:gluten", "en:sesame-seeds"],
+    "traces_tags": ["en:lupin", "en:milk", "en:mustard", "en:soybeans"],
+    "nutriments": {
+      "energy-kcal_100g": 333,
+      "energy-kcal_serving": 33.3,
+      "energy-kj_100g": 1397,
+      "energy-kj_serving": 140,
+      "proteins_100g": 12,
+      "proteins_serving": 1.2,
+      "carbohydrates_100g": 47,
+      "carbohydrates_serving": 4.7,
+      "fat_100g": 5,
+      "fat_serving": 0.5,
+      "fiber_100g": 26,
+      "fiber_serving": 2.6
+    }
+  }
+}

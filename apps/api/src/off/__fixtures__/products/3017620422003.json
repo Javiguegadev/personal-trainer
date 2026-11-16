@@ -1,0 +1,25 @@
+{
+  "code": "3017620422003",
+  "status": 1,
+  "product": {
+    "product_name": "Nutella",
+    "product_name_es": "Nutella",
+    "generic_name": "Hazelnut And Cocoa Spread",
+    "generic_name_es": "Crema de Avellanas con cacao",
+    "brands": "Ferrero, Nutella",
+    "quantity": "400 g e",
+    "product_quantity": 400,
+    "product_quantity_unit": "g",
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:milk", "en:nuts", "en:soybeans"],
+    "traces_tags": [],
+    "nutriments": {
+      "energy-kcal_100g": 539,
+      "energy-kj_100g": 2252,
+      "proteins_100g": 6.3,
+      "carbohydrates_100g": 57.5,
+      "fat_100g": 30.9,
+      "fiber_100g": 0
+    }
+  }
+}

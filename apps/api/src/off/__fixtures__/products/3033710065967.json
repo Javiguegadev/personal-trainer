@@ -1,0 +1,20 @@
+{
+  "code": "3033710065967",
+  "status": 1,
+  "product": {
+    "product_name": "NESQUIK Cacao",
+    "product_name_es": "Nesquik",
+    "generic_name": "Préparation en poudre instantanée pour boisson cacaotée",
+    "generic_name_es": "",
+    "brands": "Nesquik, Nestlé, NESTLE FRANCE",
+    "quantity": "1 kg",
+    "product_quantity": 1000,
+    "product_quantity_unit": "g",
+    "serving_size": "210 ml ((210 ml) 2 cuillières à café bombées (13,5 g) + 200 ml de la)",
+    "serving_quantity": 200,
+    "serving_quantity_unit": "ml",
+    "allergens_tags": ["en:soybeans"],
+    "traces_tags": [],
+    "nutriments": {}
+  }
+}

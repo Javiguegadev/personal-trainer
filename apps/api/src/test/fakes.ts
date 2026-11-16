@@ -1,17 +1,30 @@
-import type { AiUsage } from '@pt/ai';
-import type { ConsentKind, MealItem, ProfileInput, WeightEntry } from '@pt/contracts';
+import { AiUnavailableError, type AiFeature, type AiUsage, type ReadLabel } from '@pt/ai';
+import type {
+  ConsentKind,
+  CustomFoodUpsertRequest,
+  LabelReading,
+  MealItem,
+  ProfileInput,
+  WeightEntry,
+} from '@pt/contracts';
+import { USER_FOOD_SOURCE } from '@pt/core';
+import { randomUUID } from 'node:crypto';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { createApp } from '../app';
 import type {
   AuthAdmin,
+  BarcodeMissReason,
   CatalogFood,
   Deps,
+  ProductWrite,
   ExportRecord,
   KnowledgeSourceRecord,
   MeRecord,
   Store,
 } from '../deps';
 import { createJwtVerifier } from '../middleware/auth';
+import type { OffLookup } from '../off/client';
+import { toFood } from '../services/foods';
 
 export const NOW = new Date('2026-11-11T10:00:00Z');
 export const TODAY = '2026-11-11';
@@ -38,6 +51,9 @@ export class FakeStore implements Store {
   /** The food catalog (spec 005); tests fill it with `catalogFixture()`. */
   catalog: CatalogFood[] = [];
   sources: KnowledgeSourceRecord[] = [];
+  /** Products read from Open Food Facts and the users' own foods (spec 006), most recent last. */
+  extraFoods: CatalogFood[] = [];
+  misses = new Map<string, { reason: BarcodeMissReason; checkedAt: Date }>();
 
   rows(userId: string): UserRows {
     let rows = this.users.get(userId);
@@ -239,6 +255,135 @@ export class FakeStore implements Store {
     if (!favourite) rows.favourites = rows.favourites.filter((f) => f.foodId !== foodId);
   }
 
+  // Scanned products and custom foods (spec 006), same semantics as `store/food-store.ts`.
+
+  private visible(userId: string): CatalogFood[] {
+    return [...this.catalog, ...this.extraFoods].filter(
+      (f) => f.ownerId === null || f.ownerId === userId,
+    );
+  }
+
+  async getFoods(userId: string, ids: readonly string[]) {
+    return this.visible(userId).filter((f) => ids.includes(f.id));
+  }
+
+  async findFoodsByBarcode(userId: string, barcode: string) {
+    const matches = this.extraFoods.filter((f) => f.barcode === barcode);
+    return {
+      own: matches.find((f) => f.ownerId === userId) ?? null,
+      product: matches.find((f) => f.origin === 'off') ?? null,
+    };
+  }
+
+  async saveProduct(product: ProductWrite, at: Date) {
+    const key = `off-${product.barcode}`;
+    const existing = this.extraFoods.find((f) => f.key === key);
+    const food: CatalogFood = {
+      id: existing?.id ?? randomUUID(),
+      key,
+      source: 'open-food-facts',
+      nameEs: product.name,
+      nameEn: product.name,
+      synonymsEs: [],
+      popularity: 0,
+      per100g: product.per100g,
+      servings: product.servings.map((s, i) => ({
+        id: existing?.servings[i]?.id ?? randomUUID(),
+        ...s,
+      })),
+      origin: 'off',
+      unit: product.unit,
+      brand: product.brand,
+      barcode: product.barcode,
+      ownerId: null,
+      allergens: product.allergens,
+      traces: product.traces,
+      fetchedAt: at.toISOString(),
+    };
+    this.extraFoods = [...this.extraFoods.filter((f) => f.key !== key), food];
+    this.misses.delete(product.barcode);
+    return food;
+  }
+
+  async getBarcodeMiss(barcode: string, since: Date) {
+    const miss = this.misses.get(barcode);
+    return miss && miss.checkedAt > since ? miss.reason : null;
+  }
+
+  async recordBarcodeMiss(barcode: string, reason: BarcodeMissReason, at: Date) {
+    this.misses.set(barcode, { reason, checkedAt: at });
+  }
+
+  async listCustomFoods(userId: string) {
+    return this.extraFoods.filter((f) => f.ownerId === userId).reverse();
+  }
+
+  async upsertCustomFood(userId: string, id: string, food: CustomFoodUpsertRequest, _at: Date) {
+    const existing = [...this.catalog, ...this.extraFoods].find((f) => f.id === id);
+    if (existing && existing.ownerId !== userId) return 'not_owner' as const;
+    const taken = this.extraFoods.some(
+      (f) => f.ownerId === userId && f.id !== id && food.barcode && f.barcode === food.barcode,
+    );
+    if (taken) return 'barcode_taken' as const;
+    const saved: CatalogFood = {
+      id,
+      key: `user-${id}`,
+      source: USER_FOOD_SOURCE,
+      nameEs: food.name,
+      nameEn: food.name,
+      synonymsEs: [],
+      popularity: 0,
+      per100g: food.per100g,
+      servings: food.serving
+        ? [
+            {
+              id: food.serving.id,
+              labelEs: food.serving.label,
+              labelEn: food.serving.label,
+              grams: food.serving.grams,
+            },
+          ]
+        : [],
+      origin: food.origin,
+      unit: food.unit,
+      brand: food.brand,
+      barcode: food.barcode,
+      ownerId: userId,
+      allergens: [],
+      traces: [],
+      fetchedAt: null,
+    };
+    this.extraFoods = [...this.extraFoods.filter((f) => f.id !== id), saved];
+    return saved;
+  }
+
+  async deleteCustomFood(userId: string, id: string) {
+    const owned = this.extraFoods.some((f) => f.id === id && f.ownerId === userId);
+    if (!owned) return;
+    this.extraFoods = this.extraFoods.filter((f) => f.id !== id);
+    // The database sets `food_id` to null on the logged items and drops the favourite.
+    for (const rows of this.users.values()) {
+      for (const item of rows.mealItems) {
+        if (item.foodId === id) {
+          item.foodId = null;
+          item.servingId = null;
+        }
+      }
+      rows.favourites = rows.favourites.filter((f) => f.foodId !== id);
+    }
+  }
+
+  async listLoggedProducts(userId: string, limit: number) {
+    const logged = new Set(this.live(this.rows(userId)).map((i) => i.foodId));
+    return this.extraFoods.filter((f) => f.origin === 'off' && logged.has(f.id)).slice(0, limit);
+  }
+
+  async countAiUsage(userId: string, feature: AiFeature, since: Date) {
+    return this.rows(userId).aiUsage.filter(
+      (u) => u.feature === feature && Date.parse(u.createdAt) >= since.getTime(),
+    ).length;
+  }
+
   async recordAiUsage(userId: string, usage: AiUsage, at: Date) {
     this.rows(userId).aiUsage.push({ ...usage, createdAt: at.toISOString() });
   }
@@ -251,10 +396,10 @@ export class FakeStore implements Store {
       targets: rows.targets,
       weights: rows.weights,
       mealItems: this.live(rows).sort(byDayThenTime),
-      customFoods: [],
+      customFoods: this.extraFoods.filter((f) => f.ownerId === userId).map((f) => toFood(f, 'es')),
       favouriteFoods: rows.favourites.map((f) => ({
         foodId: f.foodId,
-        key: this.catalog.find((c) => c.id === f.foodId)?.key ?? '',
+        key: [...this.catalog, ...this.extraFoods].find((c) => c.id === f.foodId)?.key ?? '',
         createdAt: f.createdAt,
       })),
       consents: rows.consents,
@@ -294,6 +439,21 @@ export async function createTestTokens() {
   return { verifyToken, sign };
 }
 
+/** What the fake model answers to a label photo: a reading, or the failure of the call. */
+export type FakeLabelAnswer = LabelReading | AiUnavailableError;
+
+export function labelUsage(status: AiUsage['status'] = 'ok'): AiUsage {
+  return {
+    feature: 'label_scan',
+    model: 'claude-haiku-5-5',
+    inputTokens: status === 'error' ? 0 : 1200,
+    outputTokens: status === 'error' ? 0 : 150,
+    costUsd: status === 'error' ? 0 : 0.000195,
+    latencyMs: 900,
+    status,
+  };
+}
+
 export async function createTestApp() {
   const store = new FakeStore();
   const deleted: string[] = [];
@@ -302,14 +462,31 @@ export async function createTestApp() {
       // Mirrors the DB: cascade on everything except ai_usage, which only loses its user id.
       deleted.push(userId);
       store.users.delete(userId);
+      store.extraFoods = store.extraFoods.filter((f) => f.ownerId !== userId);
     },
   };
   const tokens = await createTestTokens();
+  /** Open Food Facts: answers by barcode (anything else is unknown) and the codes it was asked for. */
+  const off = { answers: new Map<string, OffLookup>(), calls: [] as string[] };
+  /** The label model: what it answers next and the images it received. */
+  const label = { answer: null as FakeLabelAnswer | null, calls: [] as string[] };
+  const readLabel: ReadLabel = async (image) => {
+    label.calls.push(image.data);
+    if (label.answer === null) throw new Error('no fake label answer set');
+    if (label.answer instanceof AiUnavailableError) throw label.answer;
+    return { reading: label.answer, usage: labelUsage() };
+  };
+  const clock = { now: NOW };
   const deps: Deps = {
     verifyToken: tokens.verifyToken,
     store,
     authAdmin,
-    now: () => NOW,
+    lookupProduct: async (barcode) => {
+      off.calls.push(barcode);
+      return off.answers.get(barcode) ?? { status: 'not_found' };
+    },
+    readLabel,
+    now: () => clock.now,
   };
   const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test', deps });
   const token = await tokens.sign();
@@ -325,7 +502,7 @@ export async function createTestApp() {
     });
   }
 
-  return { app, store, deleted, tokens, token, call };
+  return { app, store, deleted, tokens, token, call, off, label, clock };
 }
 
 /** A valid adult profile (35-year-old woman, 165 cm, 70 kg, seated, no training, lose). */
@@ -385,6 +562,14 @@ export function catalogFixture(): CatalogFood[] {
     popularity,
     per100g,
     servings,
+    origin: 'catalog',
+    unit: 'g',
+    brand: null,
+    barcode: null,
+    ownerId: null,
+    allergens: [],
+    traces: [],
+    fetchedAt: null,
   });
   return [
     food(

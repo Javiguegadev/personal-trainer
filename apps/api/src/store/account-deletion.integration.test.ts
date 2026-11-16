@@ -31,6 +31,8 @@ const COVERED_USER_TABLES = [
   'ai_usage',
   'meal_items',
   'favourite_foods',
+  // Spec 006: the user's own foods (`owner_id`); catalog foods and products have no owner.
+  'foods',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -111,7 +113,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     await store.recordAiUsage(
       id,
       {
-        feature: 'onboarding',
+        feature: 'label_scan',
         model: 'claude-haiku-5-5',
         inputTokens: 1,
         outputTokens: 1,
@@ -261,6 +263,104 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       { foodId: egg.id, key: egg.key, createdAt: now.toISOString() },
     ]);
 
+    // Spec 006: a custom food and a scanned product on the real SQL (needs the `open-food-facts` and
+    // `user` rows of knowledge_sources: pnpm --filter @pt/db import:foods).
+    const foodId = crypto.randomUUID();
+    const servingId = crypto.randomUUID();
+    const custom = {
+      name: 'Yogur AC22',
+      brand: 'Prueba',
+      unit: 'g' as const,
+      per100g: { kcal: 61, proteinG: 3.5, carbsG: 4.7, fatG: 3.1, fiberG: null },
+      serving: { id: servingId, label: '1 tarrina', grams: 125 },
+      barcode: '96385074',
+      origin: 'manual' as const,
+    };
+    expect(await store.upsertCustomFood(id, foodId, custom, now)).toMatchObject({
+      id: foodId,
+      ownerId: id,
+      origin: 'manual',
+      servings: [{ id: servingId, labelEs: '1 tarrina', grams: 125 }],
+    });
+    // Idempotent; a second food cannot take the barcode; another user's id is refused.
+    expect(
+      await store.upsertCustomFood(id, foodId, { ...custom, serving: null }, later),
+    ).toMatchObject({ id: foodId, servings: [] });
+    expect(await store.upsertCustomFood(id, crypto.randomUUID(), custom, now)).toBe(
+      'barcode_taken',
+    );
+    expect(await store.upsertCustomFood(id, egg.id, custom, now)).toBe('not_owner');
+    expect((await store.findFoodsByBarcode(id, '96385074')).own?.id).toBe(foodId);
+    expect((await store.listCustomFoods(id)).map((f) => f.id)).toEqual([foodId]);
+    expect((await store.getFoods(id, [foodId, egg.id])).map((f) => f.id).sort()).toEqual(
+      [foodId, egg.id].sort(),
+    );
+    // Another user cannot read it (AC13).
+    expect(await store.getFoods(crypto.randomUUID(), [foodId])).toEqual([]);
+    expect((await store.exportUser(id)).customFoods.map((f) => f.id)).toEqual([foodId]);
+    expect(await store.countAiUsage(id, 'label_scan', new Date(0))).toBe(1);
+
+    const productBarcode = '73513537';
+    await store.recordBarcodeMiss(productBarcode, 'not_found', now);
+    expect(await store.getBarcodeMiss(productBarcode, new Date(now.getTime() - 1000))).toBe(
+      'not_found',
+    );
+    expect(await store.getBarcodeMiss(productBarcode, later)).toBeNull();
+    const product = await store.saveProduct(
+      {
+        barcode: productBarcode,
+        name: 'Producto AC22',
+        brand: null,
+        unit: 'ml',
+        per100g: { kcal: 42, proteinG: 0, carbsG: 10.6, fatG: 0, fiberG: null },
+        servings: [{ labelEs: '1 ración', labelEn: '1 serving', grams: 330 }],
+        allergens: ['en:milk'],
+        traces: [],
+      },
+      now,
+    );
+    try {
+      expect(product).toMatchObject({
+        origin: 'off',
+        unit: 'ml',
+        ownerId: null,
+        barcode: productBarcode,
+      });
+      // Saving the product forgets its miss; saving it again keeps its id and its serving.
+      expect(await store.getBarcodeMiss(productBarcode, new Date(0))).toBeNull();
+      const refreshed = await store.saveProduct(
+        {
+          barcode: productBarcode,
+          name: 'Producto AC22',
+          brand: null,
+          unit: 'ml',
+          per100g: { kcal: 43, proteinG: 0, carbsG: 10.6, fatG: 0, fiberG: null },
+          servings: [{ labelEs: '1 ración', labelEn: '1 serving', grams: 330 }],
+          allergens: [],
+          traces: [],
+        },
+        later,
+      );
+      expect(refreshed.id).toBe(product.id);
+      expect(refreshed.servings[0]!.id).toBe(product.servings[0]!.id);
+      expect((await store.findFoodsByBarcode(id, productBarcode)).product?.per100g.kcal).toBe(43);
+      const logged = {
+        ...again,
+        id: crypto.randomUUID(),
+        foodId: product.id,
+        servingId: null,
+        unit: 'ml' as const,
+      };
+      expect(await store.upsertMealItem(id, logged)).toMatchObject({ unit: 'ml' });
+      expect((await store.listLoggedProducts(id, 10)).map((f) => f.id)).toEqual([product.id]);
+      // The catalog cache never holds products or own foods.
+      expect((await store.listCatalog()).some((f) => f.id === product.id || f.id === foodId)).toBe(
+        false,
+      );
+    } finally {
+      await db.delete(schema.foods).where(eq(schema.foods.id, product.id));
+    }
+
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.
     const userTables = await db.execute<{ table_name: string; column_name: string }>(sql`
@@ -269,7 +369,8 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       join information_schema.tables t
         on t.table_schema = c.table_schema and t.table_name = c.table_name
       where c.table_schema = 'public' and t.table_type = 'BASE TABLE'
-        and (c.column_name = 'user_id' or (c.table_name = 'profiles' and c.column_name = 'id'))
+        and (c.column_name in ('user_id', 'owner_id')
+          or (c.table_name = 'profiles' and c.column_name = 'id'))
       order by c.table_name`);
     expect(userTables.map((t) => t.table_name)).toEqual([...COVERED_USER_TABLES].sort());
 

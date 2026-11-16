@@ -1,6 +1,6 @@
 import type { ConsentKind, PlannedActivity, SafetyFlag } from '@pt/contracts';
 import { SafetyFlagSchema } from '@pt/contracts';
-import { and, asc, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
+import { and, asc, count, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
 import { createFoodStore, exportFoodLog } from './food-store';
 
@@ -377,6 +377,20 @@ export function createDrizzleStore(db: Db): Store {
         status: usage.status,
         createdAt: at,
       });
+    },
+
+    async countAiUsage(userId, feature, since) {
+      const [row] = await db
+        .select({ n: count() })
+        .from(aiUsage)
+        .where(
+          and(
+            eq(aiUsage.userId, userId),
+            eq(aiUsage.feature, feature),
+            gte(aiUsage.createdAt, since),
+          ),
+        );
+      return row?.n ?? 0;
     },
 
     async exportUser(userId) {

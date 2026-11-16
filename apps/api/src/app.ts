@@ -6,6 +6,7 @@ import type { Deps } from './deps';
 import { errorBody } from './http';
 import { healthRoutes } from './routes/health';
 import { foodRoutes } from './routes/foods';
+import { productRoutes } from './routes/foods/products';
 import { meRoutes } from './routes/me';
 import { onboardingRoutes } from './routes/onboarding';
 
@@ -27,6 +28,7 @@ export function createApp(config: AppConfig) {
   if (config.deps) {
     app.route('/', meRoutes(config.deps));
     app.route('/', onboardingRoutes(config.deps));
+    app.route('/', productRoutes(config.deps));
     app.route('/', foodRoutes(config.deps));
   }
 

@@ -1,0 +1,33 @@
+{
+  "code": "5411188112709",
+  "status": 1,
+  "product": {
+    "product_name": "Geröstete Mandel Ohne Zucker",
+    "product_name_es": "Sin Azúcar Almendras",
+    "generic_name": "Mandeldrink, angereichert mit Calcium und Vitaminen",
+    "generic_name_es": "Bebida de almendras con calcio y vitaminas añadidas",
+    "brands": "alpro, Danone Belux nv",
+    "quantity": "1 l",
+    "product_quantity": 1000,
+    "product_quantity_unit": "ml",
+    "serving_size": "100.0g",
+    "serving_quantity": 100,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:nuts"],
+    "traces_tags": ["de:Schalenfrüchte (keine Erdnüsse)"],
+    "nutriments": {
+      "energy-kcal_100g": 15,
+      "energy-kcal_serving": 15,
+      "energy-kj_100g": 58,
+      "energy-kj_serving": 58,
+      "proteins_100g": 0.5,
+      "proteins_serving": 0.5,
+      "carbohydrates_100g": 0,
+      "carbohydrates_serving": 0,
+      "fat_100g": 1.1,
+      "fat_serving": 1.1,
+      "fiber_100g": 0.3,
+      "fiber_serving": 0.3
+    }
+  }
+}

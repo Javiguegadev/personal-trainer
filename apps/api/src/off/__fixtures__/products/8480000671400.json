@@ -1,0 +1,24 @@
+{
+  "code": "8480000671400",
+  "status": 1,
+  "product": {
+    "product_name": "Crema de cacahuete",
+    "product_name_es": "Crema de cacahuete",
+    "generic_name": "Crema de cacahuete cremosa",
+    "generic_name_es": "Crema de cacahuete cremosa",
+    "brands": "Hacendado",
+    "quantity": "475 g",
+    "product_quantity": 475,
+    "product_quantity_unit": "g",
+    "allergens_tags": ["en:peanuts"],
+    "traces_tags": ["en:nuts"],
+    "nutriments": {
+      "energy-kcal_100g": 618,
+      "energy-kj_100g": 2558,
+      "proteins_100g": 30,
+      "carbohydrates_100g": 7,
+      "fat_100g": 50,
+      "fiber_100g": 9.9
+    }
+  }
+}

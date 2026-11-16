@@ -1,4 +1,4 @@
-import type { AiUsage } from '@pt/ai';
+import type { AiFeature, AiUsage, ReadLabel } from '@pt/ai';
 import type {
   ConsentKind,
   DietaryPrefs,
@@ -12,7 +12,11 @@ import type {
   WeightEntry,
   MealItem,
   Nutrients,
+  CustomFoodUpsertRequest,
+  FoodOrigin,
+  QuantityUnit,
 } from '@pt/contracts';
+import type { LookupProduct } from './off/client';
 
 /** The signed-in user, taken from a verified Supabase access token. */
 export interface AuthUser {
@@ -89,7 +93,10 @@ export interface WeightWriteResult {
 
 export type ExportRecord = Omit<ExportResponse, 'exportedAt' | 'userId' | 'email'>;
 
-/** A catalog food in both languages, as stored (spec 005). */
+/**
+ * A food in both languages, as stored: of the curated catalog (spec 005), a product read from Open Food
+ * Facts, or a food its owner created (spec 006).
+ */
 export interface CatalogFood {
   id: string;
   key: string;
@@ -101,7 +108,31 @@ export interface CatalogFood {
   per100g: Nutrients;
   /** Most common first. */
   servings: { id: string; labelEs: string; labelEn: string; grams: number }[];
+  origin: FoodOrigin;
+  unit: QuantityUnit;
+  brand: string | null;
+  barcode: string | null;
+  /** Set for a custom food: only this user may read it. */
+  ownerId: string | null;
+  allergens: string[];
+  traces: string[];
+  /** When Open Food Facts was read (products only). */
+  fetchedAt: string | null;
 }
+
+/** A product read from Open Food Facts, to store under its barcode (spec 006 AC3, AC4). */
+export interface ProductWrite {
+  barcode: string;
+  name: string;
+  brand: string | null;
+  unit: QuantityUnit;
+  per100g: Nutrients;
+  servings: { labelEs: string; labelEn: string; grams: number }[];
+  allergens: string[];
+  traces: string[];
+}
+
+export type BarcodeMissReason = 'not_found' | 'incomplete';
 
 export interface KnowledgeSourceRecord {
   id: string;
@@ -165,6 +196,38 @@ export interface Store {
   /** Starred food ids, most recently starred first (AC14). */
   listFavouriteFoodIds(userId: string): Promise<string[]>;
   setFavouriteFood(userId: string, foodId: string, favourite: boolean, at: Date): Promise<void>;
+
+  // Scanned products and custom foods (spec 006)
+  /** The foods with these ids that the user may read: the catalog, products and their own foods. */
+  getFoods(userId: string, ids: readonly string[]): Promise<CatalogFood[]>;
+  /** The user's own food with that barcode and the cached product, each or null (AC3). */
+  findFoodsByBarcode(
+    userId: string,
+    barcode: string,
+  ): Promise<{ own: CatalogFood | null; product: CatalogFood | null }>;
+  /** Stores or refreshes the product of a barcode, keeps the ids of its servings, forgets its miss. */
+  saveProduct(product: ProductWrite, at: Date): Promise<CatalogFood>;
+  /** Why the barcode gave no product, when that was recorded after `since` (AC6). */
+  getBarcodeMiss(barcode: string, since: Date): Promise<BarcodeMissReason | null>;
+  recordBarcodeMiss(barcode: string, reason: BarcodeMissReason, at: Date): Promise<void>;
+  /** The user's own foods, most recently changed first (AC12). */
+  listCustomFoods(userId: string): Promise<CatalogFood[]>;
+  /**
+   * Stores a food of the user's own under a client id (idempotent). `not_owner`: the id is another
+   * user's food, or not a custom food (AC13). `barcode_taken`: another of their foods has that barcode.
+   */
+  upsertCustomFood(
+    userId: string,
+    id: string,
+    food: CustomFoodUpsertRequest,
+    at: Date,
+  ): Promise<CatalogFood | 'not_owner' | 'barcode_taken'>;
+  /** Deletes the user's own food; logged items keep their snapshot (AC12). */
+  deleteCustomFood(userId: string, id: string): Promise<void>;
+  /** The products the user has logged, for their own search (AC11). */
+  listLoggedProducts(userId: string, limit: number): Promise<CatalogFood[]>;
+  /** Calls of a feature by the user from `since` on, whatever their outcome (AC18). */
+  countAiUsage(userId: string, feature: AiFeature, since: Date): Promise<number>;
 }
 
 /** Supabase Auth admin (service key, server only). Deleting the auth user cascades to every user row. */
@@ -176,5 +239,9 @@ export interface Deps {
   verifyToken: VerifyToken;
   store: Store;
   authAdmin: AuthAdmin;
+  /** Open Food Facts, one product per call (spec 006 AC3). */
+  lookupProduct: LookupProduct;
+  /** Claude reading a nutrition label (spec 006 AC15). */
+  readLabel: ReadLabel;
   now: () => Date;
 }

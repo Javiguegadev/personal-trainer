@@ -1,0 +1,33 @@
+{
+  "code": "3159470000120",
+  "status": 1,
+  "product": {
+    "product_name": "CORN FLAKES",
+    "product_name_es": "Corn Flakes",
+    "generic_name": "",
+    "generic_name_es": "",
+    "brands": "KELLOGG S PRODUITS ALIMENT SAS",
+    "quantity": "500 g",
+    "product_quantity": 500,
+    "product_quantity_unit": "g",
+    "serving_size": "30g",
+    "serving_quantity": 30,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:gluten"],
+    "traces_tags": [],
+    "nutriments": {
+      "energy-kcal_100g": 376.666666666667,
+      "energy-kcal_serving": 113,
+      "energy-kj_100g": 1604,
+      "energy-kj_serving": 481,
+      "proteins_100g": 7,
+      "proteins_serving": 2.1,
+      "carbohydrates_100g": 84,
+      "carbohydrates_serving": 25.2,
+      "fat_100g": 0.9,
+      "fat_serving": 0.27,
+      "fiber_100g": 3,
+      "fiber_serving": 0.9
+    }
+  }
+}

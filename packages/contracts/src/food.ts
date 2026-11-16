@@ -301,8 +301,11 @@ export const PRODUCT_LIMITS = {
 } as const;
 
 export const LABEL_SCAN_LIMITS = {
-  /** Decoded bytes of the image, after the resize on the device (AC14). */
-  imageBytesMax: 4 * 1024 * 1024,
+  /**
+   * Decoded bytes of the image, after the resize on the device (AC14). In base64 it is 4 MB, which fits
+   * the 4.5 MB request limit of the API's host with room for the rest of the body.
+   */
+  imageBytesMax: 3 * 1024 * 1024,
   /** Longest side the app resizes the photo to, in pixels. */
   imageSideMax: 1568,
   /** Reads per user and UTC day (AC18). */

@@ -24,10 +24,16 @@ export interface FeatureConfig {
   maxToolRounds: number;
 }
 
-/** No feature ships today (the onboarding chat was retired by ADR 004). Add each new one here. */
-export const FEATURES = {} as const satisfies Record<string, FeatureConfig>;
+/** Add each new feature here. */
+export const FEATURES = {
+  /**
+   * Reads a nutrition label from a photo (spec 006): one call, no tools. Low effort: it is a
+   * transcription, and thinking counts towards `maxTokens`. Provisional until the label eval runs.
+   */
+  label_scan: { model: MODELS.haiku, effort: 'low', maxTokens: 2048, maxToolRounds: 0 },
+} as const satisfies Record<string, FeatureConfig>;
 /** The name stored in `ai_usage.feature`. */
-export type AiFeature = string;
+export type AiFeature = keyof typeof FEATURES;
 
 export function costUsd(model: ModelId, inputTokens: number, outputTokens: number): number {
   const p = PRICING_USD_PER_MTOK[model];
