@@ -4,6 +4,8 @@
  */
 import type {
   ConsentRequest,
+  Locale,
+  MealItemSaveResponse,
   MeResponse,
   ProfileInput,
   TargetsChange,
@@ -20,6 +22,20 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
+import {
+  dismissRejectedFoodWrite,
+  favouriteFoodsQueryOptions,
+  foodKeys,
+  foodLogQueryOptions,
+  foodQueryOptions,
+  foodSearchQueryOptions,
+  foodSourcesQueryOptions,
+  recentFoodsQueryOptions,
+  type DeleteMealItemVariables,
+  type FavouriteFoodVariables,
+  type RejectedFoodWrite,
+  type SaveMealItemVariables,
+} from './foods';
 import {
   dismissWeightNotice,
   weightKeys,
@@ -152,6 +168,62 @@ export function createApiHooks(api: ApiClient) {
         rejected: data,
         dismiss: () => dismissWeightNotice(queryClient, weightKeys.rejected),
       };
+    },
+
+    /** The food log of the last 8 days (spec 005 AC15, AC13). */
+    useFoodLog: (today: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...foodLogQueryOptions(api, today), enabled: options.enabled ?? true }),
+
+    /** Debounce `q` in the screen. Offline, the query is paused (`fetchStatus: 'paused'`, AC6). */
+    useFoodSearch: (q: string, locale: Locale) => useQuery(foodSearchQueryOptions(api, q, locale)),
+
+    /** Pass `null` while no food is selected. */
+    useFood: (foodId: string | null, locale: Locale) =>
+      useQuery(foodQueryOptions(api, foodId, locale)),
+
+    useFoodSources: (locale: Locale) => useQuery(foodSourcesQueryOptions(api, locale)),
+
+    useRecentFoods: (locale: Locale) => useQuery(recentFoodsQueryOptions(api, locale)),
+
+    useFavouriteFoods: (locale: Locale) => useQuery(favouriteFoodsQueryOptions(api, locale)),
+
+    /**
+     * Optimistic and offline-safe, like the weight log: the functions come from the defaults registered
+     * with `registerFoodMutations`, found by key (AC19). Build the variables with `saveItemVariables`.
+     */
+    useSaveMealItem: () =>
+      useMutation<MealItemSaveResponse, unknown, SaveMealItemVariables>({
+        mutationKey: foodKeys.saveItem,
+      }),
+
+    useDeleteMealItem: () =>
+      useMutation<MealItemSaveResponse, unknown, DeleteMealItemVariables>({
+        mutationKey: foodKeys.deleteItem,
+      }),
+
+    useSetFavouriteFood: () =>
+      useMutation<void, unknown, FavouriteFoodVariables>({ mutationKey: foodKeys.favourite }),
+
+    /** Items with a write that has not reached the server yet ("waiting to sync", AC19). */
+    usePendingMealItemIds: (): string[] =>
+      useMutationState({
+        filters: { mutationKey: foodKeys.mutations, status: 'pending' },
+        select: (mutation) => {
+          const variables = mutation.state.variables as { id?: string; food?: { id: string } };
+          return variables.id ?? variables.food?.id ?? '';
+        },
+      }),
+
+    /** The last food-log write the API rejected, and how to dismiss it (AC21). */
+    useRejectedFoodWrite: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<RejectedFoodWrite | null>({
+        queryKey: foodKeys.rejected,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return { rejected: data, dismiss: () => dismissRejectedFoodWrite(queryClient) };
     },
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),

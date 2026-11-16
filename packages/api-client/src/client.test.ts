@@ -1,9 +1,25 @@
-import { CONSENT_VERSION } from '@pt/contracts';
+import { CONSENT_VERSION, type MealItemUpsertRequest } from '@pt/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, createApiClient, isApiError } from './client';
 import { meBody, profileInput } from './test/fixtures';
 
 const BASE = 'http://api.test';
+const FOOD_ID = 'f1000000-0000-4000-8000-000000000001';
+const ITEM_ID = '50000000-0000-4000-8000-000000000001';
+const quickAdd: MealItemUpsertRequest = {
+  kind: 'quick_add',
+  label: 'Bollo',
+  kcal: 220,
+  proteinG: null,
+  carbsG: null,
+  fatG: null,
+  inputMethod: 'quick_add',
+  localDate: '2026-11-16',
+  mealType: 'breakfast',
+  recordedAt: '2026-11-16T08:00:00.000Z',
+  today: '2026-11-16',
+  locale: 'es',
+};
 const healthBody = {
   status: 'ok',
   service: 'api',
@@ -133,6 +149,75 @@ describe('createApiClient', () => {
         method: 'DELETE',
         path: '/me/weights/2026-11-11?today=2026-11-11',
         res: () => Response.json({ entry: null, targetsChange: null }),
+      },
+      {
+        run: (a: Api) => a.searchFoods('pan con tomate', 'es'),
+        method: 'GET',
+        path: '/foods/search?q=pan%20con%20tomate&locale=es',
+        res: () => Response.json({ foods: [] }),
+      },
+      {
+        run: (a: Api) => a.getFood(FOOD_ID, 'en'),
+        method: 'GET',
+        path: `/foods/${FOOD_ID}?locale=en`,
+        res: () =>
+          Response.json({
+            id: FOOD_ID,
+            key: 'd-huevo',
+            name: 'Egg',
+            per100g: { kcal: 140, proteinG: 12.6, carbsG: 0.3, fatG: 9.8, fiberG: 0 },
+            servings: [],
+            source: 'ciqual-2025',
+          }),
+      },
+      {
+        run: (a: Api) => a.foodSources('es'),
+        method: 'GET',
+        path: '/foods/sources?locale=es',
+        res: () => Response.json({ sources: [] }),
+      },
+      {
+        run: (a: Api) => a.listFoodLog({ from: '2026-11-09', to: '2026-11-16' }),
+        method: 'GET',
+        path: '/me/food-log?from=2026-11-09&to=2026-11-16',
+        res: () => Response.json({ items: [] }),
+      },
+      {
+        run: (a: Api) => a.saveMealItem(ITEM_ID, quickAdd),
+        method: 'PUT',
+        path: `/me/food-log/items/${ITEM_ID}`,
+        body: quickAdd,
+        res: () => Response.json({ item: null }),
+      },
+      {
+        run: (a: Api) => a.deleteMealItem(ITEM_ID, { recordedAt: '2026-11-16T08:00:00.000+01:00' }),
+        method: 'DELETE',
+        path: `/me/food-log/items/${ITEM_ID}?recordedAt=2026-11-16T08%3A00%3A00.000%2B01%3A00`,
+        res: () => Response.json({ item: null }),
+      },
+      {
+        run: (a: Api) => a.recentFoods('es'),
+        method: 'GET',
+        path: '/me/foods/recent?locale=es',
+        res: () => Response.json({ recents: [] }),
+      },
+      {
+        run: (a: Api) => a.favouriteFoods('es'),
+        method: 'GET',
+        path: '/me/foods/favourites?locale=es',
+        res: () => Response.json({ foods: [] }),
+      },
+      {
+        run: (a: Api) => a.setFavouriteFood(FOOD_ID, true),
+        method: 'PUT',
+        path: `/me/foods/favourites/${FOOD_ID}`,
+        res: () => new Response(null, { status: 204 }),
+      },
+      {
+        run: (a: Api) => a.setFavouriteFood(FOOD_ID, false),
+        method: 'DELETE',
+        path: `/me/foods/favourites/${FOOD_ID}`,
+        res: () => new Response(null, { status: 204 }),
       },
       {
         run: (a: Api) => a.deleteAccount(),

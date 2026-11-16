@@ -295,22 +295,41 @@ this catalog and this log.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Done so far (2026-11-16), one commit per step: contracts + core (`154c3bf`), tables and migration
   `0006` applied to dev (`b8b1d3d`), core search and write rules (`f4ba1df`), curated catalog of 811
-  foods and the Ciqual importer, run on dev (`6e76648`), API routes (`4079202`).
+  foods and the Ciqual importer, run on dev (`6e76648`), API routes (`4079202`), `GET /foods/:foodId`,
+  `itemToRequest` in core and the client (this step).
+- Client (2026-11-16): `@pt/api-client` has the 10 food methods; `foods.ts` holds the query options
+  (log of the last 8 days under one key, search, one food, sources, recents, favourites) and the three
+  mutations registered by key (`registerFoodMutations`: save item, delete item, favourite), optimistic,
+  queued in one scope so a delete or an undo follows its add, and restored after a restart.
+  `saveItemVariables(id, request, food)` previews the snapshot with the same core function as the API.
+  The mock backend serves every route with a fixture of 70 foods from the dev catalog
+  (`mock/foods.ts`, real Ciqual values, fixed ids) and the same search, tombstones and limits.
+  The app registers the mutations in `lib/api.ts`; search results are not saved in the offline cache.
+  Tests: `api-client/src/foods.test.ts` (optimistic add, delete + undo, move to another meal, repeat
+  yesterday, offline queue across a restart, rejection, retries, favourites) and the mock suite.
 - Search eval (AC5, 2026-11-16): 355 real-world queries in `apps/api/evals/food-search.jsonl` (written by
   an agent that saw only the official names), 95.8 % first and 98.6 % in the top 3 (thresholds 75 %
   and 90 %). The 5 misses are multi-food sentences ("pan con tomate"), left to the sentence shortcut of
   slice (c). Plurals and quantity words ("un vaso de") were added to the search on the way.
-- Next: the search eval runs with `pnpm --filter @pt/api eval:food-search` (cases in
-  `apps/api/evals/food-search.jsonl`), then client (`api-client` methods, optimistic mutations, mock
-  backend with a ~60-food fixture), UI, E2E, and the BLUEPRINT §5 note (no `meals` table yet).
+- Next: UI (ui-screen skill), E2E, and the BLUEPRINT §5 note (no `meals` table yet). The search eval
+  runs with `pnpm --filter @pt/api eval:food-search` (cases in `apps/api/evals/food-search.jsonl`).
 - Tests by criterion so far: AC1–AC2 `db/knowledge/*.test.ts` (parsers, values, report) and the import
   run on dev; AC3–AC4, AC6 (API part), AC8–AC10, AC14, AC20, AC23 `api/routes/foods/foods.test.ts`; AC4
   `core/food/search.test.ts`; AC9–AC13, AC16, AC18 `core/food/*.test.ts`; AC20, AC23 on the real SQL in
   `api/store/account-deletion.integration.test.ts`; AC22 consent text and `CONSENT_VERSION` 2026-11-v3.
 - Decisions taken during implementation:
+  - **`GET /foods/:foodId` added** (not in the API contracts above): the edit sheet (AC11) needs the
+    food's servings, and a food logged days ago may no longer be in the recents.
+  - **Undo, move and repeat write the item again** with `itemToRequest` (core): an undo of a delete is a
+    `PUT` with a later `recordedAt`, which beats the tombstone (AC20), so a delete is sent at once and
+    survives closing the app during the 5 s of the undo.
+  - **The cached log covers 8 days**: today and the 6 days of the day selector, plus the day before the
+    oldest one for "Repetir lo de ayer".
+  - English search ranks by the same tiers, so "milk" shows "Coffee with milk" before "Semi-skimmed
+    milk" (same popularity, shorter Spanish name). Left as is: the eval and the users are Spanish.
   - **Search runs in memory, in `@pt/core`** (`searchFoods`), not in Postgres: the catalog is small (811
     foods), so the API caches it per instance, and the API, the mock backend and the eval rank the same
     way. No `unaccent`/`pg_trgm` extensions and no `search` column (Data changes above are superseded

@@ -1,16 +1,34 @@
 import {
   ApiErrorSchema,
   ExportResponseSchema,
+  FavouriteFoodsResponseSchema,
+  FoodLogResponseSchema,
+  FoodSchema,
+  FoodSearchResponseSchema,
   HealthResponseSchema,
+  KnowledgeSourcesResponseSchema,
+  MealItemSaveResponseSchema,
   MeResponseSchema,
+  RecentFoodsResponseSchema,
   TargetsPreviewResponseSchema,
   WeightListResponseSchema,
   WeightSaveResponseSchema,
   type ApiErrorCode,
   type ConsentRequest,
   type ExportResponse,
+  type FavouriteFoodsResponse,
+  type Food,
+  type FoodLogQuery,
+  type FoodLogResponse,
+  type FoodSearchResponse,
   type HealthResponse,
+  type KnowledgeSourcesResponse,
+  type Locale,
+  type MealItemDeleteQuery,
+  type MealItemSaveResponse,
+  type MealItemUpsertRequest,
   type MeResponse,
+  type RecentFoodsResponse,
   type ProfileInput,
   type TargetsPreviewResponse,
   type WeightDeleteQuery,
@@ -137,6 +155,56 @@ export function createApiClient({
       request(`/me/weights/${localDate}?today=${query.today}`, WeightSaveResponseSchema, {
         method: 'DELETE',
       }),
+
+    /** `GET /foods/search`: at most 25 foods, best first (spec 005 AC4). */
+    searchFoods: (q: string, locale: Locale): Promise<FoodSearchResponse> =>
+      request(
+        `/foods/search?q=${encodeURIComponent(q)}&locale=${locale}`,
+        FoodSearchResponseSchema,
+      ),
+
+    /** `GET /foods/:foodId`: one catalog food, to edit a logged portion (spec 005 AC11). */
+    getFood: (foodId: string, locale: Locale): Promise<Food> =>
+      request(`/foods/${foodId}?locale=${locale}`, FoodSchema),
+
+    /** `GET /foods/sources`: the "Fuentes de datos" screen (spec 005 AC3). */
+    foodSources: (locale: Locale): Promise<KnowledgeSourcesResponse> =>
+      request(`/foods/sources?locale=${locale}`, KnowledgeSourcesResponseSchema),
+
+    /** `GET /me/food-log`: the items of at most 31 days (spec 005). */
+    listFoodLog: ({ from, to }: FoodLogQuery): Promise<FoodLogResponse> =>
+      request(`/me/food-log?from=${from}&to=${to}`, FoodLogResponseSchema),
+
+    /** `PUT /me/food-log/items/:id`: idempotent; the later `recordedAt` wins (spec 005 AC9, AC20). */
+    saveMealItem: (id: string, body: MealItemUpsertRequest): Promise<MealItemSaveResponse> =>
+      request(`/me/food-log/items/${id}`, MealItemSaveResponseSchema, {
+        method: 'PUT',
+        json: body,
+      }),
+
+    /** `DELETE /me/food-log/items/:id`: succeeds when the item does not exist (spec 005 AC11, AC20). */
+    deleteMealItem: (
+      id: string,
+      { recordedAt }: MealItemDeleteQuery,
+    ): Promise<MealItemSaveResponse> =>
+      request(
+        `/me/food-log/items/${id}?recordedAt=${encodeURIComponent(recordedAt)}`,
+        MealItemSaveResponseSchema,
+        { method: 'DELETE' },
+      ),
+
+    /** `GET /me/foods/recent`: with the portion used last (spec 005 AC7). */
+    recentFoods: (locale: Locale): Promise<RecentFoodsResponse> =>
+      request(`/me/foods/recent?locale=${locale}`, RecentFoodsResponseSchema),
+
+    /** `GET /me/foods/favourites` (spec 005 AC14). */
+    favouriteFoods: (locale: Locale): Promise<FavouriteFoodsResponse> =>
+      request(`/me/foods/favourites?locale=${locale}`, FavouriteFoodsResponseSchema),
+
+    /** `PUT` / `DELETE /me/foods/favourites/:foodId`: idempotent (spec 005 AC14). */
+    setFavouriteFood: async (foodId: string, favourite: boolean): Promise<void> => {
+      await send(`/me/foods/favourites/${foodId}`, { method: favourite ? 'PUT' : 'DELETE' });
+    },
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */
     exportData: (): Promise<ExportResponse> => request('/me/export', ExportResponseSchema),

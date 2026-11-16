@@ -24,9 +24,13 @@ function setRestored(userId: string | null) {
   for (const listener of listeners) listener();
 }
 
-/** Targets previews depend only on the form being edited: not worth keeping. */
+/**
+ * Targets previews depend only on the form being edited, and search results need a connection anyway
+ * (spec 005 AC6): not worth keeping. The food log, recents and favourites are kept (AC19).
+ */
+const NOT_SAVED = new Set(['onboarding', 'food-search']);
 const shouldDehydrateQuery = (query: Query) =>
-  defaultShouldDehydrateQuery(query) && query.queryKey[0] !== 'onboarding';
+  defaultShouldDehydrateQuery(query) && !NOT_SAVED.has(String(query.queryKey[0]));
 
 /**
  * Restores the user's saved cache, then keeps it saved. Paused writes resume once restored (they stay

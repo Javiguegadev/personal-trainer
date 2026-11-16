@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { isApiError } from '../client';
 import { profileInput } from '../test/fixtures';
 import { createMockApiClient, MOCK_DB_KEY, type KeyValueStorage } from './backend';
+import { MOCK_CATALOG } from './foods';
 import { mockAccessToken, mockUserFromEmail } from './identity';
 
 const NOW = new Date('2026-11-11T10:00:00.000Z');
@@ -357,5 +358,140 @@ describe('mock backend: weight log (spec 003)', () => {
     await expect(
       api.saveWeight(TODAY, { weightKg: 301, recordedAt: at(0), today: TODAY }),
     ).rejects.toMatchObject({ status: 400, fields: { weightKg: 'too_big' } });
+  });
+});
+
+describe('mock backend: food log (spec 005)', () => {
+  const TODAY = '2026-11-11';
+  const at = (seconds: number) => new Date(NOW.getTime() + seconds * 1000).toISOString();
+  const ID = '50000000-0000-4000-8000-000000000001';
+  const byKey = (key: string) => MOCK_CATALOG.find((f) => f.key === key)!;
+  const egg = byKey('d-huevo');
+  const milk = byKey('c-leche-semidesnatada');
+  const eggs = (over: Record<string, unknown> = {}) => ({
+    kind: 'food' as const,
+    foodId: egg.id,
+    portion: { kind: 'serving' as const, servingId: egg.servings[0]!.id, servings: 2 },
+    inputMethod: 'search' as const,
+    localDate: TODAY,
+    mealType: 'breakfast' as const,
+    recordedAt: at(60),
+    today: TODAY,
+    locale: 'es' as const,
+    ...over,
+  });
+  async function consented() {
+    const s = setup();
+    await s.api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    return s;
+  }
+  const log = async (api: ReturnType<typeof setup>['api']) =>
+    (await api.listFoodLog({ from: '2026-11-01', to: TODAY })).items;
+
+  it('has a catalog of about 60 foods with valid ids and servings', () => {
+    expect(MOCK_CATALOG.length).toBeGreaterThanOrEqual(60);
+    expect(new Set(MOCK_CATALOG.map((f) => f.id)).size).toBe(MOCK_CATALOG.length);
+    for (const f of MOCK_CATALOG) expect(f.servings.length).toBeGreaterThan(0);
+  });
+
+  it('needs consent for search and the log, not for the sources', async () => {
+    const { api } = setup();
+    await expect(api.searchFoods('leche', 'es')).rejects.toMatchObject({ status: 403 });
+    await expect(api.listFoodLog({ from: TODAY, to: TODAY })).rejects.toMatchObject({
+      status: 403,
+    });
+    expect((await api.foodSources('es')).sources[0]!.attribution).toMatch(/Ciqual/);
+  });
+
+  it('searches like the API, ignoring accents and one typo (AC4)', async () => {
+    const { api } = await consented();
+    expect((await api.searchFoods('leche', 'es')).foods[0]!.key).toBe('c-leche-semidesnatada');
+    expect((await api.searchFoods('platno', 'es')).foods[0]!.key).toBe('b-platano');
+    await expect(api.searchFoods('l', 'es')).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('returns one food, and 404 for an unknown one', async () => {
+    const { api } = await consented();
+    expect((await api.getFood(milk.id, 'en')).name).toBe('Semi-skimmed milk');
+    await expect(api.getFood('f9999999-0000-4000-8000-000000000000', 'es')).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it('stores the snapshot computed from the catalog and keeps the later write (AC9, AC20)', async () => {
+    const { api } = await consented();
+    const { item } = await api.saveMealItem(ID, eggs());
+    const grams = 2 * egg.servings[0]!.grams;
+    expect(item).toMatchObject({ grams, label: 'Huevo', servings: 2 });
+    expect(item!.nutrients.kcal).toBeCloseTo((egg.per100g.kcal * grams) / 100, 1);
+    // An older write from another device does not win; the same write twice keeps one item.
+    await api.saveMealItem(ID, eggs({ recordedAt: at(30), mealType: 'lunch' }));
+    await api.saveMealItem(ID, eggs());
+    expect((await log(api)).map((i) => [i.id, i.mealType])).toEqual([[ID, 'breakfast']]);
+  });
+
+  it('deletes with a tombstone that an older write cannot undo (AC20)', async () => {
+    const { api } = await consented();
+    await api.saveMealItem(ID, eggs());
+    await api.deleteMealItem(ID, { recordedAt: at(120) });
+    await api.deleteMealItem(ID, { recordedAt: at(121) });
+    expect(await log(api)).toEqual([]);
+    expect((await api.saveMealItem(ID, eggs({ recordedAt: at(90) }))).item).toBeNull();
+    expect(await log(api)).toEqual([]);
+    expect((await api.saveMealItem(ID, eggs({ recordedAt: at(130) }))).item).not.toBeNull();
+  });
+
+  it('rejects a future day and a serving of another food', async () => {
+    const { api } = await consented();
+    await expect(api.saveMealItem(ID, eggs({ localDate: '2026-11-12' }))).rejects.toMatchObject({
+      status: 400,
+      fields: { localDate: 'in_future' },
+    });
+    await expect(api.saveMealItem(ID, eggs({ foodId: milk.id }))).rejects.toMatchObject({
+      status: 400,
+      fields: { 'portion.servingId': 'not_found' },
+    });
+  });
+
+  it('lists recents with the last portion, and favourites newest first (AC7, AC14)', async () => {
+    let now = NOW;
+    const { api } = setup({ now: () => now });
+    await api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    await api.saveMealItem(ID, eggs());
+    await api.saveMealItem(
+      '50000000-0000-4000-8000-000000000002',
+      eggs({ foodId: milk.id, portion: { kind: 'grams', grams: 250 }, recordedAt: at(90) }),
+    );
+    const { recents } = await api.recentFoods('es');
+    expect(recents.map((r) => [r.food.key, r.lastPortion])).toEqual([
+      ['c-leche-semidesnatada', { kind: 'grams', grams: 250 }],
+      ['d-huevo', { kind: 'serving', servingId: egg.servings[0]!.id, servings: 2 }],
+    ]);
+
+    await api.setFavouriteFood(egg.id, true);
+    now = new Date(NOW.getTime() + 1000);
+    await api.setFavouriteFood(milk.id, true);
+    await api.setFavouriteFood(milk.id, true);
+    expect((await api.favouriteFoods('es')).foods.map((f) => f.key)).toEqual([
+      'c-leche-semidesnatada',
+      'd-huevo',
+    ]);
+    await api.setFavouriteFood(egg.id, false);
+    expect((await api.favouriteFoods('es')).foods).toHaveLength(1);
+  });
+
+  it('exports the food log and the favourites, and deletes them with the account (AC23)', async () => {
+    const { api } = await consented();
+    await api.saveMealItem(ID, eggs());
+    await api.setFavouriteFood(egg.id, true);
+    const data = await api.exportData();
+    expect(data.mealItems.map((i) => i.id)).toEqual([ID]);
+    expect(data.favouriteFoods).toEqual([
+      { foodId: egg.id, key: 'd-huevo', createdAt: NOW.toISOString() },
+    ]);
+    await api.deleteAccount();
+    await api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    expect(await log(api)).toEqual([]);
+    expect((await api.favouriteFoods('es')).foods).toEqual([]);
   });
 });

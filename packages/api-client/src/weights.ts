@@ -69,7 +69,7 @@ export function weightsQueryOptions(api: ApiClient, today: string) {
 }
 
 /** 4xx: the API refused the request, sending it again cannot work. Network errors and 5xx are retried. */
-function isRejected(error: unknown): boolean {
+export function isRejected(error: unknown): boolean {
   return isApiError(error) && error.status < 500;
 }
 

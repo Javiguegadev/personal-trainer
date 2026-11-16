@@ -7,6 +7,14 @@
 import {
   CONSENT_VERSION,
   ConsentRequestSchema,
+  FOOD_LOG_LIMITS,
+  FoodIdParamSchema,
+  FoodLocaleQuerySchema,
+  FoodLogQuerySchema,
+  FoodSearchQuerySchema,
+  MealItemDeleteQuerySchema,
+  MealItemIdParamSchema,
+  MealItemUpsertRequestSchema,
   ProfileInputSchema,
   WEIGHT_LIMITS,
   WeightDateParamSchema,
@@ -16,20 +24,30 @@ import {
   type ApiErrorCode,
   type DietaryPrefs,
   type ExportResponse,
+  type MealItem,
   type MeResponse,
+  type Portion,
   type Profile,
   type WeightEntry,
   type WeightSaveResponse,
 } from '@pt/contracts';
 import {
+  addDays,
   applyLatestWeight,
+  buildFoodSearchIndex,
+  checkFoodLogRange,
+  checkFoodLogWrite,
   checkWeightWrite,
   daysBetween,
   evaluateProfileInput,
+  mealItemFromRequest,
+  searchFoods,
   targetsOnly,
+  writeWins,
 } from '@pt/core';
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
+import { MOCK_CATALOG, MOCK_SOURCE, toMockFood, type MockCatalogFood } from './foods';
 import { parseMockToken, type MockUser } from './identity';
 
 export interface KeyValueStorage {
@@ -58,12 +76,41 @@ interface UserRecord {
   aiUsage: ExportResponse['aiUsage'];
   /** The weight log, sorted by day. */
   weights: WeightEntry[];
+  /** The food log, deletes included as tombstones (`deleted`, spec 005 AC20). */
+  mealItems: StoredMealItem[];
+  favourites: { foodId: string; createdAt: string }[];
 }
+
+type StoredMealItem = MealItem & { deleted: boolean };
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v4: spec 004). */
-export const MOCK_DB_KEY = 'pt.mock-db.v4';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v5: spec 005). */
+export const MOCK_DB_KEY = 'pt.mock-db.v5';
+
+const catalogById = new Map(MOCK_CATALOG.map((f) => [f.id, f]));
+const searchIndex = buildFoodSearchIndex(MOCK_CATALOG);
+
+/** The portion of a logged item, to preselect it in the portion sheet (same rule as the API). */
+function lastPortion(item: MealItem, food: MockCatalogFood): Portion | null {
+  if (item.servingId !== null && item.servings !== null) {
+    if (food.servings.some((s) => s.id === item.servingId)) {
+      return { kind: 'serving', servingId: item.servingId, servings: item.servings };
+    }
+  }
+  return item.grams !== null ? { kind: 'grams', grams: item.grams } : null;
+}
+
+const withoutFlag = ({ deleted: _, ...item }: StoredMealItem): MealItem => item;
+
+/** The items that were not deleted, by day and time. */
+const live = (record: UserRecord): MealItem[] =>
+  record.mealItems
+    .filter((i) => !i.deleted)
+    .map(withoutFlag)
+    .sort(
+      (a, b) => a.localDate.localeCompare(b.localDate) || a.recordedAt.localeCompare(b.recordedAt),
+    );
 
 const MESSAGES: Record<ApiErrorCode, string> = {
   unauthorized: 'A valid access token is required',
@@ -114,6 +161,8 @@ const emptyUser = (email: string | null): UserRecord => ({
   targets: [],
   aiUsage: [],
   weights: [],
+  mealItems: [],
+  favourites: [],
 });
 
 export function createMockApiClient({
@@ -344,6 +393,148 @@ export function createMockApiClient({
       return afterWeightWrite(record, localDate, today);
     },
 
+    searchFoods: async (q, locale) => {
+      await authenticateWithConsent();
+      const query = parse(FoodSearchQuerySchema, { q, locale });
+      const ids = searchFoods(searchIndex, query.q, query.locale, FOOD_LOG_LIMITS.searchResultsMax);
+      return { foods: ids.map((id) => toMockFood(catalogById.get(id)!, query.locale)) };
+    },
+
+    getFood: async (id, locale) => {
+      await authenticateWithConsent();
+      const { foodId } = parse(FoodIdParamSchema, { foodId: id });
+      const food = catalogById.get(foodId);
+      if (!food) throw fail('not_found', { foodId: 'not_found' });
+      return toMockFood(food, parse(FoodLocaleQuerySchema, { locale }).locale);
+    },
+
+    foodSources: async (locale) => {
+      await authenticate();
+      return {
+        sources: [
+          {
+            id: MOCK_SOURCE,
+            name: 'Ciqual 2025 (Anses)',
+            url: 'https://doi.org/10.57745/RDMHWY',
+            license: 'Licence Ouverte / Etalab 2.0',
+            version: '2025-11-03',
+            attribution:
+              locale === 'en'
+                ? 'Nutrition values: Anses, Ciqual French food composition table 2025.'
+                : 'Valores nutricionales: Anses, tabla de composición nutricional Ciqual 2025.',
+          },
+        ],
+      };
+    },
+
+    listFoodLog: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { from, to } = parse(FoodLogQuerySchema, query);
+      const invalid = checkFoodLogRange(from, to);
+      if (invalid) throw fail('validation_error', invalid);
+      return { items: live(record).filter((i) => i.localDate >= from && i.localDate <= to) };
+    },
+
+    saveMealItem: async (itemId, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { id } = parse(MealItemIdParamSchema, { id: itemId });
+      const request = parse(MealItemUpsertRequestSchema, body);
+      const invalid = checkFoodLogWrite(request, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const catalogFood = request.kind === 'food' ? catalogById.get(request.foodId) : undefined;
+      const item = mealItemFromRequest(
+        id,
+        request,
+        catalogFood ? toMockFood(catalogFood, request.locale) : null,
+      );
+      if ('error' in item) {
+        throw item.error === 'food_not_found'
+          ? fail('not_found', { foodId: 'not_found' })
+          : fail('validation_error', { 'portion.servingId': 'not_found' });
+      }
+      // Ids are global: an id that belongs to another user is never touched.
+      for (const [owner, other] of Object.entries(db)) {
+        if (owner !== user.userId && other.mealItems.some((i) => i.id === id)) {
+          return { item: null };
+        }
+      }
+      const stored = record.mealItems.find((i) => i.id === id);
+      if (!stored) {
+        const onDay = live(record).filter((i) => i.localDate === request.localDate).length;
+        if (onDay >= FOOD_LOG_LIMITS.itemsPerDayMax) {
+          throw fail('validation_error', { localDate: 'too_many_items' });
+        }
+      }
+      // The write recorded later on its device wins, also against a delete (AC20).
+      if (writeWins(stored?.recordedAt ?? null, item.recordedAt)) {
+        record.mealItems = [
+          ...record.mealItems.filter((i) => i.id !== id),
+          { ...item, recordedAt: new Date(item.recordedAt).toISOString(), deleted: false },
+        ];
+        persist();
+      }
+      const current = record.mealItems.find((i) => i.id === id);
+      return { item: current && !current.deleted ? withoutFlag(current) : null };
+    },
+
+    deleteMealItem: async (itemId, query) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(MealItemIdParamSchema, { id: itemId });
+      const { recordedAt } = parse(MealItemDeleteQuerySchema, query);
+      if (Date.parse(recordedAt) > now().getTime() + 24 * 60 * 60 * 1000) {
+        throw fail('validation_error', { recordedAt: 'in_future' });
+      }
+      const stored = record.mealItems.find((i) => i.id === id);
+      // A delete older than the stored write does not remove it; the tombstone keeps the delete time.
+      if (stored && writeWins(stored.recordedAt, recordedAt)) {
+        stored.deleted = true;
+        stored.recordedAt = new Date(recordedAt).toISOString();
+        persist();
+      }
+      return { item: null };
+    },
+
+    recentFoods: async (locale) => {
+      const { record } = await authenticateWithConsent();
+      const since = addDays(now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
+      const latest = new Map<string, MealItem>();
+      for (const item of live(record)) {
+        if (item.foodId === null || item.localDate < since) continue;
+        const seen = latest.get(item.foodId);
+        if (!seen || seen.recordedAt < item.recordedAt) latest.set(item.foodId, item);
+      }
+      const recents = [...latest.values()]
+        .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+        .slice(0, FOOD_LOG_LIMITS.recentsMax)
+        .flatMap((item) => {
+          const food = item.foodId ? catalogById.get(item.foodId) : undefined;
+          const portion = food ? lastPortion(item, food) : null;
+          return food && portion ? [{ food: toMockFood(food, locale), lastPortion: portion }] : [];
+        });
+      return { recents };
+    },
+
+    favouriteFoods: async (locale) => {
+      const { record } = await authenticateWithConsent();
+      const foods = [...record.favourites]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .flatMap((f) => {
+          const food = catalogById.get(f.foodId);
+          return food ? [toMockFood(food, locale)] : [];
+        });
+      return { foods };
+    },
+
+    setFavouriteFood: async (id, favourite) => {
+      const { record } = await authenticateWithConsent();
+      const { foodId } = parse(FoodIdParamSchema, { foodId: id });
+      if (favourite && !catalogById.has(foodId)) throw fail('not_found', { foodId: 'not_found' });
+      const has = record.favourites.some((f) => f.foodId === foodId);
+      if (favourite && !has) record.favourites.push({ foodId, createdAt: now().toISOString() });
+      if (!favourite) record.favourites = record.favourites.filter((f) => f.foodId !== foodId);
+      persist();
+    },
+
     exportData: async () => {
       const { user, record } = await authenticate();
       return {
@@ -354,8 +545,12 @@ export function createMockApiClient({
         dietaryPrefs: record.dietaryPrefs,
         targets: record.targets,
         weights: record.weights,
-        mealItems: [],
-        favouriteFoods: [],
+        mealItems: live(record),
+        favouriteFoods: record.favourites.map((f) => ({
+          foodId: f.foodId,
+          key: catalogById.get(f.foodId)?.key ?? '',
+          createdAt: f.createdAt,
+        })),
         consents: record.consents,
         aiUsage: record.aiUsage,
       };
