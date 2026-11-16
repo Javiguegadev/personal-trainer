@@ -123,6 +123,8 @@ const itemPlacement = {
   recordedAt: datetime,
   /** The user's local date. The API accepts it only within ±1 day of server UTC. */
   today: IsoDateSchema,
+  /** Language of the name and serving snapshots (AC9). */
+  locale: LocaleSchema.default('es'),
 };
 
 /** `PUT /me/food-log/items/:id`. The API computes the snapshot of a catalog item itself (AC9). */

@@ -21,3 +21,5 @@ export * from './food/meal-type';
 export * from './food/nutrition';
 export * from './food/quick-add';
 export * from './food/repeat';
+export * from './food/search';
+export * from './food/write';

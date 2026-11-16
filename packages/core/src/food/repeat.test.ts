@@ -95,6 +95,7 @@ describe('repeatMeal (AC13)', () => {
       mealType: 'breakfast',
       recordedAt: RECORDED_AT,
       today: TODAY,
+      locale: 'es',
     });
     expect(result[1]!.request).toMatchObject({
       kind: 'food',
@@ -115,6 +116,7 @@ describe('repeatMeal (AC13)', () => {
       mealType: 'breakfast',
       recordedAt: RECORDED_AT,
       today: TODAY,
+      locale: 'es',
     });
   });
 
@@ -127,6 +129,7 @@ describe('repeatMeal (AC13)', () => {
       ids: ['n1'],
       recordedAt: RECORDED_AT,
       today: TODAY,
+      locale: 'es',
     });
     expect(copy!.request).toMatchObject({
       kind: 'quick_add',

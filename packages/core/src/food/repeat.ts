@@ -1,4 +1,4 @@
-import type { MealItem, MealItemUpsertRequest, MealType, Portion } from '@pt/contracts';
+import type { Locale, MealItem, MealItemUpsertRequest, MealType, Portion } from '@pt/contracts';
 import { addDays } from '../dates';
 
 const itemsOf = (items: readonly MealItem[], mealType: MealType, localDate: string) =>
@@ -31,6 +31,8 @@ export interface RepeatMealInput {
   ids: readonly string[];
   recordedAt: string;
   today: string;
+  /** Language of the snapshots of the copies. */
+  locale?: Locale;
 }
 
 /**
@@ -47,6 +49,7 @@ export function repeatMeal(
     mealType: input.mealType,
     recordedAt: input.recordedAt,
     today: input.today,
+    locale: input.locale ?? 'es',
   };
   return source.map((item, index) => {
     const id = input.ids[index]!;
