@@ -4,6 +4,8 @@
  */
 import type {
   ConsentRequest,
+  Food,
+  LabelScanRequest,
   Locale,
   MealItemSaveResponse,
   MeResponse,
@@ -23,17 +25,22 @@ import {
 } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
 import {
+  cachedFoodByBarcode,
+  customFoodsQueryOptions,
   dismissRejectedFoodWrite,
   favouriteFoodsQueryOptions,
+  foodByBarcodeQueryOptions,
   foodKeys,
   foodLogQueryOptions,
   foodQueryOptions,
   foodSearchQueryOptions,
   foodSourcesQueryOptions,
   recentFoodsQueryOptions,
+  type DeleteCustomFoodVariables,
   type DeleteMealItemVariables,
   type FavouriteFoodVariables,
   type RejectedFoodWrite,
+  type SaveCustomFoodVariables,
   type SaveMealItemVariables,
 } from './foods';
 import {
@@ -203,6 +210,38 @@ export function createApiHooks(api: ApiClient) {
 
     useSetFavouriteFood: () =>
       useMutation<void, unknown, FavouriteFoodVariables>({ mutationKey: foodKeys.favourite }),
+
+    /** The user's own foods, most recently changed first (spec 006 AC12). */
+    useCustomFoods: (locale: Locale) => useQuery(customFoodsQueryOptions(api, locale)),
+
+    /**
+     * Optimistic and offline-safe, in the queue of the food log: a food created without a connection is
+     * sent before its first item (spec 006 AC11). Registered with `registerCustomFoodMutations`.
+     */
+    useSaveCustomFood: () =>
+      useMutation<Food, unknown, SaveCustomFoodVariables>({ mutationKey: foodKeys.saveFood }),
+
+    useDeleteCustomFood: () =>
+      useMutation<void, unknown, DeleteCustomFoodVariables>({ mutationKey: foodKeys.deleteFood }),
+
+    /**
+     * The food of a barcode (spec 006): `cached` looks among the foods the device already holds, which
+     * also works without a connection (AC8); `fetch` asks the API once per code (AC3) and rejects with
+     * the API error (`product_not_found`, `product_incomplete`, `lookup_unavailable`, `rate_limited`).
+     */
+    useBarcodeLookup: () => {
+      const queryClient = useQueryClient();
+      return {
+        cached: (barcode: string, locale: Locale) =>
+          cachedFoodByBarcode(queryClient, barcode, locale),
+        fetch: (barcode: string, locale: Locale) =>
+          queryClient.fetchQuery(foodByBarcodeQueryOptions(api, barcode, locale)),
+      };
+    },
+
+    /** Reads a label photo into an editable draft (spec 006 AC14). Not retried: every call is metered. */
+    useScanLabel: () =>
+      useMutation({ mutationFn: (body: LabelScanRequest) => api.scanLabel(body), retry: false }),
 
     /** Items with a write that has not reached the server yet ("waiting to sync", AC19). */
     usePendingMealItemIds: (): string[] =>

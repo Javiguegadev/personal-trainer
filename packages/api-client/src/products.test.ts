@@ -46,7 +46,7 @@ const NUTELLA = '3017620422003';
 const COLA = '5449000214911';
 const WINE = '8410261211015';
 const UNKNOWN = '8410000000009';
-const IMAGE = 'A'.repeat(400);
+const IMAGE = 'A'.repeat(4000);
 
 const yogurt = (over: Partial<CustomFoodUpsertRequest> = {}): CustomFoodUpsertRequest => ({
   name: 'Yogur natural',

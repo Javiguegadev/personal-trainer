@@ -1,5 +1,5 @@
 import { saveItemVariables } from '@pt/api-client';
-import type { Food, MealItem, MealType, Portion } from '@pt/contracts';
+import type { Food, FoodInputMethod, MealItem, MealType, Portion } from '@pt/contracts';
 import {
   addDays,
   itemToRequest,
@@ -43,11 +43,14 @@ export function useFoodLogActions() {
   };
 
   return {
-    /** AC8: a portion of a catalog food. Returns the item as the log shows it. */
+    /**
+     * AC8: a portion of a food: of the catalog, a scanned product or one of the user's own (spec 006).
+     * Returns the item as the log shows it.
+     */
     addFood(
       food: Food,
       portion: Portion,
-      inputMethod: 'search' | 'recent' | 'favourite',
+      inputMethod: Exclude<FoodInputMethod, 'quick_add' | 'repeat'>,
       localDate: string,
       mealType: MealType,
     ): MealItem {

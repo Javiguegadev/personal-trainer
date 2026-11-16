@@ -171,3 +171,14 @@ export function productFromOff(input: OffProductInput): ScannedProduct | null {
     traces: cleanTags(input.tracesTags),
   };
 }
+
+/**
+ * Allergen or trace tags of Open Food Facts (`en:milk`) as words (spec 006 AC5): the translated name of
+ * a known tag, else the tag itself without its language prefix (`en:sesame-seeds` → "sesame seeds").
+ */
+export function allergenNames(
+  tags: readonly string[],
+  names: Readonly<Record<string, string>>,
+): string[] {
+  return tags.map((tag) => names[tag] ?? tag.replace(/^[a-z]{2}:/, '').replace(/-/g, ' '));
+}

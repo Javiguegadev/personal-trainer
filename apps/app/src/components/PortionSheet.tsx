@@ -13,6 +13,7 @@ import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { AppText } from './AppText';
 import { Button } from './Button';
+import { ProductNotes } from './ProductNotes';
 import { ChoiceGroup } from './ChoiceGroup';
 import { FavouriteStar } from './FoodRow';
 import { Screen } from './Screen';
@@ -40,6 +41,8 @@ interface PortionSheetProps {
 /**
  * The portion of a food (spec 005 AC8): its household servings as chips with a stepper of half servings,
  * or grams; it previews what the portion adds, and the buttons stay above the keyboard (Screen footer).
+ * A food labelled per 100 ml is measured in millilitres, and a scanned product shows its brand and the
+ * notes of its source (spec 006 AC5).
  */
 export function PortionSheet({
   food,
@@ -92,6 +95,7 @@ export function PortionSheet({
   };
 
   const n = (value: number, decimals = 0) => formatNumber(value, locale, decimals);
+  const quantityLabel = food.unit === 'ml' ? p.millilitres : p.grams;
   const macros = preview
     ? [
         { key: 'protein', label: t.targets.protein, value: preview.nutrients.proteinG },
@@ -111,9 +115,14 @@ export function PortionSheet({
       }
     >
       <View style={styles.header}>
-        <AppText variant="title" style={styles.name}>
-          {food.name}
-        </AppText>
+        <View style={styles.name}>
+          <AppText variant="title">{food.name}</AppText>
+          {food.brand ? (
+            <AppText tone="muted" testID="portion-brand">
+              {food.brand}
+            </AppText>
+          ) : null}
+        </View>
         <FavouriteStar
           name={food.name}
           favourite={favourite}
@@ -127,9 +136,13 @@ export function PortionSheet({
         options={[
           ...food.servings.map((serving) => ({
             value: serving.id,
-            label: format(p.servingOption, { label: serving.label, grams: n(serving.grams, 1) }),
+            label: format(p.servingOption, {
+              label: serving.label,
+              grams: n(serving.grams, 1),
+              unit: food.unit,
+            }),
           })),
-          { value: GRAMS, label: p.grams },
+          { value: GRAMS, label: quantityLabel },
         ]}
         value={choice}
         onChange={choose}
@@ -138,7 +151,7 @@ export function PortionSheet({
 
       {choice === GRAMS ? (
         <TextField
-          label={p.grams}
+          label={quantityLabel}
           value={gramsText}
           onChangeText={(text) => {
             setGramsText(text);
@@ -178,7 +191,7 @@ export function PortionSheet({
           </AppText>
         ) : null}
         <AppText tone="muted" testID="portion-total">
-          {preview ? format(p.total, { grams: n(preview.grams, 1) }) : '—'}
+          {preview ? format(p.total, { grams: n(preview.grams, 1), unit: food.unit }) : '—'}
         </AppText>
         {showNumbers && preview ? (
           <View style={styles.macros}>
@@ -200,6 +213,7 @@ export function PortionSheet({
         ) : null}
       </View>
 
+      <ProductNotes food={food} />
       {children}
     </Screen>
   );

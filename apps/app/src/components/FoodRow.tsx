@@ -17,7 +17,10 @@ interface FoodRowProps {
   onToggleFavourite: () => void;
 }
 
-/** A catalog food in search results, recents or favourites: name, portion, kcal and its star (AC14). */
+/**
+ * A food in search results, recents, favourites or "Mis alimentos": name, brand, portion, kcal and its
+ * star (AC14).
+ */
 export function FoodRow({
   food,
   portion,
@@ -37,20 +40,21 @@ export function FoodRow({
           kcal: formatNumber(Math.round(preview.nutrients.kcal), locale),
         })
       : portionText;
+  const caption = [food.brand, detail].filter(Boolean).join(' · ');
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.border }]} testID={`food-${food.key}`}>
       <Pressable
         role="button"
-        accessibilityLabel={detail ? `${food.name}. ${detail}` : food.name}
+        accessibilityLabel={caption ? `${food.name}. ${caption}` : food.name}
         onPress={onPress}
         testID={`food-${food.key}-open`}
         style={({ pressed }) => [styles.main, { opacity: pressed ? 0.6 : 1 }]}
       >
         <AppText>{food.name}</AppText>
-        {detail ? (
+        {caption ? (
           <AppText variant="caption" tone="muted">
-            {detail}
+            {caption}
           </AppText>
         ) : null}
       </Pressable>

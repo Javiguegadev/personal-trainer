@@ -1,6 +1,7 @@
 import {
   createApiClient,
   createApiHooks,
+  registerCustomFoodMutations,
   registerFoodMutations,
   registerWeightMutations,
   type ApiClient,
@@ -34,6 +35,7 @@ export const api: ApiClient = MOCK_BACKEND
 // Before any saved write is restored (lib/offline.ts): a restored write finds its function by key.
 registerWeightMutations(queryClient, api);
 registerFoodMutations(queryClient, api);
+registerCustomFoodMutations(queryClient, api);
 setupOnlineManager();
 
 export const {
@@ -58,6 +60,11 @@ export const {
   useSetFavouriteFood,
   usePendingMealItemIds,
   useRejectedFoodWrite,
+  useCustomFoods,
+  useSaveCustomFood,
+  useDeleteCustomFood,
+  useBarcodeLookup,
+  useScanLabel,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

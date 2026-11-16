@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Personal Trainer usa la cámara para leer el código de barras y la etiqueta nutricional de un producto.",
+    "NSPhotoLibraryUsageDescription": "Personal Trainer abre tus fotos solo cuando eliges la imagen de una etiqueta."
+  }
+}

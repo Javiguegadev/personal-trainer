@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  allergenNames,
   energyMismatch,
   kcalFromKj,
   per100gOutOfRange,
@@ -189,5 +190,18 @@ describe('per100gOutOfRange (AC4, AC10)', () => {
     expect(per100gOutOfRange({ ...ok, proteinG: 101 })).toBe('proteinG');
     expect(per100gOutOfRange({ ...ok, fiberG: -1 })).toBe('fiberG');
     expect(per100gOutOfRange({ ...ok, carbsG: 80 })).toBe('macros');
+  });
+});
+
+describe('allergenNames (AC5)', () => {
+  it('translates known tags and keeps unknown ones readable', () => {
+    const names = { 'en:milk': 'leche', 'en:nuts': 'frutos de cáscara' };
+    expect(allergenNames(['en:milk', 'en:nuts', 'en:sesame-seeds', 'es:altramuz'], names)).toEqual([
+      'leche',
+      'frutos de cáscara',
+      'sesame seeds',
+      'altramuz',
+    ]);
+    expect(allergenNames([], names)).toEqual([]);
   });
 });

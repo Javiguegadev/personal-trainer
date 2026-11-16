@@ -121,8 +121,8 @@ const MOCK_LABEL_READING: LabelReading = {
   brand: null,
 };
 
-/** A photo this small cannot be a label: the mock answers "not a label" (AC17), for tests. */
-const MOCK_UNREADABLE_BELOW = 200;
+/** An image this small (a few pixels, in base64 characters) is "not a label" for the mock (AC17). */
+const MOCK_UNREADABLE_BELOW = 2000;
 
 const catalogById = new Map(MOCK_CATALOG.map((f) => [f.id, f]));
 const searchIndex = buildFoodSearchIndex(MOCK_CATALOG);
