@@ -525,11 +525,13 @@ export const en: DeepStringRecord<typeof es> = {
       byHand: 'Fill it in by hand',
       quickAdd: 'Quick add',
       scanAnother: 'Scan another',
-      source: 'Data from Open Food Facts',
+      source: 'Data from Open Food Facts. It is written by volunteers and may contain errors.',
       openSource: 'See this product on Open Food Facts',
       checkValues: 'Check these values with the package.',
-      allergens: 'Declared allergens: {list}',
+      allergens: 'Allergens according to Open Food Facts: {list}',
       traces: 'Traces: {list}',
+      noAllergenData:
+        "Open Food Facts lists no allergens for this product. That doesn't mean it has none.",
       checkPackage: 'Always check the package.',
       allergenNames: {
         'en:gluten': 'gluten',
@@ -572,11 +574,11 @@ export const en: DeepStringRecord<typeof es> = {
       servingSizeMl: 'Size of the serving (ml)',
       defaultServing: '1 serving',
       save: 'Save',
-      macrosTooHigh: "Protein, carbohydrates and fat can't add up to more than 100 g per 100.",
+      macrosTooHigh:
+        'Protein, carbohydrates and fat add up to more than 100 g per 100. Check the values.',
       barcodeUsed: 'You already have a food with that barcode.',
       confirmTitle: 'Is that right?',
-      confirmMessage:
-        "The calories don't match the protein, carbohydrates and fat you entered. It may be a typing mistake.",
+      confirmMessage: "The values don't match each other. It may be a typing mistake.",
       confirmYes: 'Yes, save',
       confirmNo: 'Fix it',
       edit: 'Edit',

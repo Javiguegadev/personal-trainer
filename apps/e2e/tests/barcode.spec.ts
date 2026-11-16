@@ -171,20 +171,26 @@ test.describe('barcode, own foods and label photo (spec 006)', () => {
     await expect(sheet.getByTestId('portion-kcal')).toHaveText('81 kcal');
     await expect(sheet.getByTestId('portion-total')).toHaveText('15 g en total');
     await expect(sheet.getByTestId('product-allergens')).toContainText(
-      'Alérgenos declarados: leche, frutos de cáscara y soja',
+      'Alérgenos según Open Food Facts: leche, frutos de cáscara (frutos secos) y soja',
     );
     await expect(sheet.getByTestId('product-allergens')).toContainText(
       'Comprueba siempre el envase',
     );
-    await expect(sheet.getByTestId('product-source')).toHaveText('Datos de Open Food Facts');
+    await expect(sheet.getByTestId('product-source')).toContainText('Datos de Open Food Facts');
     await expect(sheet.getByTestId('product-check-values')).toHaveCount(0);
     add = await submitPortion(page);
     await expect(add.getByTestId('food-added')).toContainText('Nutella');
 
-    // A drink is measured in millilitres, and has no allergen note when the source declares none.
+    // A drink is measured in millilitres. Without allergen data the note says so: it never reads as
+    // "this product has none".
     sheet = await scan(page, COLA, 'portion-sheet');
     await expect(sheet.getByTestId('portion-total')).toHaveText('330 ml en total');
-    await expect(sheet.getByTestId('product-allergens')).toHaveCount(0);
+    await expect(sheet.getByTestId('product-no-allergen-data')).toContainText(
+      'no indica alérgenos',
+    );
+    await expect(sheet.getByTestId('product-allergens')).toContainText(
+      'Comprueba siempre el envase',
+    );
     add = await submitPortion(page);
     await expect(add.getByTestId('food-added')).toContainText('330 ml');
 
@@ -353,7 +359,10 @@ test.describe('barcode, own foods and label photo (spec 006)', () => {
     await expect(add.getByTestId('food-mine')).toHaveCount(0);
     await add.getByTestId('undo').click();
     await expect(add.getByTestId('food-mine')).toContainText('Yogur griego');
-    expect((await stored(page)).foods.map((f) => f.name)).toEqual(['Yogur griego']);
+    // The edit reaches the server; the delete that was undone never does.
+    await expect
+      .poll(async () => (await stored(page)).foods.map((f) => f.name))
+      .toEqual(['Yogur griego']);
 
     // Delete without undo: after the 5 seconds the food is gone and its item keeps its snapshot.
     await add.getByTestId('food-mine').getByText('Yogur griego').click();

@@ -82,7 +82,7 @@ describe('productFromOff (spec 006 AC4)', () => {
   });
 
   it('rejects impossible values', () => {
-    expect(productFromOff({ ...nutella, energyKcal100g: 901 })).toBeNull();
+    expect(productFromOff({ ...nutella, energyKcal100g: 910 })).toBeNull();
     expect(productFromOff({ ...nutella, fat100g: 100.5 })).toBeNull();
     expect(productFromOff({ ...nutella, proteins100g: -1 })).toBeNull();
     expect(productFromOff({ ...nutella, fiber100g: 120 })).toBeNull();
@@ -120,14 +120,73 @@ describe('productFromOff (spec 006 AC4)', () => {
     ).toEqual([{ kind: 'package', grams: 400 }]);
   });
 
-  it('keeps only well-formed allergen tags, without repeats', () => {
+  it('never drops a declared allergen, whatever the form of its tag', () => {
     const product = productFromOff({
       ...nutella,
-      allergensTags: ['en:milk', 'en:milk', 'leche', 'es:frutos-secos', 'EN:NUTS'],
-      tracesTags: ['en:peanuts'],
+      allergensTags: ['en:milk', 'en:milk', 'leche', ' es:frutos-secos ', 'EN:NUTS', '  '],
+      tracesTags: ['en:peanuts', 'de:Schalenfrüchte (keine Erdnüsse)'],
     });
-    expect(product?.allergens).toEqual(['en:milk', 'es:frutos-secos']);
-    expect(product?.traces).toEqual(['en:peanuts']);
+    expect(product?.allergens).toEqual(['en:milk', 'leche', 'es:frutos-secos', 'EN:NUTS']);
+    expect(product?.traces).toEqual(['en:peanuts', 'de:Schalenfrüchte (keine Erdnüsse)']);
+    expect(productFromOff({ ...nutella, allergensTags: ['x'.repeat(200)] })?.allergens).toEqual([
+      'x'.repeat(80),
+    ]);
+  });
+
+  it('drops a serving or a package that is in another unit than the food', () => {
+    // A cocoa powder sold in grams whose serving is "200 ml prepared": 200 is not grams of powder.
+    const powder = productFromOff({
+      ...nutella,
+      productQuantity: 400,
+      productQuantityUnit: 'g',
+      servingQuantity: 200,
+      servingQuantityUnit: 'ml',
+    });
+    expect(powder?.unit).toBe('g');
+    expect(powder?.servings).toEqual([{ kind: 'package', grams: 400 }]);
+
+    // A drink sold in millilitres with a serving stated in grams.
+    const drink = productFromOff({
+      ...nutella,
+      productQuantity: 1000,
+      productQuantityUnit: 'ml',
+      servingQuantity: 100,
+      servingQuantityUnit: 'g',
+    });
+    expect(drink?.unit).toBe('ml');
+    expect(drink?.servings).toEqual([{ kind: 'package', grams: 1000 }]);
+  });
+
+  it('takes the unit of the serving when the package has none', () => {
+    const product = productFromOff({
+      ...nutella,
+      productQuantity: null,
+      productQuantityUnit: null,
+      servingQuantity: 250,
+      servingQuantityUnit: 'ml',
+    });
+    expect(product?.unit).toBe('ml');
+    expect(product?.servings).toEqual([{ kind: 'serving', grams: 250 }]);
+    // A size without a unit is taken to be in the food's unit.
+    expect(
+      productFromOff({ ...nutella, servingQuantityUnit: null, productQuantityUnit: 'cl' })
+        ?.servings,
+    ).toEqual([
+      { kind: 'serving', grams: 15 },
+      { kind: 'package', grams: 400 },
+    ]);
+  });
+
+  it('accepts an oil whose kJ convert to a hair above 900 kcal', () => {
+    const oil = productFromOff({
+      productName: 'Aceite de oliva',
+      energyKj100g: 3766,
+      proteins100g: 0,
+      carbohydrates100g: 0,
+      fat100g: 100,
+    });
+    expect(oil?.per100g.kcal).toBe(900);
+    expect(productFromOff({ ...nutella, energyKcal100g: 906 })).toBeNull();
   });
 
   it('has no brand when the source has none', () => {

@@ -12,6 +12,8 @@ interface ProductNotFoundProps {
   reason: ProductMiss;
   /** A label photo is being taken: the buttons wait. */
   busy: boolean;
+  /** False with an eating-disorder signal: the label photo, which fills in numbers, is not offered. */
+  showNumbers: boolean;
   /** Shown under the options: the photo could not be taken. */
   error?: string | null;
   /** Asks again (the lookup failed, or the connection is back). */
@@ -32,6 +34,7 @@ export function ProductNotFound({
   barcode,
   reason,
   busy,
+  showNumbers,
   error,
   onRetry,
   onLabelPhoto,
@@ -73,7 +76,7 @@ export function ProductNotFound({
         <Button label={p.retry} onPress={onRetry} disabled={busy} testID="product-retry" />
       ) : null}
       {/* Without a connection the photo cannot be read: the form by hand still works (it syncs later). */}
-      {reason === 'offline' ? null : (
+      {reason === 'offline' || !showNumbers ? null : (
         <Button
           variant={failed ? 'secondary' : 'primary'}
           label={p.labelPhoto}
@@ -83,7 +86,7 @@ export function ProductNotFound({
         />
       )}
       <Button
-        variant="secondary"
+        variant={!failed && !showNumbers ? 'primary' : 'secondary'}
         label={p.byHand}
         onPress={onByHand}
         disabled={busy}

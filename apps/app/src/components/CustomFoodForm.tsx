@@ -42,6 +42,11 @@ interface CustomFoodFormProps {
   initialName?: string;
   /** A label photo already taken ("Leer la etiqueta con una foto" of AC6): it is read at once. */
   initialImage?: LabelImage;
+  /**
+   * False with an eating-disorder signal (spec 005 AC18): the form keeps the numbers the user types,
+   * but the app does not put numbers in front of them, so the label photo is not offered.
+   */
+  showNumbers: boolean;
   onSubmit: (request: CustomFoodUpsertRequest) => void;
   onCancel: () => void;
 }
@@ -67,6 +72,7 @@ export function CustomFoodForm({
   barcode = null,
   initialName = '',
   initialImage,
+  showNumbers,
   onSubmit,
   onCancel,
 }: CustomFoodFormProps) {
@@ -121,7 +127,7 @@ export function CustomFoodForm({
   // every read is a metered call.
   const started = useRef(false);
   useEffect(() => {
-    if (!initialImage || started.current) return;
+    if (!initialImage || !showNumbers || started.current) return;
     started.current = true;
     readLabel(initialImage);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, for the photo the form opened with
@@ -227,49 +233,51 @@ export function CustomFoodForm({
         </AppText>
       ) : null}
 
-      <View
-        style={[styles.label, { borderColor: colors.border, backgroundColor: colors.surface }]}
-        testID="label-photo"
-      >
-        <AppText variant="caption" tone="muted">
-          {l.hint}
-        </AppText>
-        {reading ? (
-          <View style={styles.reading} role="status" accessibilityLiveRegion="polite">
-            <ActivityIndicator color={colors.primary} />
-            <AppText testID="label-reading">{l.reading}</AppText>
-          </View>
-        ) : null}
-        {label.kind === 'done' ? (
-          <Notice tone="success" message={l.done} testID="label-done" />
-        ) : null}
-        {label.kind === 'unreadable' ? (
-          <Notice tone="warning" message={l.unreadable[label.reason]} testID="label-unreadable" />
-        ) : null}
-        {label.kind === 'failed' ? (
-          <Notice tone="warning" message={label.message} testID="label-failed" />
-        ) : null}
-        {online ? (
-          <View style={styles.photoButtons}>
-            <Button
-              variant="secondary"
-              label={label.kind === 'idle' || reading ? l.takePhoto : l.retake}
-              onPress={() => void takePhoto('camera')}
-              disabled={reading}
-              testID="label-take-photo"
-            />
-            <Button
-              variant="ghost"
-              label={l.pickImage}
-              onPress={() => void takePhoto('library')}
-              disabled={reading}
-              testID="label-pick-image"
-            />
-          </View>
-        ) : (
-          <Notice tone="info" message={l.offline} testID="label-offline" />
-        )}
-      </View>
+      {showNumbers ? (
+        <View
+          style={[styles.label, { borderColor: colors.border, backgroundColor: colors.surface }]}
+          testID="label-photo"
+        >
+          <AppText variant="caption" tone="muted">
+            {l.hint}
+          </AppText>
+          {reading ? (
+            <View style={styles.reading} role="status" accessibilityLiveRegion="polite">
+              <ActivityIndicator color={colors.primary} />
+              <AppText testID="label-reading">{l.reading}</AppText>
+            </View>
+          ) : null}
+          {label.kind === 'done' ? (
+            <Notice tone="success" message={l.done} testID="label-done" />
+          ) : null}
+          {label.kind === 'unreadable' ? (
+            <Notice tone="warning" message={l.unreadable[label.reason]} testID="label-unreadable" />
+          ) : null}
+          {label.kind === 'failed' ? (
+            <Notice tone="warning" message={label.message} testID="label-failed" />
+          ) : null}
+          {online ? (
+            <View style={styles.photoButtons}>
+              <Button
+                variant="secondary"
+                label={label.kind === 'idle' || reading ? l.takePhoto : l.retake}
+                onPress={() => void takePhoto('camera')}
+                disabled={reading}
+                testID="label-take-photo"
+              />
+              <Button
+                variant="ghost"
+                label={l.pickImage}
+                onPress={() => void takePhoto('library')}
+                disabled={reading}
+                testID="label-pick-image"
+              />
+            </View>
+          ) : (
+            <Notice tone="info" message={l.offline} testID="label-offline" />
+          )}
+        </View>
+      ) : null}
 
       <TextField
         label={c.name}

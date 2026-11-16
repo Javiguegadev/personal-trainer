@@ -6,9 +6,15 @@ import {
   type LabelScanResponse,
   type QuantityUnit,
 } from '@pt/contracts';
-import { kcalFromKj } from './product';
+import { capEnergy, kcalFromKj } from './product';
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+/** Kcal and kJ of the same label within 5 % of each other (kJ are rounded on their own). */
+const ENERGY_AGREEMENT = 0.05;
+/** Room for a kJ conversion a hair above 900 kcal (see `capEnergy`). */
+const KCAL_ROUNDING = 5;
+const capped = (kcal: number | null) => (kcal === null ? null : capEnergy(kcal));
 
 const cleanText = (value: string | null, max: number): string | null => {
   const trimmed = value?.replace(/\s+/g, ' ').trim() ?? '';
@@ -47,8 +53,14 @@ export function labelDraft(reading: LabelReading): LabelScanResponse {
     return scaled >= 0 && scaled <= max ? scaled : null;
   };
 
-  const energy =
-    reading.energyKcal ?? (reading.energyKj === null ? null : kcalFromKj(reading.energyKj));
+  // A label prints the same energy twice. When both were read and they disagree, one of them was
+  // misread and there is no telling which: the user types the energy.
+  const fromKj = reading.energyKj === null ? null : kcalFromKj(reading.energyKj);
+  const disagree =
+    reading.energyKcal !== null &&
+    fromKj !== null &&
+    Math.abs(reading.energyKcal - fromKj) > Math.max(fromKj * ENERGY_AGREEMENT, 2);
+  const energy = disagree ? null : (reading.energyKcal ?? fromKj);
   const unit: QuantityUnit =
     reading.basis === 'per_100ml'
       ? 'ml'
@@ -59,7 +71,7 @@ export function labelDraft(reading: LabelReading): LabelScanResponse {
     name: cleanText(reading.productName, CUSTOM_FOOD_LIMITS.nameMax),
     brand: cleanText(reading.brand, CUSTOM_FOOD_LIMITS.brandMax),
     unit,
-    kcal: per100(energy, CUSTOM_FOOD_LIMITS.kcalMax),
+    kcal: capped(per100(energy, CUSTOM_FOOD_LIMITS.kcalMax + KCAL_ROUNDING)),
     proteinG: per100(reading.proteinG, CUSTOM_FOOD_LIMITS.macroMax),
     carbsG: per100(reading.carbsG, CUSTOM_FOOD_LIMITS.macroMax),
     fatG: per100(reading.fatG, CUSTOM_FOOD_LIMITS.macroMax),

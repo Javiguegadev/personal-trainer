@@ -9,8 +9,9 @@ import { Notice } from './Notice';
 /**
  * What the app says about a product read from Open Food Facts (spec 006 AC5): where its values come
  * from, a prompt to check them when the energy does not match the macros, and the allergens and traces
- * the source declares. Volunteers write that data, so the note always ends with "check the package",
- * and a product without allergen data shows nothing: the app never says a product is free of anything.
+ * the source lists. Volunteers write that data, so the note always ends with "check the package". A
+ * product without allergen data says so, because next to products that show their allergens an empty
+ * space reads as "none": the app never says, or lets it seem, that a product is free of anything.
  */
 export function ProductNotes({ food }: { food: Food }) {
   const { t, format, locale } = useI18n();
@@ -30,18 +31,22 @@ export function ProductNotes({ food }: { food: Food }) {
       {food.energyMismatch ? (
         <Notice tone="warning" message={p.checkValues} testID="product-check-values" />
       ) : null}
-      {declared.length > 0 ? (
-        <Notice tone="info" testID="product-allergens">
-          {declared.map((line) => (
+      <Notice tone="info" testID="product-allergens">
+        {declared.length > 0 ? (
+          declared.map((line) => (
             <AppText key={line} variant="label" weight="regular">
               {line}
             </AppText>
-          ))}
-          <AppText variant="label" weight="bold">
-            {p.checkPackage}
+          ))
+        ) : (
+          <AppText variant="label" weight="regular" testID="product-no-allergen-data">
+            {p.noAllergenData}
           </AppText>
-        </Notice>
-      ) : null}
+        )}
+        <AppText variant="label" weight="bold">
+          {p.checkPackage}
+        </AppText>
+      </Notice>
       <AppText variant="caption" tone="muted" testID="product-source">
         {p.source}
       </AppText>

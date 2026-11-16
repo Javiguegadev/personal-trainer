@@ -21,10 +21,13 @@ export const LABEL_SYSTEM_PROMPT = `You read nutrition labels for a food-logging
 
 What to copy:
 - Use the "per 100 g" or "per 100 ml" column when the label has one, and say which in \`basis\`. Use a per-serving column only when the label has no per-100 column; then \`basis\` is \`per_serving\`.
+- Copy the values of the product as it is sold. A column for the prepared product ("preparado", "con leche", "as prepared") describes something else: never copy from it, and if the label has no other values, leave them null.
+- The "% IR", "% VRN" or "% RI" column holds percentages of a reference intake, not amounts: ignore it.
+- When one table covers several products or flavours, copy the column of the product named in \`productName\`; if you cannot tell which it is, leave the values null.
 - \`servingSize\` and \`servingUnit\`: the size of one serving when the label states it (for example "por ración de 30 g"), whichever column you copied. With \`basis\` \`per_serving\` it is the serving that column refers to.
 - Energy: kcal in \`energyKcal\` and kJ in \`energyKj\`, each only if it is printed.
 - \`fatG\`, \`carbsG\`, \`proteinG\` and \`fiberG\` are the totals in grams: fat ("grasas"), carbohydrates ("hidratos de carbono"), protein ("proteínas") and fibre ("fibra alimentaria"). Their sub-rows (saturates, sugars, polyols) are different values: do not copy them into these fields.
-- Labels in Spain use a decimal comma: "7,1 g" is 7.1. A value printed as "trazas", "traces" or "< 0,5 g" is 0.
+- Labels in Spain use a decimal comma: "7,1 g" is 7.1. A dot between thousands is not a decimal: "1.046 kJ" is 1046. A value printed as "trazas", "traces" or "< 0,5 g" is 0.
 - \`productName\` and \`brand\` only when they are printed in the photo.
 
 \`status\`:

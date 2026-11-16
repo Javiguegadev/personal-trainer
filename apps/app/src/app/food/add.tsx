@@ -292,6 +292,7 @@ function FoodAdd({
         barcode={barcode}
         reason={step.reason}
         busy={looking || photoBusy}
+        showNumbers={showNumbers}
         error={photoError}
         onRetry={() => void findBarcode(barcode)}
         onLabelPhoto={() => void photographLabel(barcode)}
@@ -310,6 +311,7 @@ function FoodAdd({
         barcode={step.barcode}
         initialName={step.name}
         initialImage={step.image}
+        showNumbers={showNumbers}
         onSubmit={(request) => {
           // Optimistic and queued: the food is in the lists at once, also without a connection.
           const id = editing?.id ?? newId();

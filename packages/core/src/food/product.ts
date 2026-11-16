@@ -103,8 +103,8 @@ export interface ScannedProduct {
 
 const SERVING_MIN = 1;
 const SERVING_MAX = 2000;
-const TAG = /^[a-z]{2}:[a-z0-9-]+$/;
-const TAGS_MAX = 30;
+const TAG_LENGTH_MAX = 80;
+const TAGS_MAX = 50;
 
 const cleanText = (value: string | null | undefined, max: number): string | null => {
   const trimmed = value?.replace(/\s+/g, ' ').trim() ?? '';
@@ -114,8 +114,33 @@ const cleanText = (value: string | null | undefined, max: number): string | null
 const finite = (value: number | null | undefined): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
 
+/**
+ * Declared allergens are never dropped for their form: a tag the app cannot translate
+ * (`de:Schalenfrüchte (keine Erdnüsse)`) is still shown as it is. Only the length is bounded.
+ */
 const cleanTags = (values: readonly string[] | null | undefined): string[] =>
-  [...new Set((values ?? []).filter((tag) => TAG.test(tag)))].slice(0, TAGS_MAX);
+  [
+    ...new Set(
+      (values ?? [])
+        .map((tag) => tag.replace(/\s+/g, ' ').trim().slice(0, TAG_LENGTH_MAX))
+        .filter((tag) => tag !== ''),
+    ),
+  ].slice(0, TAGS_MAX);
+
+const unitOf = (unit: string | null | undefined): QuantityUnit | null =>
+  unit === 'g' || unit === 'ml' ? unit : null;
+
+/**
+ * Energy converted from kJ can land a hair above the 900 kcal of pure fat (an oil printed as 3766 kJ
+ * is 900.1 kcal): within this margin it counts as 900 instead of rejecting the food.
+ */
+const KCAL_MARGIN = 5;
+
+/** Kcal per 100, with the rounding margin of a kJ conversion at the top of the range. */
+export function capEnergy(kcal: number): number {
+  const max = CUSTOM_FOOD_LIMITS.kcalMax;
+  return kcal > max && kcal <= max + KCAL_MARGIN ? max : kcal;
+}
 
 const size = (value: number | null | undefined): number | null => {
   const n = finite(value);
@@ -145,7 +170,7 @@ export function productFromOff(input: OffProductInput): ScannedProduct | null {
   if (kcal === null || proteinG === null || carbsG === null || fatG === null) return null;
   const fiber = finite(input.fiber100g);
   const per100g: Nutrients = {
-    kcal: round2(kcal),
+    kcal: capEnergy(round2(kcal)),
     proteinG: round2(proteinG),
     carbsG: round2(carbsG),
     fatG: round2(fatG),
@@ -153,10 +178,14 @@ export function productFromOff(input: OffProductInput): ScannedProduct | null {
   };
   if (per100gOutOfRange(per100g) !== null) return null;
 
-  const unit: QuantityUnit =
-    input.productQuantityUnit === 'ml' || input.servingQuantityUnit === 'ml' ? 'ml' : 'g';
-  const serving = size(input.servingQuantity);
-  const pack = size(input.productQuantity);
+  // The unit of the values is the one the product is sold by; without it, the unit of its serving.
+  // A size in the other unit is not a portion of this food (a cocoa powder sold in grams with a
+  // serving of "200 ml prepared"): it is dropped, never read as if it were in the food's unit.
+  const packUnit = unitOf(input.productQuantityUnit);
+  const servingUnit = unitOf(input.servingQuantityUnit);
+  const unit: QuantityUnit = packUnit ?? servingUnit ?? 'g';
+  const serving = servingUnit === null || servingUnit === unit ? size(input.servingQuantity) : null;
+  const pack = packUnit === null || packUnit === unit ? size(input.productQuantity) : null;
   const servings: ScannedProduct['servings'] = [];
   if (serving !== null) servings.push({ kind: 'serving', grams: serving });
   if (pack !== null && pack !== serving) servings.push({ kind: 'package', grams: pack });
@@ -174,7 +203,8 @@ export function productFromOff(input: OffProductInput): ScannedProduct | null {
 
 /**
  * Allergen or trace tags of Open Food Facts (`en:milk`) as words (spec 006 AC5): the translated name of
- * a known tag, else the tag itself without its language prefix (`en:sesame-seeds` → "sesame seeds").
+ * a known tag, else the tag itself without its language prefix (`en:sesame-seeds` → "sesame seeds"),
+ * so a declared allergen is always shown, in whatever language the source has it.
  */
 export function allergenNames(
   tags: readonly string[],

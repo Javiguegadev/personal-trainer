@@ -40,12 +40,31 @@ describe('labelDraft (spec 006 AC15)', () => {
     expect(result).toMatchObject({ status: 'ok', draft: { kcal: 438.81 } });
   });
 
+  it('leaves the energy empty when the kcal and the kJ of the label disagree', () => {
+    // 436 kcal is 1824 kJ: 183 kJ (a lost digit) cannot be the same energy.
+    const result = labelDraft({ ...reading, energyKcal: 436, energyKj: 183 });
+    expect(result).toMatchObject({ status: 'ok', draft: { kcal: null, proteinG: 7.1 } });
+    // Rounded on their own, they still agree.
+    expect(labelDraft({ ...reading, energyKcal: 436, energyKj: 1836 })).toMatchObject({
+      draft: { kcal: 436 },
+    });
+    expect(labelDraft({ ...reading, energyKcal: 1, energyKj: 6 })).toMatchObject({
+      draft: { kcal: 1 },
+    });
+  });
+
+  it('reads an oil of 3766 kJ as 900 kcal', () => {
+    const oil = { ...reading, energyKcal: null, energyKj: 3766, fatG: 100, carbsG: 0, proteinG: 0 };
+    expect(labelDraft(oil)).toMatchObject({ status: 'ok', draft: { kcal: 900 } });
+  });
+
   it('converts values printed per serving with the size of the serving', () => {
     const result = labelDraft({
       ...reading,
       basis: 'per_serving',
       servingSize: 30,
       energyKcal: 131,
+      energyKj: 548,
       fatG: 3.2,
       carbsG: 22.8,
       proteinG: 2.1,
