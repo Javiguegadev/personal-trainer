@@ -7,6 +7,8 @@
 > review and daily check-in in the MVP, beta before payments. See ADR 003.
 > v4 (2026-11-12): touch-first input with AI as a shortcut, onboarding by form, a chat for questions in
 > the beta, voice messages. See ADR 004.
+> v5 (2026-11-16): a week view in E5 and manual planning of meals and sessions (E5c) before the beta.
+> See ADR 006.
 
 ## 0. Product principles
 
@@ -91,6 +93,8 @@ Dependency rules are unchanged and enforced by ESLint: `core` is pure, `contract
 | Typical week            | A week grid edited with taps; a one-sentence shortcut is optional                                   | Haiku           | ✅           | ✅        |
 | **Food logging**        | Search, recents, favourites and barcode first; a **photo of the plate** or a sentence as a shortcut | Haiku (vision)  | ✅ daily cap | Unlimited |
 | Nutrition label reading | Photo of the label when a barcode isn't in the database                                             | Haiku (vision)  | ✅           | ✅        |
+| **Week view**           | Seven days at a glance (work, training, meals); a tap opens the day (ADR 006)                       | none            | ✅           | ✅        |
+| **Manual planning**     | Meals and sessions planned for the days ahead with taps; a planned item is logged in one tap        | none            | ✅           | ✅        |
 | **Workout logging**     | Steppers for sets, reps and weight; a typed or spoken sentence as a shortcut                        | Haiku           | ✅           | ✅        |
 | Daily feedback          | Short notes on what you logged ("protein low today, try…")                                          | Haiku           | ✅           | ✅        |
 | Weekly insights         | Readable summary of habits and trends, with sources                                                 | Haiku (Batch)   | Basic        | Detailed  |
@@ -196,7 +200,8 @@ Logs (instances, client-generated ids)
   workouts(id, user_id, local_date, started_at, kind[gym|sport], program_session_id?, minutes, session_rpe)
   workout_sets(id, workout_id, exercise_id, reps, weight, rpe, distance, duration) / personal_records
 
-Plans (templates: their items have the shape of the logs, so a planned meal or session is logged in one tap)
+Plans (their items have the shape of the logs, so a planned meal or session is logged in one tap; written
+by hand from E5c and by the AI from E7, never stored as log rows with a future date: ADR 006)
   meal_plans → plan_meals → plan_items
   workout_programs → program_sessions → planned_sets
   weekly_reviews(user_id, week_start, snapshot, proposal, decision[pending|accepted|rejected])
@@ -287,9 +292,10 @@ typed tables ─► @pt/core context functions (pure) ─► ContextSnapshot (Zo
 | **E2 Auth & AI onboarding**               | Supabase Auth (email, Google, Apple), conversational onboarding, targets, GDPR consent/export/delete      | Targets match a hand calculation; deleting the account removes all data                    |
 | **E2b Logging & context foundations**     | "Today" hub, offline-safe writes, weight series, `targets-v2`, `ContextSnapshot` v1, onboarding by form   | Changing the job type changes the previewed targets; an offline weight entry syncs once    |
 | **E4 AI food logging**                    | Food catalog and Spanish search, recents and favourites, barcode and label, then photo and text shortcuts | A full day is logged in under 1 minute; text and barcode totals within ±5% of a reference  |
-| **E5 AI workout logging & daily context** | Training profile, typical week, exercise library, live session, set logging, PRs, daily check-in          | Free-text sessions parse correctly in ≥ 95% of eval cases                                  |
+| **E5 AI workout logging & daily context** | Training profile, typical week, week view, exercise library, live session, set logging, PRs, check-in     | Free-text sessions parse correctly in ≥ 95% of eval cases                                  |
+| **E5c Weekly planner**                    | Meals and sessions planned by hand for the days ahead, shown on the week view, logged in one tap          | A planned week shows on the week view; a planned item never counts as eaten or done        |
 | **E5b Adaptive loop**                     | Weekly review, streaks, "What I know about you" screen, questions assistant, one beta plan with AI caps   | A simulated four-week history gives the expected proposals; the assistant passes its evals |
-| **— Beta (no paywall) —**                 | E2–E5b                                                                                                    |                                                                                            |
+| **— Beta (no paywall) —**                 | E2–E5b (E5c included)                                                                                     |                                                                                            |
 | **E7 Premium AI**                         | Workout programs, meal plans, adaptive training, coach chat with citations, AI-learned memory             | Evals ≥ 95% valid, 0 allergen violations, hard constraints respected, cost target met      |
 | **E6 Payments & limits**                  | RevenueCat + Paddle, entitlements, paywall, plan-based AI caps                                            | Buy on web → Premium in the app and vice versa (sandbox)                                   |
 | **E8 Insights & engagement**              | Weekly insights, challenges, notifications                                                                | Weekly summary generated for all test users                                                |
@@ -321,6 +327,12 @@ Stage details (ADR 003):
   shortcut. Starter routine from templates in `core` (no
   AI), placed in the week. Optional daily check-in (sleep, stress) and a deterministic day readiness that
   adjusts today's session and shows the reason: the same check-in always produces the same adjustment.
+  The week grid is also the week view (ADR 006): work, training planned and done, and the meals logged
+  for each day, with a tap to open the day; Today gets a Day / Week switch (to confirm in the spec).
+- **E5c (ADR 006).** Manual planning: the user fills the days ahead with meals (search, recents,
+  favourites, copy from another day) and sessions (templates, exercise library). Planned items are kept
+  apart from the logs and are logged in one tap, edited first if needed. Free; the AI of E7 fills the
+  same planner.
 - **E5b.** Weekly review in `core`: weight trend, adherence, sleep and stress produce a proposed target
   change that the user accepts or rejects. "What I know about you" lists the declared context, and every
   item can be edited or deleted. `canUse()` exists with a single beta plan. Questions assistant (ADR

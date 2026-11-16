@@ -1,7 +1,7 @@
 # Personal Trainer: AI nutrition & fitness app (freemium)
 
 Mobile-first, touch-first, with AI where it is faster. One Expo universal app (iOS, Android, web) plus a
-Hono API. Full plan: `docs/BLUEPRINT.md` (v4, see ADR 002 to 005). Current stage: see "Status" at the
+Hono API. Full plan: `docs/BLUEPRINT.md` (v5, see ADR 002 to 006). Current stage: see "Status" at the
 bottom of this file.
 
 **Language: always answer the human in Spanish** (explanations, summaries, questions), even after
@@ -91,5 +91,6 @@ pnpm format
 - E4 food logging: slice (a), spec 005 (catalog, search, Food tab, log, offline writes), is implemented
   with E2E; the phone check in Expo Go and the review of the catalog are left (see its "Progress").
   Slices (b) barcode and label photo, and (c) plate photo and sentence, are still to spec.
-- Next (ADR 003): E4 slices (b) and (c) → E5 workout logging & daily context → E5b adaptive loop → beta
-  without paywall → E7 premium AI → E6 payments.
+- Next (ADR 003, ADR 006): E4 slices (b) and (c) → E5 workout logging, daily context and the week view →
+  E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
+  premium AI → E6 payments.
