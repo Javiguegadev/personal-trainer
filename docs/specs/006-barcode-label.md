@@ -262,5 +262,64 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- Done so far (2026-11-16), one commit per step: contracts (`bc67d47`), db schema and migration
+  `0007` (`bcd8c74`), core (`d5335c0`), API and `@pt/ai` (`fc8574d`).
+- **Migration `0007_barcode_custom_foods` is generated and not applied to dev yet.** It only adds:
+  two enums, three values of `food_input_method`, the new columns (with defaults), `barcode_misses`,
+  and the stricter `select` policies of `foods` and `food_servings`. After applying it, run
+  `pnpm --filter @pt/db import:foods` once: it upserts the `open-food-facts` and `user` rows of
+  `knowledge_sources`, which products and custom foods reference. Then
+  `pnpm --filter @pt/api test:integration` covers the new SQL (custom food, product, miss, the
+  `owner_id` cascade of AC22).
+- Tests by criterion so far: AC2 `core/food/barcode.test.ts`; AC4, AC5 `core/food/product.test.ts`;
+  AC9, AC10, AC16 (the form and the draft) `core/food/custom-food.test.ts`; AC15
+  `core/food/label.test.ts` and `ai/prompts/label/label.test.ts`; AC3, AC6, AC7, AC11–AC13, AC17–AC19,
+  AC22 (export), AC23 `api/routes/foods/products.test.ts` (401 and 403 for every route); AC7 (the
+  time limit) and AC24 `api/off/client.test.ts`.
+- AC24: 20 answers of Open Food Facts were recorded on 2026-11-16
+  (`apps/api/src/off/__fixtures__/products/`). 18 are accepted and 2 rejected (Nesquik gives values
+  only "as prepared"; the mineral water has no table). The reference (`reference.json`) holds Open
+  Food Facts' own per-serving values for the 16 products that state a serving (`verified: false`):
+  it proves the app's arithmetic, not that Open Food Facts matches the package. **Left for the human:**
+  check those values on the real packages, set `verified`, and type the label of the two products
+  without a serving (Nutella, Hacendado peanut butter).
+- AC20: the harness is `pnpm --filter @pt/api eval:label-scan` (`apps/api/evals/label/README.md`
+  explains the photos and `cases.jsonl`). **Not run:** it needs the human's 30 photos, the API key and
+  the go-ahead to spend.
+- Left for the human in `.env` (a hook blocks me): `ANTHROPIC_API_KEY` (without it a label read
+  answers 503 and the form is filled by hand) and `OFF_CONTACT_EMAIL` (the contact of the
+  `User-Agent` Open Food Facts asks for; without it the API warns at start and sends the app name
+  only). Both should also be listed in `.env.example`.
 - Decisions taken during implementation:
+  - **`Food.origin` replaces the `owned` flag** of the contracts above (`catalog`, `off`, `manual`,
+    `label`); `isOwnFood` in core reads it. No `origin` column was planned for the API response.
+  - **The image limit is 3 MB, not 4 MB** (`LABEL_SCAN_LIMITS.imageBytesMax`): in base64 it is 4 MB,
+    and the API's host (Vercel) rejects requests above 4.5 MB. A photo resized to 1568 px is well
+    under 1 MB.
+  - **The policies keep their names** (`foods_select_all`, `food_servings_select_all`): a rename makes
+    drizzle-kit ask a question that needs a terminal. Only their `using` changed.
+  - **The catalog cache holds only the curated foods.** Products and own foods are read per request
+    (`resolveFoods`), so nothing of one user stays in memory shared by all.
+  - **A product cached more than 90 days ago is still returned** when Open Food Facts does not answer,
+    is not asked (limit reached) or no longer knows it. A stale label is better than "try again".
+  - **The limit of 10 live lookups per minute lives in one API instance** (in memory). With several
+    instances the real limit is higher: it stops a loop in one client, it is not an exact quota.
+  - **In-store codes (EAN-13 starting with 2) never reach Open Food Facts.**
+  - **An unknown code is HTTP 404 at Open Food Facts** (seen on 2026-11-16), and `status: 0` with
+    HTTP 200 in their docs: the client treats both as "not found". Their search endpoint answered
+    503 with an HTML page the same day: anything that is not their JSON counts as "unavailable".
+  - **"trazas" and "< x" become 0 in the prompt**, not in `labelDraft`: the reading is numbers only.
+  - **The prompt carries no locale**, only the image and a fixed instruction: the reading does not
+    depend on the user's language, and less data leaves the API.
+  - **Model settings:** Claude Haiku 5.5, effort `low`, 2048 max tokens (adaptive thinking counts
+    towards them), no sampling parameters (the model rejects them). Provisional until the eval runs.
+    The system prompt is too short to be cached, so there is no cache breakpoint.
+  - **The eval lives in `apps/api/evals/`**, not in `packages/ai/evals/`: it needs `@pt/core`
+    (`labelDraft`), which only `apps/api` may combine with `@pt/ai`.
+  - **One food per barcode and user**: a second custom food with the same barcode is rejected (400
+    `barcode: already_used`), so a scan always has one answer.
+  - `PUT /me/foods/{id}` answers 404 for an id that is a catalog food, a product or another user's
+    food; `DELETE` answers 204 also when nothing was deleted.
+  - `GET /foods/sources` leaves out the `user` source (a technical row for the foreign key).
+  - The serving of a custom food has a client id, so the first item can use it before the sync.
