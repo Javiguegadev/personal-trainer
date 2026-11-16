@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "test:integration": "node --env-file-if-exists=../../.env ../../node_modules/vitest/vitest.mjs run integration"
+    "test:integration": "node --env-file-if-exists=../../.env ../../node_modules/vitest/vitest.mjs run integration",
+    "eval:food-search": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs evals/food-search.ts"
   },
   "devDependencies": {
     "@pt/config": "workspace:*",

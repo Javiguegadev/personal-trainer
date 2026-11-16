@@ -2,6 +2,7 @@ import type { ConsentKind, PlannedActivity, SafetyFlag } from '@pt/contracts';
 import { SafetyFlagSchema } from '@pt/contracts';
 import { and, asc, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
+import { createFoodStore, exportFoodLog } from './food-store';
 
 const {
   aiUsage,
@@ -119,6 +120,8 @@ export function createDrizzleStore(db: Db): Store {
       .orderBy(asc(plannedActivities.position));
 
   return {
+    ...createFoodStore(db),
+
     async getMe(userId) {
       const [[consent], [profile], [lifestyle], [training], activities, [prefs], [targets]] =
         await Promise.all([
@@ -422,9 +425,7 @@ export function createDrizzleStore(db: Db): Store {
           validTo: t.validTo?.toISOString() ?? null,
         })),
         weights: weights.map(toWeight),
-        // The food log tables arrive with the db step of spec 005; the export reads them from then on.
-        mealItems: [],
-        favouriteFoods: [],
+        ...(await exportFoodLog(db, userId)),
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

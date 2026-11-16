@@ -5,6 +5,7 @@ import { logger } from 'hono/logger';
 import type { Deps } from './deps';
 import { errorBody } from './http';
 import { healthRoutes } from './routes/health';
+import { foodRoutes } from './routes/foods';
 import { meRoutes } from './routes/me';
 import { onboardingRoutes } from './routes/onboarding';
 
@@ -26,6 +27,7 @@ export function createApp(config: AppConfig) {
   if (config.deps) {
     app.route('/', meRoutes(config.deps));
     app.route('/', onboardingRoutes(config.deps));
+    app.route('/', foodRoutes(config.deps));
   }
 
   app.doc('/openapi.json', {

@@ -29,6 +29,8 @@ const COVERED_USER_TABLES = [
   'nutrition_targets',
   'consents',
   'ai_usage',
+  'meal_items',
+  'favourite_foods',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -216,6 +218,47 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       () => null,
       later,
     );
+
+    // Spec 005: the food log on the real SQL (needs the imported catalog: pnpm --filter @pt/db import:foods).
+    const catalog = await store.listCatalog();
+    expect(catalog.length).toBeGreaterThan(500);
+    const egg = catalog.find((f) => f.servings.length > 0)!;
+    const itemId = crypto.randomUUID();
+    const item = {
+      id: itemId,
+      localDate: TODAY,
+      mealType: 'breakfast' as const,
+      foodId: egg.id,
+      servingId: egg.servings[0]!.id,
+      servings: 2,
+      servingLabel: egg.servings[0]!.labelEs,
+      grams: egg.servings[0]!.grams * 2,
+      label: egg.nameEs,
+      nutrients: { kcal: 150.25, proteinG: 12.5, carbsG: 1, fatG: 10, fiberG: null },
+      inputMethod: 'search' as const,
+      recordedAt: now.toISOString(),
+    };
+    expect(await store.upsertMealItem(id, item)).toEqual(item);
+    // AC20: an older write loses; a delete leaves a tombstone that an older write cannot undo.
+    const older = new Date(now.getTime() - 60_000).toISOString();
+    expect(
+      await store.upsertMealItem(id, { ...item, mealType: 'lunch', recordedAt: older }),
+    ).toEqual(item);
+    await store.deleteMealItem(id, itemId, later.toISOString());
+    expect(await store.listMealItems(id, TODAY, TODAY)).toEqual([]);
+    expect(await store.upsertMealItem(id, item)).toBeNull();
+    const again = { ...item, id: crypto.randomUUID(), recordedAt: later.toISOString() };
+    await store.upsertMealItem(id, again);
+    expect(await store.countMealItems(id, TODAY)).toBe(1);
+    expect((await store.listRecentFoodItems(id, TODAY, 20)).map((i) => i.id)).toEqual([again.id]);
+    await store.setFavouriteFood(id, egg.id, true, now);
+    await store.setFavouriteFood(id, egg.id, true, now);
+    expect(await store.listFavouriteFoodIds(id)).toEqual([egg.id]);
+    const withFood = await store.exportUser(id);
+    expect(withFood.mealItems.map((i) => i.id)).toEqual([again.id]);
+    expect(withFood.favouriteFoods).toEqual([
+      { foodId: egg.id, key: egg.key, createdAt: now.toISOString() },
+    ]);
 
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.

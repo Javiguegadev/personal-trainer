@@ -10,6 +10,8 @@ import type {
   Targets,
   TrainingFocus,
   WeightEntry,
+  MealItem,
+  Nutrients,
 } from '@pt/contracts';
 
 /** The signed-in user, taken from a verified Supabase access token. */
@@ -87,6 +89,30 @@ export interface WeightWriteResult {
 
 export type ExportRecord = Omit<ExportResponse, 'exportedAt' | 'userId' | 'email'>;
 
+/** A catalog food in both languages, as stored (spec 005). */
+export interface CatalogFood {
+  id: string;
+  key: string;
+  source: string;
+  nameEs: string;
+  nameEn: string;
+  synonymsEs: string[];
+  popularity: number;
+  per100g: Nutrients;
+  /** Most common first. */
+  servings: { id: string; labelEs: string; labelEn: string; grams: number }[];
+}
+
+export interface KnowledgeSourceRecord {
+  id: string;
+  name: string;
+  url: string;
+  license: string;
+  version: string;
+  attributionEs: string;
+  attributionEn: string;
+}
+
 /** Persistence port. Real implementation: `store/drizzle-store.ts`; tests use an in-memory fake. */
 export interface Store {
   getMe(userId: string): Promise<MeRecord>;
@@ -118,6 +144,27 @@ export interface Store {
   ): Promise<WeightWriteResult | null>;
   recordAiUsage(userId: string, usage: AiUsage, at: Date): Promise<void>;
   exportUser(userId: string): Promise<ExportRecord>;
+
+  // Food catalog and food log (spec 005)
+  /** The whole catalog with its servings (about 800 foods): the API searches it in memory. */
+  listCatalog(): Promise<CatalogFood[]>;
+  listKnowledgeSources(): Promise<KnowledgeSourceRecord[]>;
+  /** Live items dated from `from` to `to` (inclusive), by day and then by `recordedAt`. */
+  listMealItems(userId: string, from: string, to: string): Promise<MealItem[]>;
+  /** Live items of one day (the 150-items guard). */
+  countMealItems(userId: string, localDate: string): Promise<number>;
+  /**
+   * Stores the item unless the stored row of that id (live or deleted) was recorded later (AC20). Returns
+   * the live item stored after the write, or null when that id is deleted or belongs to another user.
+   */
+  upsertMealItem(userId: string, item: MealItem): Promise<MealItem | null>;
+  /** Marks the item deleted (a tombstone) unless it was recorded after `recordedAt` (AC20). */
+  deleteMealItem(userId: string, id: string, recordedAt: string): Promise<void>;
+  /** The latest live item of each catalog food logged from `since` on, newest first (AC7). */
+  listRecentFoodItems(userId: string, since: string, limit: number): Promise<MealItem[]>;
+  /** Starred food ids, most recently starred first (AC14). */
+  listFavouriteFoodIds(userId: string): Promise<string[]>;
+  setFavouriteFood(userId: string, foodId: string, favourite: boolean, at: Date): Promise<void>;
 }
 
 /** Supabase Auth admin (service key, server only). Deleting the auth user cascades to every user row. */
