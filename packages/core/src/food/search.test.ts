@@ -86,6 +86,22 @@ describe('searchFoods (spec 005 AC4)', () => {
     expect(ids('pechuga de pollo')).toEqual(['pechuga']);
   });
 
+  it('matches Spanish plurals', () => {
+    const plurals = buildFoodSearchIndex([
+      food('melocoton', 'Melocotón', 7),
+      food('nuez', 'Nuez', 6),
+      food('yogur', 'Yogur natural', 8),
+    ]);
+    expect(searchFoods(plurals, 'melocotones', 'es', 25)).toEqual(['melocoton']);
+    expect(searchFoods(plurals, 'nueces', 'es', 25)).toEqual(['nuez']);
+    expect(searchFoods(plurals, 'yogures', 'es', 25)).toEqual(['yogur']);
+  });
+
+  it('ignores quantity words in the query', () => {
+    expect(ids('un vaso de leche entera')).toEqual(['leche-entera']);
+    expect(ids('cucharada de colacao')).toEqual(['cacao']);
+  });
+
   it('tolerates one typo in words of 5 letters or more', () => {
     expect(ids('platno')).toEqual(['platano']);
     expect(ids('pltano')).toEqual(['platano']);

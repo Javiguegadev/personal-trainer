@@ -63,6 +63,43 @@ const STOP_WORDS = new Set([
   'with',
 ]);
 
+/** Quantity words a user may type before the food ("un vaso de leche"): ignored in the query only. */
+const QUANTITY_WORDS = new Set([
+  'unos',
+  'unas',
+  'poco',
+  'poquito',
+  'copa',
+  'copas',
+  'vaso',
+  'vasos',
+  'taza',
+  'tazas',
+  'cucharada',
+  'cucharadas',
+  'cucharadita',
+  'cucharaditas',
+  'chorrito',
+  'chorro',
+  'plato',
+  'platos',
+  'racion',
+  'raciones',
+  'trozo',
+  'trozos',
+  'pieza',
+  'piezas',
+  'punado',
+  'loncha',
+  'lonchas',
+]);
+
+const queryTokens = (text: string) => {
+  const tokens = contentTokens(text);
+  const food = tokens.filter((t) => !QUANTITY_WORDS.has(t));
+  return food.length > 0 ? food : tokens;
+};
+
 const contentTokens = (text: string) => {
   const tokens = text.split(' ').filter(Boolean);
   const content = tokens.filter((t) => !STOP_WORDS.has(t));
@@ -119,7 +156,16 @@ function fuzzyMatches(query: string, token: string): boolean {
 const allTokens = (query: string[], text: IndexedText, match: (q: string, t: string) => boolean) =>
   query.every((q) => text.tokens.some((t) => match(q, t)));
 
-const prefix = (q: string, t: string) => t.startsWith(q);
+/** Spanish plurals: "melocotones" → "melocoton", "tomates" → "tomate", "nueces" → "nuez". */
+function singulars(q: string): string[] {
+  const forms = [q];
+  if (q.length > 4 && q.endsWith('ces')) forms.push(`${q.slice(0, -3)}z`);
+  if (q.length > 4 && q.endsWith('es')) forms.push(q.slice(0, -2));
+  if (q.length > 3 && q.endsWith('s')) forms.push(q.slice(0, -1));
+  return forms;
+}
+
+const prefix = (q: string, t: string) => singulars(q).some((form) => t.startsWith(form));
 
 /** Tiers of AC4: whole name, name prefix, every word of the name, synonyms, then similarity. */
 function tier(
@@ -146,7 +192,7 @@ export function searchFoods(
 ): string[] {
   const text = normalizeSearchText(query);
   if (text.length < 2) return [];
-  const normalized = { text, tokens: contentTokens(text) };
+  const normalized = { text, tokens: queryTokens(text) };
   const scored: { food: SearchableFood; score: number; length: number }[] = [];
   for (const entry of index.foods) {
     const names = locale === 'en' ? [entry.nameEs, entry.nameEn] : [entry.nameEs];

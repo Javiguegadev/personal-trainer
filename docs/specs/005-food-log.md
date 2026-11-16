@@ -295,5 +295,35 @@ this catalog and this log.
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- Done so far (2026-11-16), one commit per step: contracts + core (`154c3bf`), tables and migration
+  `0006` applied to dev (`b8b1d3d`), core search and write rules (`f4ba1df`), curated catalog of 811
+  foods and the Ciqual importer, run on dev (`6e76648`), API routes (`4079202`).
+- Search eval (AC5, 2026-11-16): 355 real-world queries in `apps/api/evals/food-search.jsonl` (written by
+  an agent that saw only the official names), 95.8 % first and 98.6 % in the top 3 (thresholds 75 %
+  and 90 %). The 5 misses are multi-food sentences ("pan con tomate"), left to the sentence shortcut of
+  slice (c). Plurals and quantity words ("un vaso de") were added to the search on the way.
+- Next: the search eval runs with `pnpm --filter @pt/api eval:food-search` (cases in
+  `apps/api/evals/food-search.jsonl`), then client (`api-client` methods, optimistic mutations, mock
+  backend with a ~60-food fixture), UI, E2E, and the BLUEPRINT §5 note (no `meals` table yet).
+- Tests by criterion so far: AC1–AC2 `db/knowledge/*.test.ts` (parsers, values, report) and the import
+  run on dev; AC3–AC4, AC6 (API part), AC8–AC10, AC14, AC20, AC23 `api/routes/foods/foods.test.ts`; AC4
+  `core/food/search.test.ts`; AC9–AC13, AC16, AC18 `core/food/*.test.ts`; AC20, AC23 on the real SQL in
+  `api/store/account-deletion.integration.test.ts`; AC22 consent text and `CONSENT_VERSION` 2026-11-v3.
 - Decisions taken during implementation:
+  - **Search runs in memory, in `@pt/core`** (`searchFoods`), not in Postgres: the catalog is small (811
+    foods), so the API caches it per instance, and the API, the mock backend and the eval rank the same
+    way. No `unaccent`/`pg_trgm` extensions and no `search` column (Data changes above are superseded
+    on this point). Revisit with Open Food Facts (slice (b)), where the catalog grows.
+  - **Ciqual only, no USDA yet**: Ciqual covered the curated list. Spanish foods it lacks (croquetas,
+    cocido, churros, turrón, salmorejo, Spanish cheeses with PDO…) and every approximate mapping are in
+    `docs/knowledge/catalog-review.md` for the professional reviewer and for later sources.
+  - **The catalog was curated by six agents, one per food group**, then merged and checked by the real
+    parser (duplicates removed). Servings are written `label (N g)` in the CSV.
+  - **Energy check counts fiber at 2 kcal/g** (Regulation (EU) 1169/2011, the energy Ciqual gives); the 6
+    remaining flags are foods with organic acids (lemon, lime, vinegars, pickles).
+  - `meal_items.serving_label` added (snapshot of the serving's name, to show "2 × 1 huevo mediano").
+  - Writes carry `locale` (language of the name and serving snapshots).
+  - `GET /foods/sources` added for the "Fuentes de datos" screen (auth only: no health data).
+  - A delete that reaches the server before the item's first `PUT` leaves no tombstone (the device
+    queue keeps the order of one device's writes, so this needs two devices; accepted).
