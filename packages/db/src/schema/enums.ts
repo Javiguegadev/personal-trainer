@@ -2,12 +2,14 @@ import {
   ActivityKindSchema,
   ConsentKindSchema,
   FoodInputMethodSchema,
+  FoodOriginSchema,
   DietTypeSchema,
   GoalSchema,
   IntensitySchema,
   JobActivitySchema,
   LocaleSchema,
   MealTypeSchema,
+  QuantityUnitSchema,
   SexSchema,
   TrainingFocusSchema,
   UnitsSchema,
@@ -32,3 +34,5 @@ export const localeEnum = pgEnum('locale', values(LocaleSchema));
 export const consentKindEnum = pgEnum('consent_kind', values(ConsentKindSchema));
 export const mealTypeEnum = pgEnum('meal_type', values(MealTypeSchema));
 export const foodInputMethodEnum = pgEnum('food_input_method', values(FoodInputMethodSchema));
+export const quantityUnitEnum = pgEnum('quantity_unit', values(QuantityUnitSchema));
+export const foodOriginEnum = pgEnum('food_origin', values(FoodOriginSchema));

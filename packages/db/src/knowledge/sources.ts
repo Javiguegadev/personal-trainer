@@ -28,4 +28,28 @@ export const CIQUAL_2025: KnowledgeSourceDefinition & {
   files: { alim: '666252', compo: '666249' },
 };
 
-export const KNOWLEDGE_SOURCES = [CIQUAL_2025] as const;
+/** Branded products, read one by one when a user scans a barcode (spec 006). */
+export const OPEN_FOOD_FACTS: KnowledgeSourceDefinition = {
+  id: 'open-food-facts',
+  name: 'Open Food Facts',
+  url: 'https://world.openfoodfacts.org',
+  license: 'Open Database License (ODbL) 1.0',
+  version: 'live',
+  attributionEs:
+    'Productos con código de barras: contiene datos de Open Food Facts (https://openfoodfacts.org), disponibles bajo la Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). Los escriben voluntarios y pueden tener errores: comprueba siempre el envase.',
+  attributionEn:
+    'Products with a barcode: contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). It is written by volunteers and may contain errors: always check the package.',
+};
+
+/** The source of the foods a user creates. It is not a knowledge source and is never listed. */
+export const USER_SOURCE: KnowledgeSourceDefinition = {
+  id: 'user',
+  name: 'User foods',
+  url: '',
+  license: '',
+  version: '',
+  attributionEs: '',
+  attributionEn: '',
+};
+
+export const KNOWLEDGE_SOURCES = [CIQUAL_2025, OPEN_FOOD_FACTS, USER_SOURCE] as const;

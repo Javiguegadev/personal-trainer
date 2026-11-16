@@ -50,6 +50,13 @@
       "when": 1794785597367,
       "tag": "0006_food_log",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794846717420,
+      "tag": "0007_barcode_custom_foods",
+      "breakpoints": true
     }
   ]
 }

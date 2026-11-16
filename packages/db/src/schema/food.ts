@@ -11,10 +11,11 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { authenticatedRole, authUid } from 'drizzle-orm/supabase';
-import { foodInputMethodEnum, mealTypeEnum } from './enums';
+import { foodInputMethodEnum, foodOriginEnum, mealTypeEnum, quantityUnitEnum } from './enums';
 import { profiles } from './profiles';
 
 const nutrient = (name: string) => numeric(name, { precision: 6, scale: 2, mode: 'number' });
@@ -46,7 +47,12 @@ export const knowledgeSources = pgTable(
   ],
 );
 
-/** The curated food catalog (spec 005 AC1): values per 100 g from the source, names written by us. */
+/**
+ * Every food a user can log. The curated catalog (spec 005 AC1: values per 100 g from the source, names
+ * written by us), the products read from Open Food Facts when someone scans their barcode, and the
+ * foods a user creates, which only their owner can read (spec 006). The three stay apart by `origin`
+ * and `source`: Open Food Facts rows keep the values of their source unchanged (ODbL).
+ */
 export const foods = pgTable(
   'foods',
   {
@@ -70,6 +76,25 @@ export const foods = pgTable(
     carbsG100g: nutrient('carbs_g_100g').notNull(),
     fatG100g: nutrient('fat_g_100g').notNull(),
     fiberG100g: nutrient('fiber_g_100g'),
+    origin: foodOriginEnum('origin').notNull().default('catalog'),
+    /** Unit of the "per 100" values and of the portions: the one the label uses. */
+    quantityUnit: quantityUnitEnum('quantity_unit').notNull().default('g'),
+    brand: text('brand'),
+    /** Canonical form (`normalizeBarcode`): 8 or 13 digits. */
+    barcode: text('barcode'),
+    /** Set for a food its user created; such a row is private (RLS). */
+    ownerId: uuid('owner_id').references(() => profiles.id, { onDelete: 'cascade' }),
+    /** Open Food Facts tags (`en:milk`); empty means "no data", never "free of". */
+    allergens: text('allergens')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    traces: text('traces')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** When Open Food Facts was read: the product is read again after 90 days (spec 006 AC3). */
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -82,7 +107,22 @@ export const foods = pgTable(
       'foods_nutrients_non_negative',
       sql`${t.kcal100g} >= 0 and ${t.proteinG100g} >= 0 and ${t.carbsG100g} >= 0 and ${t.fatG100g} >= 0 and (${t.fiberG100g} is null or ${t.fiberG100g} >= 0)`,
     ),
-    pgPolicy('foods_select_all', { for: 'select', to: authenticatedRole, using: sql`true` }),
+    index('foods_barcode_idx').on(t.barcode),
+    index('foods_owner_id_idx').on(t.ownerId),
+    // A user keeps one food per barcode, so a scan finds it (spec 006 AC3).
+    uniqueIndex('foods_owner_barcode_key')
+      .on(t.ownerId, t.barcode)
+      .where(sql`${t.ownerId} is not null and ${t.barcode} is not null`),
+    check(
+      'foods_owner_matches_origin',
+      sql`(${t.ownerId} is null) = (${t.origin} in ('catalog', 'off'))`,
+    ),
+    // The name dates from spec 005, when every row was public; a custom food is read by its owner only.
+    pgPolicy('foods_select_all', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.ownerId} is null or ${t.ownerId} = ${authUid}`,
+    }),
   ],
 );
 
@@ -105,7 +145,7 @@ export const foodServings = pgTable(
     pgPolicy('food_servings_select_all', {
       for: 'select',
       to: authenticatedRole,
-      using: sql`true`,
+      using: sql`exists (select 1 from ${foods} f where f.id = ${t.foodId} and (f.owner_id is null or f.owner_id = ${authUid}))`,
     }),
   ],
 );
@@ -132,6 +172,8 @@ export const mealItems = pgTable(
     servingLabel: text('serving_label'),
     label: text('label').notNull(),
     grams: numeric('grams', { precision: 6, scale: 1, mode: 'number' }),
+    /** Snapshot of the food's unit: `grams` holds millilitres for a food labelled per 100 ml. */
+    quantityUnit: quantityUnitEnum('quantity_unit').notNull().default('g'),
     kcal: snapshot('kcal').notNull(),
     proteinG: snapshot('protein_g').notNull(),
     carbsG: snapshot('carbs_g').notNull(),
@@ -184,3 +226,14 @@ export const favouriteFoods = pgTable(
     }),
   ],
 );
+
+/**
+ * Barcodes Open Food Facts did not know, or whose product had no usable values (spec 006 AC6): the same
+ * code is not asked again for 24 hours. No user data. RLS without policies: only the API reads it.
+ */
+export const barcodeMisses = pgTable('barcode_misses', {
+  barcode: text('barcode').primaryKey(),
+  /** `not_found` or `incomplete`. */
+  reason: text('reason').notNull(),
+  checkedAt: timestamp('checked_at', { withTimezone: true }).notNull(),
+}).enableRLS();
