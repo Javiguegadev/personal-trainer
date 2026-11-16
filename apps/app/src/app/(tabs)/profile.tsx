@@ -1,4 +1,4 @@
-import { weightKeys } from '@pt/api-client';
+import { foodKeys, weightKeys } from '@pt/api-client';
 import { useIsMutating } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,7 +14,7 @@ import { signOut } from '@/lib/session';
 import { setThemePreference, useThemePreference } from '@/lib/themePreference';
 
 /**
- * Profile tab (spec 003 AC2, AC22): the profile form, privacy, appearance (system, light or dark, per
+ * Profile tab (spec 003 AC2, AC22): the profile form, privacy, data sources (spec 005 AC3), appearance (system, light or dark, per
  * device) and sign out. Signing out deletes the queue of writes, so with writes waiting it asks first
  * and says how many would be lost.
  */
@@ -22,7 +22,9 @@ export default function ProfileTabScreen() {
   const { t, format } = useI18n();
   const themePreference = useThemePreference();
   const router = useRouter();
-  const pending = useIsMutating({ mutationKey: weightKeys.mutations });
+  const pending =
+    useIsMutating({ mutationKey: weightKeys.mutations }) +
+    useIsMutating({ mutationKey: foodKeys.mutations });
   const [confirming, setConfirming] = useState(false);
   const p = t.profileTab;
 
@@ -41,6 +43,12 @@ export default function ProfileTabScreen() {
         label={p.privacy}
         onPress={() => router.push('/settings/privacy')}
         testID="open-privacy"
+      />
+      <Button
+        variant="secondary"
+        label={p.sources}
+        onPress={() => router.push('/settings/sources')}
+        testID="open-sources"
       />
       <ChoiceGroup
         label={p.appearance}

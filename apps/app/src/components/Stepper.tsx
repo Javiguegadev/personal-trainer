@@ -9,26 +9,32 @@ interface StepperProps {
   min: number;
   max: number;
   onChange: (value: number) => void;
+  /** Size of one tap (default 1), e.g. 0.5 for half servings. */
+  step?: number;
+  /** How the value is written (default: the number as it is). */
+  formatValue?: (value: number) => string;
   /** Accessible names of the two buttons, e.g. "One less per week". */
   decreaseLabel: string;
   increaseLabel: string;
   testID?: string;
 }
 
-/** A whole number changed with two large buttons: no keyboard needed (touch first, ADR 004). */
+/** A number changed with two large buttons: no keyboard needed (touch first, ADR 004). */
 export function Stepper({
   label,
   value,
   min,
   max,
   onChange,
+  step = 1,
+  formatValue = String,
   decreaseLabel,
   increaseLabel,
   testID,
 }: StepperProps) {
   const { colors } = useTheme();
   const button = (delta: -1 | 1) => {
-    const next = value + delta;
+    const next = value + delta * step;
     const disabled = next < min || next > max;
     return (
       <Pressable
@@ -63,10 +69,10 @@ export function Stepper({
           <AppText
             variant="subtitle"
             weight="bold"
-            accessibilityLabel={`${label}: ${value}`}
+            accessibilityLabel={`${label}: ${formatValue(value)}`}
             testID={testID ? `${testID}-value` : undefined}
           >
-            {value}
+            {formatValue(value)}
           </AppText>
         </View>
         {button(1)}

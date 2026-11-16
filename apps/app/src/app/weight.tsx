@@ -1,11 +1,8 @@
 import { IsoDateSchema, type Profile, type WeightEntry } from '@pt/contracts';
 import {
   WEIGHT_STEP,
-  addDays,
   checkWeightDate,
   formatDecimal,
-  formatShortDate,
-  formatWeekdayDay,
   parseWeightField,
   stepWeightField,
   weightDayOptions,
@@ -19,7 +16,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
 import { Button } from '@/components/Button';
-import { ChoiceGroup } from '@/components/ChoiceGroup';
+import { DaySelector, useDayLabel } from '@/components/DaySelector';
 import { Notice } from '@/components/Notice';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
@@ -71,6 +68,7 @@ function WeightSheet({
   const { units } = profile;
   const fmt = useWeightFormat(units);
   const s = t.weight.sheet;
+  const dayLabel = useDayLabel(today);
 
   const entryOn = (localDate: string) => entries.find((entry) => entry.localDate === localDate);
   const [date, setDate] = useState(initialDate);
@@ -89,14 +87,6 @@ function WeightSheet({
   const days = weightDayOptions(today);
   // An older entry opened from the list gets its own chip.
   if (!days.includes(date)) days.push(date);
-  const dayLabel = (localDate: string) => {
-    if (localDate === today) return s.today;
-    if (localDate === addDays(today, -1)) return s.yesterday;
-    if (localDate < addDays(today, -6)) {
-      return formatShortDate(localDate, locale, localDate.slice(0, 4) !== today.slice(0, 4));
-    }
-    return formatWeekdayDay(localDate, locale);
-  };
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const editText = (next: string) => {
@@ -197,9 +187,10 @@ function WeightSheet({
         </AppText>
       ) : null}
 
-      <ChoiceGroup
+      <DaySelector
         label={s.day}
-        options={days.map((value) => ({ value, label: dayLabel(value) }))}
+        days={days}
+        today={today}
         value={date}
         onChange={(next) => {
           setDate(next);

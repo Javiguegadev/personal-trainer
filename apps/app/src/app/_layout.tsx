@@ -86,6 +86,8 @@ function RootNavigator() {
         <Stack.Protected guard={allow(signedIn && onboarded)} redirectTo={destination}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="weight" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="food/add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="food/item/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" />
         </Stack.Protected>
       </Stack>

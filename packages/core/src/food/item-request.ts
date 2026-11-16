@@ -17,7 +17,7 @@ export interface ItemPlacement {
 }
 
 /** The portion an item was logged with: the servings when it has them, else its grams. */
-function portionOf(item: MealItem): Portion | null {
+export function itemPortion(item: MealItem): Portion | null {
   if (item.servingId !== null && item.servings !== null) {
     return { kind: 'serving', servingId: item.servingId, servings: item.servings };
   }
@@ -34,7 +34,7 @@ export function itemToRequest(
   placement: ItemPlacement,
   inputMethod: FoodInputMethod = item.inputMethod,
 ): MealItemUpsertRequest {
-  const portion = portionOf(item);
+  const portion = itemPortion(item);
   if (item.foodId !== null && portion !== null && inputMethod !== 'quick_add') {
     return { kind: 'food', foodId: item.foodId, portion, inputMethod, ...placement };
   }

@@ -2,10 +2,11 @@ import { formatLongDate, profileNotices } from '@pt/core';
 import { View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
+import { FoodRejectedNotice } from '@/components/FoodRejectedNotice';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SafetyNotices } from '@/components/SafetyNotices';
 import { Screen } from '@/components/Screen';
-import { TargetsCard } from '@/components/TargetsCard';
+import { TodayFoodCard } from '@/components/TodayFoodCard';
 import { TrainingLine } from '@/components/TrainingLine';
 import { WeightCard } from '@/components/WeightCard';
 import { TargetsChangeNotice, WeightRejectedNotice } from '@/components/WeightNotices';
@@ -14,8 +15,8 @@ import { useToday } from '@/hooks/useToday';
 import { useMe } from '@/lib/api';
 
 /**
- * "Today" (spec 003 AC3–AC5): the date, the daily targets, the weight and the planned training. Offline
- * it shows the last data received. Meals and workouts arrive with E4 and E5.
+ * "Today" (spec 003 AC3–AC5): the date, what was eaten against the daily targets (spec 005 AC17), the
+ * weight and the planned training. Offline it shows the last data received. Workouts arrive with E5.
  */
 export default function TodayScreen() {
   const { t, locale } = useI18n();
@@ -37,7 +38,8 @@ export default function TodayScreen() {
       <OfflineBanner />
       <WeightRejectedNotice />
       <TargetsChangeNotice />
-      <TargetsCard status="ready" targets={targets} breakdown={null} />
+      <FoodRejectedNotice />
+      <TodayFoodCard profile={profile} targets={targets} />
       <SafetyNotices
         notices={notices}
         // A clamped target is exactly the safety minimum (rounded up to 10 kcal).

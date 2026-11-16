@@ -295,7 +295,7 @@ this catalog and this log.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [ ] e2e
 - Done so far (2026-11-16), one commit per step: contracts + core (`154c3bf`), tables and migration
   `0006` applied to dev (`b8b1d3d`), core search and write rules (`f4ba1df`), curated catalog of 811
   foods and the Ciqual importer, run on dev (`6e76648`), API routes (`4079202`), `GET /foods/:foodId`,
@@ -314,13 +314,36 @@ this catalog and this log.
   an agent that saw only the official names), 95.8 % first and 98.6 % in the top 3 (thresholds 75 %
   and 90 %). The 5 misses are multi-food sentences ("pan con tomate"), left to the sentence shortcut of
   slice (c). Plurals and quantity words ("un vaso de") were added to the search on the way.
-- Next: UI (ui-screen skill), E2E, and the BLUEPRINT §5 note (no `meals` table yet). The search eval
+- UI (2026-11-16): the Food tab (`(tabs)/food`: day chips, summary, six meals, "Repetir lo de ayer",
+  undo in the footer), the add screen (`food/add`: search with a 250 ms pause, recents, favourites,
+  no results → quick add, offline notice; the portion sheet and the quick-add form are steps of the same
+  screen, so the search keeps its place and its focus), the item sheet (`food/item/[id]`), "Fuentes de
+  datos" (`settings/sources`, linked from Profile) and the summary card on Today with "Registrar
+  comida". New pure functions in `core/food/portion.ts` (`initialPortion`, `portionPreview`,
+  `formatPortion`, `parseGramsField`, `targetProgress`) and `parseQuickAddFields`, with tests.
+  Checked on web with Playwright at 390 px (light and dark) and 1280 px, without console errors: add
+  by serving, by grams and by quick add, edit and move, delete and undo, repeat yesterday, favourites,
+  an add without connection that syncs afterwards, and a reload.
+- Next: E2E, and the BLUEPRINT §5 note (no `meals` table yet). The search eval
   runs with `pnpm --filter @pt/api eval:food-search` (cases in `apps/api/evals/food-search.jsonl`).
 - Tests by criterion so far: AC1–AC2 `db/knowledge/*.test.ts` (parsers, values, report) and the import
   run on dev; AC3–AC4, AC6 (API part), AC8–AC10, AC14, AC20, AC23 `api/routes/foods/foods.test.ts`; AC4
   `core/food/search.test.ts`; AC9–AC13, AC16, AC18 `core/food/*.test.ts`; AC20, AC23 on the real SQL in
   `api/store/account-deletion.integration.test.ts`; AC22 consent text and `CONSENT_VERSION` 2026-11-v3.
 - Decisions taken during implementation:
+  - **The summary bars share one colour** (the primary green): the fat token is red, and a full red bar
+    reads as a warning, which AC16 forbids. The numbers beside each bar carry the information.
+  - **The kcal left are computed from the rounded kcal eaten**, so "699 kcal" and "Te quedan 1681 kcal"
+    always add up to the target.
+  - **Today keeps the test ids of the targets card** (`targets-card`, `targets-kcal`, `targets-protein`…)
+    on the summary card: the target is still there ("de 2380 kcal", "0 / 122 g"). "¿Cómo se calcula?"
+    opens the profile settings, where the breakdown lives.
+  - **A quick add can be moved or deleted, not edited** (AC11 speaks of the portion and the meal; a quick
+    add has no portion). The same for an item whose food left the catalog.
+  - **Item ids come from `expo-crypto`** (`randomUUID`; Hermes has no `crypto.randomUUID`).
+  - The meal chips of the add screen (opened from Today) wrap in two rows instead of scrolling, so the
+    preselected meal is always visible. The day chips of the Food tab scroll in one row.
+  - The sign-out warning of the Profile tab now also counts food-log writes waiting to sync.
   - **`GET /foods/:foodId` added** (not in the API contracts above): the edit sheet (AC11) needs the
     food's servings, and a food logged days ago may no longer be in the recents.
   - **Undo, move and repeat write the item again** with `itemToRequest` (core): an undo of a delete is a

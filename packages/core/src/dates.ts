@@ -29,6 +29,11 @@ export function addDays(isoDate: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
+/** `today` and the days before it, newest first: the chips of a day selector. */
+export function lastDays(today: string, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => addDays(today, -i));
+}
+
 /**
  * Latest birth date consistent with being `ageYears` old on `today` (they turn that age today).
  * 29 February maps to 28 February in common years.

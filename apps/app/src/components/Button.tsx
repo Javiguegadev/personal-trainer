@@ -10,6 +10,8 @@ interface ButtonProps {
   variant?: Variant;
   loading?: boolean;
   disabled?: boolean;
+  /** Read instead of the label when the label alone is ambiguous ("Add" → "Add to breakfast"). */
+  accessibilityLabel?: string;
   accessibilityHint?: string;
   testID?: string;
 }
@@ -33,6 +35,7 @@ export function Button({
   variant = 'primary',
   loading = false,
   disabled = false,
+  accessibilityLabel,
   accessibilityHint,
   testID,
 }: ButtonProps) {
@@ -42,7 +45,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}

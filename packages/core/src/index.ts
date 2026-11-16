@@ -20,6 +20,7 @@ export * from './weight/trend';
 export * from './food/item-request';
 export * from './food/meal-type';
 export * from './food/nutrition';
+export * from './food/portion';
 export * from './food/quick-add';
 export * from './food/repeat';
 export * from './food/search';

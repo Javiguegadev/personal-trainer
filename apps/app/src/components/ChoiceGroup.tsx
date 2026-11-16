@@ -1,5 +1,5 @@
 import { tokens } from '@pt/ui';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { AppText } from './AppText';
 
@@ -14,8 +14,11 @@ interface ChoiceGroupProps<T extends string> {
   options: readonly Choice<T>[];
   value: T | null;
   onChange: (value: T) => void;
-  /** `chips` wrap in rows (short labels); `list` stacks full-width rows with descriptions. */
-  layout?: 'chips' | 'list';
+  /**
+   * `chips` wrap in rows (short labels); `scroll` keeps the chips in one row that scrolls sideways;
+   * `list` stacks full-width rows with descriptions.
+   */
+  layout?: 'chips' | 'scroll' | 'list';
   error?: string | null;
   hint?: string;
   testID?: string;
@@ -33,49 +36,58 @@ export function ChoiceGroup<T extends string>({
   testID,
 }: ChoiceGroupProps<T>) {
   const { colors } = useTheme();
+  const group = (
+    <View
+      role="radiogroup"
+      aria-label={label}
+      style={layout === 'chips' ? styles.chips : layout === 'scroll' ? styles.scroll : styles.list}
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <Pressable
+            key={option.value}
+            role="radio"
+            aria-checked={selected}
+            accessibilityLabel={
+              option.description ? `${option.label}. ${option.description}` : option.label
+            }
+            onPress={() => onChange(option.value)}
+            testID={testID ? `${testID}-${option.value}` : undefined}
+            style={({ pressed }) => [
+              layout === 'list' ? styles.row : styles.chip,
+              {
+                backgroundColor: selected ? colors.surfaceMuted : colors.surface,
+                borderColor: selected ? colors.primary : error ? colors.danger : colors.border,
+                borderWidth: selected ? 2 : 1,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <AppText weight={selected ? 'bold' : 'regular'}>
+              {selected ? '✓ ' : ''}
+              {option.label}
+            </AppText>
+            {option.description ? (
+              <AppText variant="caption" tone="muted">
+                {option.description}
+              </AppText>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
   return (
     <View style={styles.group} testID={testID}>
       <AppText variant="label">{label}</AppText>
-      <View
-        role="radiogroup"
-        aria-label={label}
-        style={layout === 'chips' ? styles.chips : styles.list}
-      >
-        {options.map((option) => {
-          const selected = option.value === value;
-          return (
-            <Pressable
-              key={option.value}
-              role="radio"
-              aria-checked={selected}
-              accessibilityLabel={
-                option.description ? `${option.label}. ${option.description}` : option.label
-              }
-              onPress={() => onChange(option.value)}
-              testID={testID ? `${testID}-${option.value}` : undefined}
-              style={({ pressed }) => [
-                layout === 'chips' ? styles.chip : styles.row,
-                {
-                  backgroundColor: selected ? colors.surfaceMuted : colors.surface,
-                  borderColor: selected ? colors.primary : error ? colors.danger : colors.border,
-                  borderWidth: selected ? 2 : 1,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <AppText weight={selected ? 'bold' : 'regular'}>
-                {selected ? '✓ ' : ''}
-                {option.label}
-              </AppText>
-              {option.description ? (
-                <AppText variant="caption" tone="muted">
-                  {option.description}
-                </AppText>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
+      {layout === 'scroll' ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {group}
+        </ScrollView>
+      ) : (
+        group
+      )}
       {error ? (
         <AppText variant="caption" tone="danger" role="alert">
           {error}
@@ -92,6 +104,7 @@ export function ChoiceGroup<T extends string>({
 const styles = StyleSheet.create({
   group: { gap: tokens.space.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
+  scroll: { flexDirection: 'row', gap: tokens.space.sm },
   list: { gap: tokens.space.sm },
   chip: {
     minHeight: tokens.layout.minTouchTarget,

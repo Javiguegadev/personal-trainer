@@ -1,5 +1,5 @@
 import { PROFILE_LIMITS, WEIGHT_LIMITS, type Locale, type Units } from '@pt/contracts';
-import { addDays, daysBetween } from '../dates';
+import { addDays, daysBetween, lastDays } from '../dates';
 import { formatDecimal, parseDecimal } from '../format';
 import type { FormErrorCode } from '../profile/form';
 import { kgToLb, lbToKg, roundTo } from '../units';
@@ -52,7 +52,7 @@ export function stepWeightField(
 
 /** Today first, then the days before it. */
 export function weightDayOptions(today: string): string[] {
-  return Array.from({ length: WEIGHT_DAY_CHIPS }, (_, i) => addDays(today, -i));
+  return lastDays(today, WEIGHT_DAY_CHIPS);
 }
 
 /** An entry cannot be dated in the future or more than 5 years ago (AC7). */

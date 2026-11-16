@@ -5,6 +5,7 @@ export default function SettingsLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="profile" />
       <Stack.Screen name="privacy" />
+      <Stack.Screen name="sources" />
     </Stack>
   );
 }
