@@ -69,8 +69,11 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
 - **AC5** — Given a product whose energy differs by more than 25 % from 4·P + 4·C + 9·F (+ 2·fiber), then
   the portion sheet adds "Comprueba estos valores con el envase". Every OFF product shows "Datos de Open
   Food Facts" with a link to its product page, and its allergens and traces when OFF lists them
-  ("Alérgenos declarados: leche, soja · Trazas: frutos secos. Comprueba siempre el envase"). With no
-  allergen data nothing is shown. _(free)_
+  ("Alérgenos según Open Food Facts: leche, soja · Trazas: frutos secos. Comprueba siempre el envase").
+  With no allergen data it says so ("Open Food Facts no indica alérgenos para este producto. Eso no
+  significa que no los tenga"). _(free)_ _Amended on 2026-11-16 after the domain review: the first
+  version showed nothing without data, and next to products that show their allergens an empty space
+  reads as "none". To confirm with the human._
 - **AC6** — Given a code OFF does not know, or a product rejected by AC4, then the screen says "No
   tenemos este producto" and offers: "Leer la etiqueta con una foto", "Rellenar a mano" (both keep the
   barcode), "Añadir rápido" and "Escanear otro". A miss is remembered for 24 hours, so the same code
@@ -258,14 +261,20 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
   (`AppName/Version (email)`), the 30 label photos and the 20 reference products, and the go-ahead to
   run the label eval (it spends API money, well under 1 USD).
 - For the professional reviewer: the ranges of AC4, the 25 % note of AC5, treating ml as the label
-  gives it, and the allergen note.
+  gives it, and the allergen note. Also, from the domain review: a product sold by volume but labelled
+  per 100 g (ice cream) is read per 100 ml, because Open Food Facts does not say which of the two its
+  values are (an error of 40–80 % that only the package settles); and whether, with `ed_soft_stop`,
+  the custom-food form should exist at all, since editing a food shows its numbers again.
+- **For the human:** confirm the amended AC5 (the "no allergen data" line) and the label photo hidden
+  with `ed_soft_stop`. Both make the app more cautious than the approved text; say so if you prefer
+  the first version.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
 - Done so far (2026-11-16), one commit per step: contracts (`bc67d47`), db schema and migration
   `0007` (`bcd8c74`), core (`d5335c0`), API and `@pt/ai` (`fc8574d`), client and mock backend
-  (`7deaa4c`).
+  (`7deaa4c`), UI (`3f4cd10`), E2E (`3e266ed`).
 - Client (2026-11-16): `@pt/api-client` has `foodByBarcode`, `customFoods`, `saveCustomFood`,
   `deleteCustomFood` and `scanLabel`; `foods.ts` adds `customFoodsQueryOptions`,
   `foodByBarcodeQueryOptions` (fetched on demand, a "not found" is not retried),
@@ -274,33 +283,32 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
   first item). The mock backend (`mock/products.ts`, storage key `pt.mock-db.v6`) serves ten
   recorded products, custom foods and a fixed label reading with the rules of the API. Tests:
   `api-client/src/products.test.ts` (AC3, AC8, AC11, AC12 and the mock).
-- **Next: UI, then E2E** (nothing of the app is written yet). Notes for that step:
-  - `apps/app/src/lib/api.ts` must call `registerCustomFoodMutations` beside `registerFoodMutations`.
-  - Dependencies: `expo-camera`, `expo-image-picker` and `expo-image-manipulator`, added with
-    `expo install` (see CLAUDE.md); the `expo-camera` config plugin sets `cameraPermission` (es, en).
-    Check the SDK 58 docs first (`apps/app/AGENTS.md`). Read on 2026-11-16: `CameraView` has
-    `onBarcodeScanned`, `barcodeScannerSettings.barcodeTypes` (`ean13`, `ean8`, `upc_a`, `upc_e`)
-    and `useCameraPermissions`, and runs in Expo Go; the docs list web without saying which barcode
-    types work there, so `food/scan.web.tsx` keeps the code field unless a test in a browser shows
-    that EAN-13 is read. Images: `ImageManipulator.manipulate(uri).resize(...)`, `renderAsync()`,
-    `saveAsync({ format: SaveFormat.JPEG, compress, base64: true })`.
-  - Scan flow: `normalizeBarcode(data, type)` → `cachedFoodByBarcode` → online:
-    `queryClient.fetchQuery(foodByBarcodeQueryOptions(...))` → the portion sheet with
-    `inputMethod: 'barcode'`. `product_not_found` and `product_incomplete` → the options of AC6;
-    `lookup_unavailable` and `rate_limited` → "Reintentar" plus the same options.
-  - Form: `parseCustomFoodFields`, `customFoodEnergyMismatch` (confirmation), `customFoodFields`
-    (edit), `customFoodFieldsFromDraft` (label photo; it returns the fields the photo filled), all in
-    `@pt/core`. The first item of a new food uses `inputMethod: 'custom'`, or `'label'` when a photo
-    filled the form.
-  - Deleting an own food (AC12): hold `foodKeys.deleteFood` for the 5 seconds of the undo toast and
-    send it when the toast ends or the screen closes. An undo after the delete reached the API would
-    bring the food back without the link to its logged items.
-  - `PortionSheet`: brand, unit (`formatPortion` already prints `ml`), the notes of AC5
-    (`food.energyMismatch`, `food.sourceUrl`, `food.allergens`, `food.traces`: tags such as
-    `en:milk`, to translate in i18n), and no numbers with `ed_soft_stop`.
-  - Mock codes for the E2E journeys: Nutella `3017620422003`, Coca-Cola `5449000214911` (ml), wine
-    `8410261211015` (energy note), unknown `8410000000009`, incomplete `3033710065967`. A label image
-    of 200 base64 characters or more gives the "Galletas María" draft; a smaller one is "not a label".
+- UI (2026-11-16): the add screen (`food/add`) gains "Escanear" beside the search, "Crear alimento"
+  and the "Mis alimentos" section. New components: `BarcodeScanner` (`.tsx` for the phone: camera
+  with a frame, a torch button and the permission states; `.web.tsx`: the typed code),
+  `BarcodeField`, `ProductNotFound`, `CustomFoodForm` (with the label photo), `ProductNotes` (source,
+  "check the package", allergens and traces). `PortionSheet` shows the brand and the unit (g or ml);
+  `FoodRow` shows the brand. `lib/labelPhoto.ts` takes or picks the photo and resizes it to 1568 px;
+  `useDeferredFoodDelete` holds a delete for the 5 seconds of its undo. Dependencies:
+  `expo-camera`, `expo-image-picker`, `expo-image-manipulator` (all in Expo Go), with the permission
+  texts in `app.json` and `apps/app/locales/{es,en}.json`. Checked on web with Playwright at 390 px
+  (light and dark) and 1280 px, without console errors: a product by its code, a drink in ml, the
+  energy note, an unknown and an incomplete code, the form with its confirmation, an own food in the
+  lists.
+- E2E (2026-11-16): `apps/e2e/tests/barcode.spec.ts`, five journeys on the mock backend with the code
+  typed: products in grams and in millilitres with their notes, and a wrong check digit (AC1–AC5); an
+  unknown code filled by hand, logged, and found again by code and by search (AC6, AC9–AC11); a label
+  photo that fills the form, an unreadable one, an edited value and the save (AC6, AC14–AC17, and the
+  metering of AC18); edit, delete with undo and without it (AC12); a food created offline that
+  survives a reload and syncs before its item (AC8, AC11). The whole suite passes (19 journeys).
+- Not covered by a test: the camera and its permission states (AC1, phone only); the cap message on
+  screen (AC18: the 429 is tested in the API and in the mock); `ed_soft_stop` on screen for a product
+  (the portion sheet uses the same `showNumbers` as spec 005 AC18).
+- Left for the human: the phone check in Expo Go (the camera reads EAN-13, EAN-8 and UPC codes; the
+  torch; the permission asked, denied and re-enabled in the settings; the label photo from the camera
+  and from the library; the keyboard over the custom-food form; 20 products of the pantry, with the
+  hit rate of Open Food Facts). `expo-doctor` reports two patch mismatches that were there before
+  this spec (`expo` 58.0.24 → 58.0.25, `expo-sqlite` 58.0.16 → 58.0.17).
 - **Migration `0007_barcode_custom_foods` is generated and not applied to dev yet.** It only adds:
   two enums, three values of `food_input_method`, the new columns (with defaults), `barcode_misses`,
   and the stricter `select` policies of `foods` and `food_servings`. After applying it, run
@@ -327,7 +335,42 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
   answers 503 and the form is filled by hand) and `OFF_CONTACT_EMAIL` (the contact of the
   `User-Agent` Open Food Facts asks for; without it the API warns at start and sends the app name
   only). Both should also be listed in `.env.example`.
+- Domain review (`domain-reviewer`, 2026-11-16), fixed in the same change:
+  - **Blocker: the unit of a product.** A product became "ml" when its package or its serving was in
+    ml, and both sizes were then read in that unit. A cocoa powder sold in grams with a serving of
+    "200 ml prepared" would have opened on a serving about 15 times too large. Now the unit is the one
+    the product is sold by (else the unit of its serving), and a size in the other unit is dropped.
+  - **Declared allergens are never dropped.** Tags that were not `xx:word` disappeared (a real
+    fixture has `de:Schalenfrüchte (keine Erdnüsse)` among its traces). Every tag is kept and shown;
+    one the app cannot translate shows as the source has it.
+  - **AC5 amended** (see above): a product without allergen data says so. "Alérgenos declarados"
+    became "Alérgenos según Open Food Facts" (it is not the manufacturer's declaration), and the
+    legal term "frutos de cáscara" gained "(frutos secos)".
+  - **The label prompt** now covers the "as prepared" column, the reference-intake column, a table
+    with several products and the dot of thousands ("1.046 kJ"). `labelDraft` leaves the energy empty
+    when the kcal and the kJ it read disagree by more than 5 %.
+  - **`ed_soft_stop`:** the label photo is not offered with the flag (it would put numbers in front
+    of the user), on the form and on the not-found screen; the form by hand stays, as the quick add
+    does. The confirmation of the form no longer names the calories.
+  - An energy a hair above 900 kcal after a kJ conversion (an oil of 3766 kJ) counts as 900.
+  - No finding on the constants (4/4/9, fibre 2, 4.184), the ranges or the tone of the copy.
 - Decisions taken during implementation:
+  - **Scanning and creating a food are steps of the add screen**, not the routes `food/scan` and
+    `food/custom` of "UI" above: the search, the meal and the day stay as they were, as with the
+    portion sheet in spec 005.
+  - **On web the code is typed.** The Expo docs do not say which barcode types the camera reads in a
+    browser, so the camera scanner is for the phone until a test in a real browser shows it works.
+  - **"Editar" and "Borrar" of an own food are in its portion sheet**, one tap from "Mis alimentos",
+    so the list stays as clean as the recents at 360 px.
+  - **The delete of an own food is sent after the 5 seconds of its undo** (or when the screen
+    closes): once the API deletes a food it unlinks the logged items, and an undo could not link them
+    again.
+  - **"Leer la etiqueta con una foto" on the not-found screen takes the photo at once** and the form
+    opens reading it; inside the form the same button repeats the photo. A second button picks an
+    image from the library.
+  - **The mock calls "not a label" any image under 2000 base64 characters** (a few pixels), so the
+    E2E can show the unreadable state with a real, tiny JPEG.
+  - No haptic feedback on a read (no haptics library is installed).
   - **`Food.origin` replaces the `owned` flag** of the contracts above (`catalog`, `off`, `manual`,
     `label`); `isOwnFood` in core reads it. No `origin` column was planned for the API response.
   - **The image limit is 3 MB, not 4 MB** (`LABEL_SCAN_LIMITS.imageBytesMax`): in base64 it is 4 MB,

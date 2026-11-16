@@ -90,7 +90,10 @@ pnpm format
   fitness; `targets-v3`, `context-v3`).
 - E4 food logging: slice (a), spec 005 (catalog, search, Food tab, log, offline writes), is implemented
   with E2E; the phone check in Expo Go and the review of the catalog are left (see its "Progress").
-  Slices (b) barcode and label photo, and (c) plate photo and sentence, are still to spec.
-- Next (ADR 003, ADR 006): E4 slices (b) and (c) → E5 workout logging, daily context and the week view →
+  Slice (b), spec 006 (barcode with Open Food Facts, the user's own foods, label photo with Claude
+  Haiku 5.5), is implemented with E2E; left for the human: apply migration `0007` to dev, the phone
+  check, the label eval (photos and API money) and the reference products (see its "Progress").
+  Slice (c), plate photo and sentence, is still to spec.
+- Next (ADR 003, ADR 006): E4 slice (c) → E5 workout logging, daily context and the week view →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
   premium AI → E6 payments.
