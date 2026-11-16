@@ -170,7 +170,7 @@ test.describe('food log (spec 005)', () => {
 
   test('favourites, quick add, move, and delete with undo', async ({ page }) => {
     await onboard(page, 'food-edit@example.com');
-    let food = await openTab(page, 'food');
+    await openTab(page, 'food');
 
     // AC14: the star of a search result; the food is then one tap away in the favourites.
     let add = await openAdd(page, 'dinner');
@@ -199,7 +199,7 @@ test.describe('food log (spec 005)', () => {
     await quick.getByTestId('quick-add-submit').click();
     add = await screen(page, 'food-add-screen');
     await expect(add.getByTestId('food-added')).toContainText('Añadido: menu del bar');
-    food = await done(page);
+    let food = await done(page);
 
     // 47.7 kcal per 100 g × 250 g = 119.25, plus 100.
     const dinner = food.getByTestId('meal-dinner');
@@ -297,13 +297,13 @@ test.describe('food log (spec 005)', () => {
   }) => {
     await emulateOnlineState(page);
     await onboard(page, 'food-offline@example.com');
-    let food = await openTab(page, 'food');
+    await openTab(page, 'food');
     await openAdd(page, 'breakfast');
     await searchFood(page, 'huevo', 'd-huevo');
     const online = await submitPortion(page);
     // The recents are refreshed once the write is stored; the offline cache keeps them (AC19).
     await expect(online.getByTestId('food-recents')).toContainText('Huevo');
-    food = await done(page);
+    await done(page);
     await expect.poll(async () => (await storedItems(page)).length).toBe(1);
 
     // AC6: without a connection the search says so; recents and favourites still work.
@@ -314,7 +314,7 @@ test.describe('food log (spec 005)', () => {
     await expect(add.getByTestId('food-results')).toHaveCount(0);
     await add.getByTestId('food-recents').getByTestId('food-d-huevo-open').click();
     await submitPortion(page);
-    food = await done(page);
+    let food = await done(page);
 
     // AC19: the item shows at once, marked "waiting to sync"; the server does not have it.
     const lunch = food.getByTestId('meal-lunch');
