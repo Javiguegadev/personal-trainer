@@ -93,7 +93,8 @@ pnpm format
   Slice (b), spec 006 (barcode with Open Food Facts, the user's own foods, label photo with Claude
   Haiku 5.5), is implemented with E2E; left for the human: apply migration `0007` to dev, the phone
   check, the label eval (photos and API money) and the reference products (see its "Progress").
-  Slice (c), plate photo and sentence, is still to spec.
+  Slice (c), spec 007 (plate photo and sentence shortcuts, editable draft, Claude Haiku 5.5 with a
+  `search_foods` tool), is approved and to implement; the daily feedback is spec 008, still to write.
 - Next (ADR 003, ADR 006): E4 slice (c) → E5 workout logging, daily context and the week view →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
   premium AI → E6 payments.
