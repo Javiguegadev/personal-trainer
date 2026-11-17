@@ -169,6 +169,31 @@ describe('supabase auth', () => {
     expect(await codeOf(adapter.signInWithGoogle())).toBe('network');
   });
 
+  it('hands the original error to onError, but not a cancelled sign-in', async () => {
+    const original = { name: 'AuthApiError', status: 500, code: 'unexpected_failure' };
+    const onError = vi.fn();
+    const failing = createSupabaseAuth({
+      auth: fakeSupabase().auth,
+      signInWithGoogle: vi.fn(async () => {
+        throw original;
+      }),
+      onError,
+    });
+    expect(await codeOf(failing.signInWithGoogle())).toBe('unknown');
+    expect(onError).toHaveBeenCalledWith(original);
+
+    const quiet = vi.fn();
+    const cancelled = createSupabaseAuth({
+      auth: fakeSupabase().auth,
+      signInWithGoogle: vi.fn(async () => {
+        throw new AuthError('cancelled');
+      }),
+      onError: quiet,
+    });
+    expect(await codeOf(cancelled.signInWithGoogle())).toBe('cancelled');
+    expect(quiet).not.toHaveBeenCalled();
+  });
+
   it('follows token refreshes and sign-outs from Supabase events', async () => {
     const fake = fakeSupabase(SESSION);
     const adapter = createSupabaseAuth({ auth: fake.auth, signInWithGoogle: vi.fn() });

@@ -68,26 +68,34 @@ function toState(session: SupabaseSessionLike | null): AuthState {
     : { status: 'signedOut', session: null };
 }
 
-async function run(call: Promise<Result>): Promise<void> {
-  let result: Result;
-  try {
-    result = await call;
-  } catch (e) {
-    throw toAuthError(e);
-  }
-  if (result.error) throw toAuthError(result.error);
-}
-
 export function createSupabaseAuth({
   auth,
   signInWithGoogle,
+  onError,
 }: {
   auth: SupabaseAuthLike;
   /** The platform's Google flow; it resolves once the session is stored (or the page leaves on web). */
   signInWithGoogle: () => Promise<void>;
+  /** Sees the original error behind every mapped one (the app logs it in development). */
+  onError?: (error: unknown) => void;
 }): AuthAdapter {
   const store = createAuthStore();
   let initializing: Promise<void> | null = null;
+
+  function fail(error: unknown): AuthError {
+    if (!(error instanceof AuthError && error.code === 'cancelled')) onError?.(error);
+    return toAuthError(error);
+  }
+
+  async function run(call: Promise<Result>): Promise<void> {
+    let result: Result;
+    try {
+      result = await call;
+    } catch (e) {
+      throw fail(e);
+    }
+    if (result.error) throw fail(result.error);
+  }
 
   async function readSession(): Promise<SupabaseSessionLike | null> {
     try {
@@ -135,7 +143,7 @@ export function createSupabaseAuth({
       try {
         await signInWithGoogle();
       } catch (e) {
-        throw toAuthError(e);
+        throw fail(e);
       }
       if (store.get().status !== 'signedIn') {
         const session = await readSession();

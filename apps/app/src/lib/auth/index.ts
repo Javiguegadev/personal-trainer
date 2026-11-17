@@ -14,7 +14,11 @@ const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 function createAuth(): AuthAdapter {
   if (MOCK_BACKEND) return createMockAuth({ storage, latencyMs: 400 });
   if (!supabaseUrl || !supabaseKey) return createUnconfiguredAuth();
-  return createSupabaseAuth(createSupabaseClient(supabaseUrl, supabaseKey));
+  return createSupabaseAuth({
+    ...createSupabaseClient(supabaseUrl, supabaseKey),
+    // The screens show a translated message; the terminal shows what Supabase or Google said.
+    onError: __DEV__ ? (error) => console.warn('[auth]', error) : undefined,
+  });
 }
 
 /** The app's single auth instance: mock in demo mode, Supabase when its URL and key are set. */
