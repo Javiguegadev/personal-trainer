@@ -314,9 +314,8 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
   `barcode_misses`, and the stricter `select` policies of `foods` and `food_servings`. Then
   `pnpm --filter @pt/db import:foods` ran (811 foods, 0 invalid rows, 6 energy checks): it upserts
   the `open-food-facts` and `user` rows of `knowledge_sources`, which products and custom foods
-  reference. Still to run:
-  `pnpm --filter @pt/api test:integration` covers the new SQL (custom food, product, miss, the
-  `owner_id` cascade of AC22).
+  reference. `pnpm --filter @pt/api test:integration` passes on dev (2026-11-17, ~14 s): it covers
+  the new SQL (custom food, product, miss, the `owner_id` cascade of AC22).
 - Tests by criterion so far: AC2 `core/food/barcode.test.ts`; AC4, AC5 `core/food/product.test.ts`;
   AC9, AC10, AC16 (the form and the draft) `core/food/custom-food.test.ts`; AC15
   `core/food/label.test.ts` and `ai/prompts/label/label.test.ts`; AC3, AC6, AC7, AC11–AC13, AC17–AC19,
