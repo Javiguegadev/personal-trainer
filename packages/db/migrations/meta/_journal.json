@@ -57,6 +57,13 @@
       "when": 1794846717420,
       "tag": "0007_barcode_custom_foods",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794915682781,
+      "tag": "0008_meal_draft_input_methods",
+      "breakpoints": true
     }
   ]
 }
