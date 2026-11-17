@@ -253,7 +253,7 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 
 ## Progress
 
-- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [x] ui (on the mock backend) · [x] e2e (on the mock backend) · [ ] Supabase auth adapter
+- [x] contracts · [x] db (migration 0000 applied to pt-dev) · [x] core · [x] ai · [x] api · [x] client · [x] ui (on the mock backend) · [x] e2e (on the mock backend) · [x] Supabase auth adapter (real sign-in still to be checked by the human)
 - API (2026-11-11): all 7 routes; 47 route tests (AC5, AC7, AC12, AC14, AC16–AC25 at the API level);
   AC24 integration test passed against pt-dev (`pnpm --filter @pt/api test:integration`). The pt-dev
   JWKS publishes an ES256 key, which the verifier expects.
@@ -298,10 +298,37 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
   its unit tests (mock) and API tests. E2E now covers the reachable journeys in 3 tests: form in metric
   units with summary ↔ form and a reload, form in imperial units, delete account (AC1, AC3 on the mock,
   AC4, AC6, AC9–AC11, AC24).
-- Next: the Supabase auth adapter (email OTP + Google with the expo-sqlite storage from the Expo guide)
-  once the prerequisites are done. The activity split (ADR 003) is built in stage E2b.
-- Pending (human, postponed 2026-11-11): the "Prerequisites" (Supabase Email OTP + template, Google OAuth
-  web client, redirect URLs). The app's Supabase URL and anon key are already in the root `.env`.
+- Prerequisites done by the human on 2026-11-17: Email OTP with 6 digits and a Spanish "Magic link or
+  OTP" template that shows only `{{ .Token }}` (no link); custom SMTP (the built-in sender would not let
+  the template be edited); Site URL `http://localhost:8081`; redirect URLs `http://localhost:8081/**`,
+  `personaltrainer://**`, `exp://**`; Google provider with a Web OAuth client (Google Cloud project
+  `persnal-trainer-dev`, app in "Testing" with the human as test user). No Android or iOS client: the
+  browser flow does not need one.
+- Supabase auth adapter (2026-11-17, f0fea16): `apps/app/src/lib/auth/supabase.ts` (the adapter over a
+  slice of `supabase.auth`, 19 tests in `supabase.test.ts` for AC1–AC4 with a fake client) and
+  `supabaseClient.ts` / `supabaseClient.web.ts` (the real client and the platform's Google flow). The app
+  uses it when `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` are set; otherwise sign-in
+  still says `not_configured`. Demo mode is unchanged. Checked on web with Playwright (390 px, no
+  console errors): no demo banner, an invalid email shows its error, "Continuar con Google" reaches
+  Google's sign-in with the dev client and the Supabase callback. Decisions:
+  - **Google uses the browser, PKCE.** iOS and Android: `WebBrowser.openAuthSessionAsync` to Supabase's
+    authorize URL, back to `Linking.createURL('/')` (`exp://…/--/` in Expo Go, `personaltrainer://` in a
+    build), then `exchangeCodeForSession`. Web: a full-page redirect back to the origin, and the client
+    finishes the session on load (`detectSessionInUrl`). Native Google sign-in (a dev build and Android
+    and iOS client IDs) is not needed for now.
+  - **A wrong and an expired code both show `invalid_code`:** Supabase answers `otp_expired` for both.
+    The copy ("not correct, check it or ask for a new one") fits both; `expired_code` stays for the mock.
+  - **Sign-out is local** (`scope: 'local'`): other devices keep their sessions. Offline, the state is
+    reset anyway.
+  - Session in expo-sqlite's localStorage on native (the Expo guide) and the token refresh loop tied to
+    `AppState`.
+- Left for the human (real sign-in): the email code on web and in Expo Go (arrives, works, a wrong code
+  shows the error, resend after 60 s); Google on web (open `http://localhost:8081`, the allowed origin)
+  and in Expo Go; reopening the app keeps the session; sign out returns to sign-in. Also try starting the
+  app offline more than an hour after the last use (expired access token): the session should not be
+  lost.
+- Apple sign-in: a separate spec before the iOS release, once the Apple Developer account exists.
+  The activity split (ADR 003) was built in stage E2b.
 - Human checks on a phone (Expo Go, `pnpm --filter @pt/app dev:mock`): keyboard over the chat composer
   and forms (KeyboardAvoidingView), OTP autofill, share sheet for "Download my data", dark mode.
 - Eval (2026-11-11, Haiku 5.5, effort low): 22/22 cases and 5/5 safety flags in 3 consecutive runs,

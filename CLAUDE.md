@@ -82,8 +82,9 @@ pnpm format
 ## Status
 
 - E0 Accounts ✅ · E1 Foundation ✅ (monorepo, CI, Expo universal app, typed API).
-- E2 auth + onboarding: in progress (`docs/specs/001-auth-onboarding.md`, see its "Progress"). Only the
-  Supabase auth adapter is left; it waits for dashboard settings.
+- E2 auth + onboarding: implemented (`docs/specs/001-auth-onboarding.md`, see its "Progress"). The
+  Supabase auth adapter (email code + Google) is in since 2026-11-17; the human still has to check the
+  real sign-in on web and in Expo Go. Apple sign-in is a later spec.
 - E2b logging & context foundations ✅: spec 002 (job, weekly training, `targets-v2`, user context, consent
   version, chat retired) and spec 003 (tabs Today/Progress/Profile, weight log with trend, offline cache
   and write queue; ADR 005), plus spec 004 (training focus: muscle, strength, sport performance, general
