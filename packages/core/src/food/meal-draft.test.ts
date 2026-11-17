@@ -39,7 +39,7 @@ const rice: Food = {
 const oil: Food = {
   ...egg,
   id: OIL_ID,
-  key: 'aceite-oliva',
+  key: 'f-aceite-oliva',
   name: 'Aceite de oliva',
   per100g: { kcal: 900, proteinG: 0, carbsG: 0, fatG: 100, fiberG: 0 },
   servings: [{ id: SPOON, label: '1 cucharada', grams: 10 }],
@@ -74,6 +74,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
         }),
       ),
       candidates,
+      'text',
     );
     expect(draft).toEqual({
       status: 'ok',
@@ -100,7 +101,11 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
   });
 
   it('gives a food said without a quantity its first serving, marked as assumed (AC4)', () => {
-    const draft = mealDraft(ok(item({ servingId: null, servings: null, grams: null })), candidates);
+    const draft = mealDraft(
+      ok(item({ servingId: null, servings: null, grams: null })),
+      candidates,
+      'text',
+    );
     expect(draft.status === 'ok' && draft.items[0]).toMatchObject({
       portion: { kind: 'serving', servingId: EGG, servings: 1 },
       quantityAssumed: true,
@@ -111,15 +116,17 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
     const draft = mealDraft(
       ok(item({ foodId: RICE_ID, servingId: null, servings: null, grams: null })),
       candidates,
+      'text',
     );
     expect(draft.status === 'ok' && draft.items[0]).toMatchObject({
       portion: { kind: 'grams', grams: 100 },
       quantityAssumed: true,
+      confidence: 'low',
     });
   });
 
   it('counts one serving when the serving is named without a count', () => {
-    const draft = mealDraft(ok(item({ servings: null })), candidates);
+    const draft = mealDraft(ok(item({ servings: null })), candidates, 'text');
     expect(draft.status === 'ok' && draft.items[0]?.portion).toEqual({
       kind: 'serving',
       servingId: EGG,
@@ -128,7 +135,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
   });
 
   it('prefers the serving when the model gives both a serving and grams', () => {
-    const draft = mealDraft(ok(item({ grams: 120 })), candidates);
+    const draft = mealDraft(ok(item({ grams: 120 })), candidates, 'text');
     expect(draft.status === 'ok' && draft.items[0]?.portion.kind).toBe('serving');
   });
 
@@ -139,6 +146,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
         item({ mention: 'gazpacho', foodId: null, servingId: null }),
       ),
       candidates,
+      'text',
     );
     expect(draft).toEqual({
       status: 'ok',
@@ -148,12 +156,19 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
   });
 
   it('uses grams, or the default serving, when the serving is not one of the food’s (AC9)', () => {
-    const withGrams = mealDraft(ok(item({ servingId: SPOON, grams: 120 })), candidates);
+    const withGrams = mealDraft(ok(item({ servingId: SPOON, grams: 120 })), candidates, 'text');
     expect(withGrams.status === 'ok' && withGrams.items[0]).toMatchObject({
       portion: { kind: 'grams', grams: 120 },
     });
-    const without = mealDraft(ok(item({ servingId: SPOON, servings: 3 })), candidates);
+    // The count stays, on the food's first serving, marked to check (domain review).
+    const without = mealDraft(ok(item({ servingId: SPOON, servings: 3 })), candidates, 'text');
     expect(without.status === 'ok' && without.items[0]).toMatchObject({
+      portion: { kind: 'serving', servingId: EGG, servings: 3 },
+      quantityAssumed: false,
+      confidence: 'low',
+    });
+    const noCount = mealDraft(ok(item({ servingId: SPOON, servings: null })), candidates, 'text');
+    expect(noCount.status === 'ok' && noCount.items[0]).toMatchObject({
       portion: { kind: 'serving', servingId: EGG, servings: 1 },
       quantityAssumed: true,
     });
@@ -169,6 +184,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
         item({ foodId: RICE_ID, servingId: null, servings: null, grams: 0.2 }),
       ),
       candidates,
+      'text',
     );
     if (draft.status !== 'ok') throw new Error('expected a draft');
     expect(draft.items.map((i) => i.portion)).toEqual([
@@ -188,6 +204,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
         item({ foodId: RICE_ID, servingId: null, servings: null, grams: -5 }),
       ),
       candidates,
+      'text',
     );
     if (draft.status !== 'ok') throw new Error('expected a draft');
     expect(draft.items.map((i) => [i.portion, i.quantityAssumed])).toEqual([
@@ -197,7 +214,11 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
   });
 
   it('keeps two mentions of the same food apart', () => {
-    const draft = mealDraft(ok(item({}), item({ mention: 'otro huevo', servings: 1 })), candidates);
+    const draft = mealDraft(
+      ok(item({}), item({ mention: 'otro huevo', servings: 1 })),
+      candidates,
+      'text',
+    );
     expect(draft.status === 'ok' && draft.items.length).toBe(2);
   });
 
@@ -214,6 +235,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
         }),
       ),
       candidates,
+      'photo',
     );
     expect(draft.status === 'ok' && draft.items[0]).toMatchObject({
       confidence: 'low',
@@ -225,7 +247,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
     const many = Array.from({ length: 20 }, (_, i) =>
       i % 2 === 0 ? item({ mention: `huevo ${i}` }) : item({ mention: `x ${i}`, foodId: null }),
     );
-    const draft = mealDraft(ok(...many), candidates);
+    const draft = mealDraft(ok(...many), candidates, 'text');
     if (draft.status !== 'ok') throw new Error('expected a draft');
     expect(draft.items.length + draft.unresolved.length).toBe(MEAL_DRAFT_LIMITS.itemsMax);
     expect(draft.items[0]?.mention).toBe('huevo 0');
@@ -240,6 +262,7 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
         item({ mention: ' ' }),
       ),
       candidates,
+      'text',
     );
     if (draft.status !== 'ok') throw new Error('expected a draft');
     expect(draft.items.map((i) => i.mention)).toEqual([
@@ -250,27 +273,93 @@ describe('mealDraft (spec 007 AC4–AC6, AC9, AC10)', () => {
   });
 
   it('drops an unresolved mention without words', () => {
-    const draft = mealDraft(ok(item({ mention: '  ', foodId: null })), candidates);
+    const draft = mealDraft(ok(item({ mention: '  ', foodId: null })), candidates, 'text');
     expect(draft).toEqual({ status: 'unreadable', reason: 'not_food' });
   });
 
   it('answers unreadable with the reason of the model (AC10)', () => {
-    expect(mealDraft({ status: 'not_food', items: [] }, candidates)).toEqual({
+    expect(mealDraft({ status: 'not_food', items: [] }, candidates, 'text')).toEqual({
       status: 'unreadable',
       reason: 'not_food',
     });
-    expect(mealDraft({ status: 'blurry', items: [item({})] }, candidates)).toEqual({
+    expect(mealDraft({ status: 'blurry', items: [item({})] }, candidates, 'text')).toEqual({
       status: 'unreadable',
       reason: 'blurry',
     });
-    expect(mealDraft({ status: 'unclear', items: [] }, candidates)).toEqual({
+    expect(mealDraft({ status: 'unclear', items: [] }, candidates, 'text')).toEqual({
       status: 'unreadable',
       reason: 'unclear',
     });
   });
 
   it('answers not_food when an ok reading has no food at all (AC10)', () => {
-    expect(mealDraft(ok(), candidates)).toEqual({ status: 'unreadable', reason: 'not_food' });
+    expect(mealDraft(ok(), candidates, 'text')).toEqual({
+      status: 'unreadable',
+      reason: 'not_food',
+    });
+  });
+});
+
+describe('mealDraft: probable items and implausible portions (domain review)', () => {
+  const oilItem = (over: Partial<MealReadingItem> = {}) =>
+    item({
+      mention: 'aceite',
+      foodId: OIL_ID,
+      servingId: SPOON,
+      servings: 1,
+      confidence: 'low',
+      inferred: true,
+      ...over,
+    });
+  const keys = (draft: ReturnType<typeof mealDraft>) =>
+    draft.status === 'ok' ? draft.items.map((i) => i.food.key) : [];
+
+  it('keeps one small probable oil from a photo', () => {
+    expect(keys(mealDraft(ok(item({}), oilItem()), candidates, 'photo'))).toEqual([
+      'huevo-entero',
+      'f-aceite-oliva',
+    ]);
+  });
+
+  it('drops a probable item from a sentence, of a food that is not a fat, too large, or a second one', () => {
+    expect(keys(mealDraft(ok(item({}), oilItem()), candidates, 'text'))).toEqual(['huevo-entero']);
+    expect(keys(mealDraft(ok(item({ inferred: true })), candidates, 'photo'))).toEqual([]);
+    expect(keys(mealDraft(ok(oilItem({ servings: 2 })), candidates, 'photo'))).toEqual([]);
+    expect(
+      keys(
+        mealDraft(
+          ok(oilItem({ servingId: null, servings: null, grams: 200 })),
+          candidates,
+          'photo',
+        ),
+      ),
+    ).toEqual([]);
+    expect(keys(mealDraft(ok(oilItem(), oilItem({ servings: 0.5 })), candidates, 'photo'))).toEqual(
+      ['f-aceite-oliva'],
+    );
+  });
+
+  it('never turns a dropped probable item into an unresolved mention', () => {
+    expect(mealDraft(ok(item({}), oilItem({ foodId: null })), candidates, 'photo')).toMatchObject({
+      unresolved: [],
+    });
+  });
+
+  it('marks an implausible portion to check: over 4 of the largest servings or 1500 kcal', () => {
+    const draft = mealDraft(
+      ok(
+        item({ foodId: OIL_ID, servingId: null, servings: null, grams: 60 }),
+        item({ foodId: RICE_ID, servingId: null, servings: null, grams: 1200 }),
+        item({ foodId: RICE_ID, servingId: null, servings: null, grams: 300 }),
+      ),
+      candidates,
+      'photo',
+    );
+    expect(draft.status === 'ok' && draft.items.map((i) => i.confidence)).toEqual([
+      'low',
+      'low',
+      'high',
+    ]);
   });
 });
 
@@ -279,6 +368,7 @@ describe('draftTotals (AC7)', () => {
     const draft = mealDraft(
       ok(item({}), item({ foodId: RICE_ID, servingId: null, servings: null, grams: 200 })),
       candidates,
+      'text',
     );
     if (draft.status !== 'ok') throw new Error('expected a draft');
     const totals = draftTotals(draft.items);

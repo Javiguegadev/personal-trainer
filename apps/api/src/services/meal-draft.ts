@@ -121,7 +121,7 @@ export function createMealDrafter(
     };
 
     const { reading, usage } = await deps.readMeal(input, search);
-    return { draft: mealDraft(resolveRefs(reading, refs), byId(refs)), usage };
+    return { draft: mealDraft(resolveRefs(reading, refs), byId(refs), input.kind), usage };
   };
 }
 

@@ -82,6 +82,8 @@ test.describe('plate photo and sentence (spec 007)', () => {
       'No lo encuentro: «salmorejo de mi abuela»',
     );
     await expect(draft.getByTestId('draft-total')).toBeVisible();
+    // What was not found is not added unless the user resolves it (domain review).
+    await expect(draft.getByTestId('draft-unresolved-left')).toBeVisible();
     // Nothing is logged before the user saves the draft.
     expect((await stored(page)).items).toHaveLength(0);
 

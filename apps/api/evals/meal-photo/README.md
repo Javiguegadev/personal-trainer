@@ -33,9 +33,10 @@ a right match, the reference first; `grams` are the weighed grams. A food the ca
 
 ## Gate (provisional, for the professional reviewer)
 
-- At least 80 % of the foods that weigh 10 % or more of the plate are found.
+- At least 80 % of the foods that make 10 % or more of the plate, by weight or by kcal, are found.
 - The draft's kcal are within ±25 % of the weighed kcal in at least 70 % of the plates.
 - The median error of the plate's kcal is at most 20 %.
+- The mean signed error is within ±10 %: the drafts do not under-count (or over-count) on average.
 - No photo without food gives items.
 
 The script also prints the cost per call and the median and 90th percentile latency.

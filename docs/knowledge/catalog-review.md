@@ -580,3 +580,12 @@ Common Spanish foods with no reasonable CIQUAL match (candidates for USDA/BEDCA 
 - Tofu block 200 g: Spanish packs range from 200 to 400 g.
 - Leche de coco: 400 g can (≈ 400 ml). Light coconut milk (~ 7 % fat) has no record.
 - Spice teaspoon weights are approximate (ground 2-2.5 g, dried leaves 1 g).
+
+## From the domain review of spec 007 (2026-11-17)
+
+- "huevo frito" is a synonym of `d-huevo-plancha` (fried without added fat): a Spanish fried egg takes
+  up about 5–8 g of oil, so typed fried eggs are under-counted by 40–60 kcal each. Add a fried egg with
+  its fat (Ciqual "œuf au plat" with fat, or BEDCA "huevo frito") and move the synonym there.
+- Missing common foods that the meal sentences name: croquetas (today "croquetas" may match the
+  falafel through its synonym "croquetas de garbanzo"), churros, salmorejo, horchata, mojo.
+- Check whether `a-ensalada-mixta` (Ciqual 25668) includes its dressing.

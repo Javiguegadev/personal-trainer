@@ -251,6 +251,7 @@ export function MealDraftView({
               key={entry.key}
               entry={entry}
               showNumbers={showNumbers}
+              source={source}
               onPress={() => setView({ kind: 'portion', key: entry.key })}
             />
           ) : (
@@ -298,6 +299,9 @@ export function MealDraftView({
           </View>
         </View>
       ))}
+      {unresolved.length > 0 && count > 0 ? (
+        <Notice tone="warning" message={d.unresolvedLeft} testID="draft-unresolved-left" />
+      ) : null}
       {count === 0 && unresolved.length === 0 ? (
         <AppText tone="muted" testID="draft-empty">
           {d.empty}
@@ -319,10 +323,12 @@ export function MealDraftView({
 function DraftFoodRow({
   entry,
   showNumbers,
+  source,
   onPress,
 }: {
   entry: Extract<DraftEntry, { kind: 'food' }>;
   showNumbers: boolean;
+  source: 'text' | 'photo';
   onPress: () => void;
 }) {
   const { t, format, locale } = useI18n();
@@ -333,7 +339,11 @@ function DraftFoodRow({
   const marks = [
     entry.inferred ? d.probable : null,
     entry.quantityAssumed ? d.assumed : null,
-    entry.confidence === 'low' && !entry.quantityAssumed ? d.checkAmount : null,
+    // A sentence gives exact amounts: any estimate there is worth a look (domain review).
+    !entry.quantityAssumed &&
+    (entry.confidence === 'low' || (source === 'text' && entry.confidence === 'medium'))
+      ? d.checkAmount
+      : null,
   ].filter((mark): mark is string => mark !== null);
   const details = [
     portion,

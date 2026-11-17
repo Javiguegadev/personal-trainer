@@ -102,12 +102,20 @@ async function main() {
   };
   const draftMeal = createMealDrafter(deps, createCatalogCache(store, now));
 
-  /** Reference kcal of the expected foods (first key, reference grams). */
-  const referenceKcal = (expected: ExpectedFood[]) =>
-    expected.reduce((sum, e) => {
-      const food = e.keys[0] ? byKey.get(e.keys[0]) : undefined;
-      return sum + (food ? (food.per100g.kcal * e.grams) / 100 : 0);
-    }, 0);
+  /** Kcal of an expected food: with the food the draft matched when it is an accepted one, else the first key. */
+  const expectedKcal = (e: ExpectedFood, matchedKey?: string) => {
+    const food = byKey.get(matchedKey ?? e.keys[0] ?? '');
+    return food ? (food.per100g.kcal * e.grams) / 100 : 0;
+  };
+  /**
+   * Reference kcal of a case: each matched food counts with its own energy density, so a right match
+   * among several accepted keys (whole or semi-skimmed milk) is not a kcal error (domain review).
+   */
+  const referenceKcal = (expected: ExpectedFood[], matched: ReturnType<typeof match>['matched']) =>
+    expected.reduce(
+      (sum, e) => sum + expectedKcal(e, matched.find((m) => m.expected === e)?.item.food.key),
+      0,
+    );
 
   const costs: number[] = [];
   const latencies: number[] = [];
@@ -171,7 +179,7 @@ async function main() {
       }
       if (c.explicit) {
         explicitCases++;
-        const reference = referenceKcal(c.expected);
+        const reference = referenceKcal(c.expected, matched);
         const got = draftTotals(items).kcal;
         if (reference > 0 && Math.abs(got - reference) / reference <= 0.05) explicitOk++;
         else failures.push(`"${c.text}": ${got.toFixed(0)} kcal ≠ ${reference.toFixed(0)} (±5 %)`);
@@ -200,6 +208,10 @@ async function main() {
     if (cases.length === 0)
       throw new Error('No cases yet: add photos and meal-photo/cases.jsonl (see README)');
     let plates = 0;
+    let photoItems = 0;
+    let photoExtra = 0;
+    let photoInferred = 0;
+    const signedErrors: number[] = [];
     let bigFoods = 0;
     let bigFoodsFound = 0;
     let platesWithin = 0;
@@ -224,14 +236,22 @@ async function main() {
       }
       plates++;
       const plateGrams = c.expected.reduce((sum, e) => sum + e.grams, 0);
-      const { matched, missed } = match(c.expected, items);
-      const big = (e: ExpectedFood) => e.grams >= 0.1 * plateGrams && e.keys.length > 0;
+      const plateKcal = c.expected.reduce((sum, e) => sum + expectedKcal(e), 0);
+      const { matched, missed, extra } = match(c.expected, items);
+      // A food counts when it is 10 % of the plate by weight or by energy: 10 g of oil is 2 % of the
+      // weight and 20 % of the kcal (domain review).
+      const big = (e: ExpectedFood) =>
+        e.keys.length > 0 && (e.grams >= 0.1 * plateGrams || expectedKcal(e) >= 0.1 * plateKcal);
       bigFoods += c.expected.filter(big).length;
       bigFoodsFound += matched.filter((m) => big(m.expected)).length;
-      const reference = referenceKcal(c.expected);
+      photoItems += items.length;
+      photoExtra += extra.length;
+      photoInferred += items.filter((i) => i.inferred).length;
+      const reference = referenceKcal(c.expected, matched);
       const got = draftTotals(items).kcal;
       const error = reference > 0 ? Math.abs(got - reference) / reference : 1;
       errors.push(error);
+      if (reference > 0) signedErrors.push((got - reference) / reference);
       if (error <= 0.25) platesWithin++;
       if (missed.some(big) || error > 0.25) {
         failures.push(
@@ -245,6 +265,9 @@ async function main() {
       }
     }
     const median = quantile(errors, 0.5);
+    // Under-counting is the known failure of food records, and the adaptive loop would read it as a
+    // lower maintenance: the mean signed error must stay within ±10 % (domain review).
+    const bias = signedErrors.reduce((a, b) => a + b, 0) / Math.max(signedErrors.length, 1);
     console.log(
       `Foods of ≥ 10 % of the plate found: ${bigFoodsFound} / ${bigFoods} (${pct(bigFoodsFound, bigFoods)}; gate 80 %)`,
     );
@@ -252,6 +275,8 @@ async function main() {
       `Plates within ±25 % kcal: ${platesWithin} / ${plates} (${pct(platesWithin, plates)}; gate 70 %)`,
     );
     console.log(`Median kcal error: ${(100 * median).toFixed(1)} % (gate ≤ 20 %)`);
+    console.log(`Mean signed kcal error: ${(100 * bias).toFixed(1)} % (gate within ±10 %)`);
+    console.log(`Extra items: ${photoExtra} / ${photoItems}; probable items: ${photoInferred}`);
     console.log(`Photos without food that gave items: ${nonFoodWithItems} / ${nonFood}`);
     passed =
       plates >= 30 &&
@@ -259,6 +284,7 @@ async function main() {
       bigFoodsFound / Math.max(bigFoods, 1) >= 0.8 &&
       platesWithin / Math.max(plates, 1) >= 0.7 &&
       median <= 0.2 &&
+      Math.abs(bias) <= 0.1 &&
       nonFoodWithItems === 0;
     if (plates < 30 || nonFood < 5) {
       console.log(

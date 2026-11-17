@@ -22,20 +22,47 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 interface CheckedPortion {
   portion: Portion;
   quantityAssumed: boolean;
-  /** The model's quantity was outside the log limits and was changed. */
-  clamped: boolean;
+  /** The quantity was changed, guessed or is implausible: the draft shows "Revisa la cantidad". */
+  doubtful: boolean;
 }
+
+/**
+ * The grams above which a portion is implausible for one person at one meal (domain review
+ * 2026-11-17): more than four of the food's largest servings.
+ */
+const PLAUSIBLE_SERVINGS = 4;
+/** The energy above which one item of a meal is implausible. */
+const PLAUSIBLE_KCAL = 1500;
+
+/**
+ * An oil the photo cannot see (AC5) is kept only within these bounds, whatever the model says: a fat
+ * of the catalog (group `f-` of the curated keys), at most this many grams, one per draft, and only
+ * from a photo.
+ */
+const INFERRED_FAT_KEY = /^f-/;
+const INFERRED_GRAMS_MAX = 10;
 
 function defaultPortion(food: Food): CheckedPortion {
   const first = food.servings[0];
-  return {
-    portion: first
-      ? { kind: 'serving', servingId: first.id, servings: 1 }
-      : { kind: 'grams', grams: DEFAULT_GRAMS },
-    quantityAssumed: true,
-    clamped: false,
-  };
+  return first
+    ? {
+        portion: { kind: 'serving', servingId: first.id, servings: 1 },
+        quantityAssumed: true,
+        doubtful: false,
+      }
+    : // No household serving to fall back on: 100 g is only a placeholder.
+      { portion: { kind: 'grams', grams: DEFAULT_GRAMS }, quantityAssumed: true, doubtful: true };
 }
+
+const roundServings = (value: number) =>
+  clamp(
+    Math.round(value / FOOD_LOG_LIMITS.servingsStep) * FOOD_LOG_LIMITS.servingsStep,
+    FOOD_LOG_LIMITS.servingsMin,
+    FOOD_LOG_LIMITS.servingsMax,
+  );
+const servingsOutOfRange = (value: number) =>
+  value < FOOD_LOG_LIMITS.servingsMin - FOOD_LOG_LIMITS.servingsStep / 2 ||
+  value > FOOD_LOG_LIMITS.servingsMax;
 
 /** The portion of one item, kept within the limits of the food log (spec 005 AC8, spec 007 AC9). */
 function checkPortion(item: MealReadingItem, food: Food): CheckedPortion {
@@ -43,45 +70,66 @@ function checkPortion(item: MealReadingItem, food: Food): CheckedPortion {
     item.servingId === null ? undefined : food.servings.find((s) => s.id === item.servingId);
   if (serving) {
     const asked = usable(item.servings) ? item.servings : 1;
-    const servings = clamp(
-      Math.round(asked / FOOD_LOG_LIMITS.servingsStep) * FOOD_LOG_LIMITS.servingsStep,
-      FOOD_LOG_LIMITS.servingsMin,
-      FOOD_LOG_LIMITS.servingsMax,
-    );
-    const clamped =
-      asked < FOOD_LOG_LIMITS.servingsMin - FOOD_LOG_LIMITS.servingsStep / 2 ||
-      asked > FOOD_LOG_LIMITS.servingsMax;
     return {
-      portion: { kind: 'serving', servingId: serving.id, servings },
+      portion: { kind: 'serving', servingId: serving.id, servings: roundServings(asked) },
       quantityAssumed: item.quantityAssumed,
-      clamped,
+      doubtful: servingsOutOfRange(asked),
     };
   }
   if (usable(item.grams)) {
-    const grams = clamp(
-      Math.round(item.grams * 10) / 10,
-      FOOD_LOG_LIMITS.gramsMin,
-      FOOD_LOG_LIMITS.gramsMax,
-    );
+    const asked = Math.round(item.grams * 10) / 10;
+    const grams = clamp(asked, FOOD_LOG_LIMITS.gramsMin, FOOD_LOG_LIMITS.gramsMax);
     return {
       portion: { kind: 'grams', grams },
       quantityAssumed: item.quantityAssumed,
-      clamped: grams !== Math.round(item.grams * 10) / 10,
+      doubtful: grams !== asked,
+    };
+  }
+  // A count with a serving that is not the food's: the count of its first serving, to check.
+  const first = food.servings[0];
+  if (first && usable(item.servings)) {
+    return {
+      portion: { kind: 'serving', servingId: first.id, servings: roundServings(item.servings) },
+      quantityAssumed: false,
+      doubtful: true,
     };
   }
   return defaultPortion(food);
 }
 
+/** More than a person eats of that food at one meal (domain review): worth a second look. */
+function implausible(food: Food, portion: Portion): boolean {
+  const grams = portionGrams(portion, food.servings);
+  if (grams === null) return false;
+  const largest = Math.max(0, ...food.servings.map((s) => s.grams));
+  if (largest > 0 && grams > PLAUSIBLE_SERVINGS * largest) return true;
+  return itemNutrition(food.per100g, grams).kcal > PLAUSIBLE_KCAL;
+}
+
+/** Whether a "probable" item the model added stays in the draft (AC5, AC9). */
+function keepInferred(food: Food, portion: Portion, source: 'text' | 'photo', kept: number) {
+  const grams = portionGrams(portion, food.servings);
+  return (
+    source === 'photo' &&
+    kept === 0 &&
+    INFERRED_FAT_KEY.test(food.key) &&
+    grams !== null &&
+    grams <= INFERRED_GRAMS_MAX
+  );
+}
+
 /**
  * The editable draft of a plate photo or a sentence (spec 007 AC4–AC6, AC9, AC10). The model chose
  * the foods; this keeps only the ids the `search_foods` tool returned in that request (`candidates`),
- * checks each portion against the food log limits and the food's own servings, and turns every other
- * mention into an unresolved one for the user to search. Nothing here is saved: the user saves the
- * draft item by item with the normal log write, which computes the snapshots again.
+ * checks each portion against the food log limits and the food's own servings, marks doubtful
+ * portions, keeps at most one small probable oil from a photo, and turns every other mention into an
+ * unresolved one for the user to search. Nothing here is saved: the user saves the draft item by item
+ * with the normal log write, which computes the snapshots again.
  */
 export function mealDraft(
   reading: MealReading,
   candidates: ReadonlyMap<string, Food>,
+  source: 'text' | 'photo',
 ): MealDraftResponse {
   if (reading.status !== 'ok') return { status: 'unreadable', reason: reading.status };
 
@@ -92,15 +140,19 @@ export function mealDraft(
     const mention = entry.mention.trim().slice(0, MEAL_DRAFT_LIMITS.mentionMax);
     const food = entry.foodId === null ? undefined : candidates.get(entry.foodId);
     if (!food) {
-      if (mention) unresolved.push({ mention });
+      if (mention && !entry.inferred) unresolved.push({ mention });
       continue;
     }
-    const { portion, quantityAssumed, clamped } = checkPortion(entry, food);
+    const { portion, quantityAssumed, doubtful } = checkPortion(entry, food);
+    if (entry.inferred) {
+      const kept = items.filter((i) => i.inferred).length;
+      if (!keepInferred(food, portion, source, kept)) continue;
+    }
     items.push({
       food,
       portion,
       mention: mention || food.name,
-      confidence: clamped ? 'low' : entry.confidence,
+      confidence: doubtful || implausible(food, portion) ? 'low' : entry.confidence,
       quantityAssumed,
       inferred: entry.inferred,
     });

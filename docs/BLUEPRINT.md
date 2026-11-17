@@ -234,7 +234,8 @@ Changes from v2:
 - **`meals` → `meal_items`** replaces the flat `meal_entries`: a photo or a sentence is one meal with
   several foods. Until a meal has data of its own (the plate photo, saved meals), spec 005 stores only
   `meal_items` with `user_id`, `local_date` and `meal_type`: a meal is the items of one day and meal
-  type. The `meals` row arrives with slice (c).
+  type. Slice (c) (spec 007) stores no photo, so it adds only the `photo` and `text` input methods;
+  the `meals` row arrives with saved meals or with a stored photo.
 
 ### User context (read model)
 

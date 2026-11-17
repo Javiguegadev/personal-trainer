@@ -72,8 +72,10 @@ photos are measured apart: food identification and portion error against a weigh
   gets the food's first serving and is marked "cantidad supuesta". _(free)_
 - **AC5** — Given a plate photo, then `POST /me/food-log/drafts/photo` returns a draft with one item
   per food it sees, at most 15, each with grams estimated from the photo and a confidence (high, medium,
-  low). Low-confidence portions are marked "Revisa la cantidad". A visibly fried or dressed dish may add
-  its oil as an item marked "Probable", which the user keeps or removes. The draft always says "Revisa
+  low). Low-confidence portions are marked "Revisa la cantidad". A plain food visibly cooked or
+  dressed with oil may add the oil (at most 10 g) as an item marked "Probable", which the user keeps
+  or removes. _Amended on 2026-11-17 after the domain review: "a visibly fried or dressed dish" made
+  fried foods, whose values already hold their fat, count it twice._ The draft always says "Revisa
   las cantidades: una foto no ve el aceite, las salsas ni lo que hay debajo". _(free)_
 - **AC6** — Given a mention the tool finds no food for ("salmorejo de mi abuela"), then the draft shows
   it as "No lo encuentro: …" with "Buscar" (opens the search with those words) and "Añadir rápido"
@@ -246,13 +248,98 @@ unreadable` with `reason`).
 - **For the human:** weigh and photograph about 30 plates (instructions in
   `apps/api/evals/meal-photo/README.md`, written in the core step), the go-ahead to run both evals (well
   under 1 USD each), and the `ANTHROPIC_API_KEY` of spec 006 in `.env`.
-- **For the professional reviewer:** the thresholds of AC14; the "Probable" oil item of AC5 (helpful,
-  or a nudge to count more calories?); the default serving for a food said without a quantity (AC4);
-  keeping both shortcuts with `ed_soft_stop`.
+- **For the professional reviewer:** the thresholds of AC14 (with n = 30 the 70 % figure has a margin
+  of about ±16 points; a second set before shipping?); the "Probable" oil item of AC5 and the photo note
+  ("una foto no ve el aceite…") for `ed_soft_stop` (the domain review suggests dropping probable items
+  and a neutral note with the flag); keeping both shortcuts with `ed_soft_stop` (grams still show,
+  quick add asks for kcal, and photographing every plate is itself monitoring; should frequent drafts
+  be a soft signal?); the first serving as the default for a food said without a quantity (1 loncha
+  de pavo is 10 g: a "typical portion" per food?); alcohol entries for users aged 16–17; whether
+  "Ensalada mixta" of the catalog already includes its dressing.
+- **For the human:** the catalog gaps of the domain review (fried egg with oil, croquetas, churros,
+  salmorejo, horchata), in `docs/knowledge/catalog-review.md`.
 - Whether to record how much the user changed each draft (items removed, portions changed) to improve
   the prompt. It needs a column or a table and a line in the consent text; not in this spec.
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
+- Done (2026-11-17), one commit per step: contracts and consent text (`a476858`), migration `0008`
+  (`65c3e44`), core (`667580f`), `@pt/ai` and API (`ea4904d`), client and mock (`81f6eb5`), the 135
+  sentences of the eval (`7313599`), UI (`b648658`), E2E (`f28566c`).
+- **Migration `0008_meal_draft_input_methods` is generated and not applied to dev.** It only adds
+  `photo` and `text` to `food_input_method` (two `ALTER TYPE … ADD VALUE`). Apply it after `0007`.
+- Tests by criterion: AC4–AC6, AC9 `core/food/meal-draft.test.ts`, `api/routes/foods/drafts.test.ts`
+  and the prompt in `ai/prompts/meal/meal.test.ts`; AC7 (`portionForReplacement`, `draftTotals`) core;
+  AC10–AC12, AC16 `drafts.test.ts` (401 and 403 for both routes, 400, 413, 429, 503, the caps per
+  feature and per UTC day) and the mock in `api-client/src/drafts.test.ts`; AC11 (rounds, refusal,
+  `max_tokens`, invalid output, the 20 s limit) `meal.test.ts`; AC17 `i18n/format.test.ts` and
+  `CONSENT_VERSION` 2026-11-v5; AC1–AC8, AC10 on screen `apps/e2e/tests/meal-draft.spec.ts` (four
+  journeys; the whole suite passes, 23 journeys). AC18 needs nothing new (ordinary items).
+- Not covered by a test: the cap message on screen (AC12: the 429 is tested in the API and the mock);
+  `ed_soft_stop` on the draft screen (it uses the same `showNumbers` as spec 005 AC18).
+- AC13–AC15: the harness is `pnpm --filter @pt/api eval:meal-text` and `eval:meal-photo`
+  (`apps/api/evals/meal-draft.ts`, READMEs in `meal-text/` and `meal-photo/`). **Not run**: it needs
+  the API key, the dev database with `0008`, the go-ahead to spend, and for the photos the ~30
+  weighed plates of the human. The 135 sentences were written by an agent that saw only the catalog;
+  a human should review a sample (its judgement calls are in the commit and below).
+- Checked on web with Playwright at 390 px (light and dark) and 1280 px, without console errors: the
+  add screen with the shortcuts, the sentence, the draft with its marks, the portion sheet in draft
+  mode, the photo draft.
+- Left for the human: apply `0008`; the phone check in Expo Go (camera and library for the plate
+  photo, the keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the
+  draft footer); weigh and photograph the plates; the go-ahead for both evals.
 - Decisions taken during implementation:
+  - **The tool shows short refs, not ids** (`f1`, `f1s2`): fewer tokens, and an id the tool never
+    showed cannot come back. The API maps the refs back before `mealDraft`.
+  - **One `search_foods` call takes all the queries** of a meal (up to 15, 5 foods each, with their
+    servings and kcal per 100), so a normal draft needs two calls to the model: search, answer.
+  - **Prompt caching** on the system prompt and the tool (one breakpoint). The prefix should be
+    above the 512-token minimum of Haiku 5.5; the first eval run confirms it
+    (`cache_read_input_tokens` on the second call).
+  - **Model settings:** Haiku 5.5, effort `low`, 4096 max tokens, tool choice `auto` with a strict
+    tool (forced tool use is not allowed on current models), structured output for the answer.
+    Provisional until the evals run.
+  - **The tool loop lives in `@pt/ai`** (`runStructuredToolLoop`): every call of a draft adds into one
+    `ai_usage` row; a third tool round, a refusal, `max_tokens`, an invalid answer or the 20 s limit
+    fail as `ai_unavailable`.
+  - **A portion outside the limits is clamped and marked "Revisa la cantidad"** (confidence `low`),
+    instead of turning the item into an unresolved mention.
+  - **A quick add made from an unresolved mention joins the draft** and is saved with it (same undo),
+    instead of being logged at once.
+  - **"Cambiar alimento" keeps a serving with the same name, else the grams** (`portionForReplacement`).
+  - **The undo of a saved draft is a new `FoodUndo` kind (`added`)**, shown on the add screen and on
+    the Food tab.
+  - `lib/labelPhoto.ts` became `lib/photo.ts` (`pickPhoto`), shared by the label and the plate.
+  - The image helpers of the label route moved to `apps/api/src/images.ts` (base64 check, size, UTC
+    day), shared with the plate photo.
+  - The mock reads a sentence with simple rules (split at commas and "y", a leading count or grams)
+    and any real photo as two fried eggs, chips and a probable oil.
+  - BLUEPRINT §5 updated: no `meals` table in this slice.
+- Domain review (`domain-reviewer`, 2026-11-17), fixed in the same change:
+  - **Blocker: raw and cooked foods.** "Macarrones" ranked dry pasta first (≈350 kcal per 100 g
+    against ≈140 cooked). The prompt now says that a plate is always as served (cooked or prepared
+    food) and that grams of pasta, rice, legumes or cereals in a sentence are cooked unless "en
+    crudo" is said. Eval case "80 g de espaguetis" now says "en crudo".
+  - **Blocker: the probable oil.** The prompt's example (chips) already includes its frying fat, so
+    the oil counted twice. The oil is now only from a photo and only on a plain food (salad, vegetables,
+    an egg or meat "a la plancha"), never on a fried, battered or whole dish. **AC5 is amended
+    accordingly** (it said "a visibly fried or dressed dish").
+  - **Blocker: `core` enforces the probable item** (it copied the model's flag): kept only from a
+    photo, only a fat of the catalog (curated keys `f-…`), at most 10 g, one per draft; otherwise
+    dropped, never turned into an unresolved mention.
+  - A count with a serving that is not the food's keeps the count on the first serving (it fell back
+    to one serving); the 100 g placeholder of a food without servings, and portions over 4 of the
+    largest servings or over 1500 kcal, are marked "Revisa la cantidad".
+  - The prompt prefers the serving of one unit times the count ("2 kiwis" was at risk of 2 × "2 kiwis").
+  - The draft warns that unresolved mentions are not added; in a sentence, an estimated amount
+    (confidence `medium`) is marked "Revisa la cantidad".
+  - Evals: the kcal reference uses the food that was matched (not always the first key); the plate eval
+    counts a food as "big" by weight or by kcal (10 g of oil is 20 % of a plate's kcal), reports extra
+    and probable items, and gains a gate on the **mean signed error, within ±10 %** (under-counting
+    would make the adaptive loop of E5b lower the targets).
+  - Not changed, for the catalog review: "huevo frito" is a synonym of "Huevo a la plancha" (fried
+    without added fat), so a typed fried egg is under-counted by 40–60 kcal; the catalog lacks a fried
+    egg with its oil, croquetas, churros, salmorejo and horchata ("croquetas" may match "croquetas de
+    garbanzo", the falafel). Small errors in the eval data (ml counted as g for oils and sauces; 5 g of
+    chorizo in a cocido) are not explicit cases and do not move the gates.

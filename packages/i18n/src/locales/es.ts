@@ -656,6 +656,8 @@ export const es = {
       edit: 'Cambiar {food}',
       total: 'Total: {kcal} kcal',
       empty: 'El borrador está vacío. Busca un alimento para añadirlo.',
+      unresolvedLeft:
+        'Lo que no encontramos no se añadirá: búscalo o usa «Añadir rápido» para que cuente.',
       submitOne: 'Añadir 1 alimento',
       submitOther: 'Añadir {count} alimentos',
       searchTitle: 'Buscar alimento',

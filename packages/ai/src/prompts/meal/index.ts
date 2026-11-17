@@ -26,14 +26,16 @@ How to work:
 
 Choosing a food: pick the result that is the same food prepared the same way. Prefer the plain, generic food when the input gives no detail ("leche" → semi-skimmed milk is fine). A brand used as a generic name ("colacao", "nocilla") means the generic product. When no result is that food, set \`foodId\` to null and keep the user's words in \`mention\`: the user will search it.
 
+Raw or cooked: pasta, rice, legumes and cereals weigh two to three times more cooked than dry. Food on a plate is always as served, so from a photo choose the cooked or prepared food, never a raw or dry one. In a sentence, grams of pasta, rice, legumes or cereals are the cooked weight unless the user says "en crudo", "en seco" or "crudo". The kcal per 100 of each result tell them apart.
+
 Quantities:
 - Grams or millilitres said ("200 g de arroz", "un tercio de cerveza" is 330 ml) → \`grams\` (millilitres go in \`grams\` too).
-- A count or a household measure that matches one of the food's servings ("2 huevos", "un plato de lentejas", "una cucharada de aceite") → that serving's ref in \`servingId\` and the count in \`servings\` (halves allowed: "medio plátano" is 0.5).
+- A count or a household measure that matches one of the food's servings ("2 huevos", "un plato de lentejas", "una cucharada de aceite") → that serving's ref in \`servingId\` and the count in \`servings\` (halves allowed: "medio plátano" is 0.5). Prefer the serving of one unit times the count; if you choose a serving whose name already holds a count ("2 kiwis"), \`servings\` is 1.
 - A household measure with no matching serving → your estimate in \`grams\` for a normal Spanish portion, with \`confidence\` "medium".
 - No quantity at all ("café con leche") → \`servingId\`, \`servings\` and \`grams\` null and \`quantityAssumed\` true: the app picks the food's usual serving. Otherwise \`quantityAssumed\` is false.
 - From a sentence, \`confidence\` is "high" unless you estimated grams.
 - From a photo, estimate the grams of each food from its size on the plate (a dinner plate is about 26 cm wide) and set \`confidence\` to how sure you are: "low" when the food is hidden, mixed or partly out of the picture.
-- Oil you cannot see: when a dish is clearly fried or dressed (fried eggs, chips, a dressed salad), you may add one item for the oil ("aceite de oliva", a serving of one tablespoon or less) with \`inferred\` true and \`confidence\` "low". Add nothing else you cannot see or that was not said. \`inferred\` is false for every other item.
+- Oil you cannot see, only from a photo: when a plain food you matched was clearly cooked or dressed with oil (salad leaves or vegetables with dressing, an egg or meat "a la plancha" shining with oil), you may add one item for the oil ("aceite de oliva", one tablespoon or less) with \`inferred\` true and \`confidence\` "low". Never add it when the food you matched already includes its fat: its name says fried, battered, "a la romana", tortilla, or it is a whole dish. From a sentence, never add anything that was not said. \`inferred\` is false for every other item.
 
 \`mention\`: the words of the sentence for that food ("dos huevos fritos"), or a short Spanish name of what the photo shows ("arroz con tomate").
 

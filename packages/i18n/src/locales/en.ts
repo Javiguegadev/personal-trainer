@@ -651,6 +651,8 @@ export const en: DeepStringRecord<typeof es> = {
       edit: 'Change {food}',
       total: 'Total: {kcal} kcal',
       empty: 'The draft is empty. Search a food to add it.',
+      unresolvedLeft:
+        'What we did not find will not be added: search it or use “Quick add” so that it counts.',
       submitOne: 'Add 1 food',
       submitOther: 'Add {count} foods',
       searchTitle: 'Search food',

@@ -759,7 +759,7 @@ export function createMockApiClient({
         return food;
       });
       // The sentence is read and dropped: nothing of it is stored (AC16).
-      return mealDraft(reading, candidates);
+      return mealDraft(reading, candidates, 'text');
     },
 
     draftFromPhoto: async (body) => {
@@ -780,7 +780,7 @@ export function createMockApiClient({
         return food;
       });
       // The image is read and dropped: nothing of it is stored (AC16).
-      return mealDraft(reading, candidates);
+      return mealDraft(reading, candidates, 'photo');
     },
 
     exportData: async () => {

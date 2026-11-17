@@ -176,7 +176,7 @@ describe('POST /me/food-log/drafts/text (spec 007 AC4, AC6, AC9)', () => {
     const draft = MealDraftResponseSchema.parse(await (await draftText()).json());
     if (draft.status !== 'ok') throw new Error('expected a draft');
     expect(draft.items.map((i) => [i.portion, i.quantityAssumed, i.confidence])).toEqual([
-      [{ kind: 'serving', servingId: FOOD.eggMedium, servings: 1 }, true, 'high'],
+      [{ kind: 'serving', servingId: FOOD.eggMedium, servings: 3 }, false, 'low'],
       [{ kind: 'grams', grams: 2000 }, false, 'low'],
     ]);
   });
