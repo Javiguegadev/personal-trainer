@@ -304,10 +304,12 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
 - Not covered by a test: the camera and its permission states (AC1, phone only); the cap message on
   screen (AC18: the 429 is tested in the API and in the mock); `ed_soft_stop` on screen for a product
   (the portion sheet uses the same `showNumbers` as spec 005 AC18).
-- Left for the human: the phone check in Expo Go (the camera reads EAN-13, EAN-8 and UPC codes; the
-  torch; the permission asked, denied and re-enabled in the settings; the label photo from the camera
-  and from the library; the keyboard over the custom-food form; 20 products of the pantry, with the
-  hit rate of Open Food Facts). `expo-doctor` reports two patch mismatches that were there before
+- Phone check (the human, 2026-11-17, Expo Go): scanning, the torch, the camera permission, the label
+  photo from the camera and the library and the keyboard over the custom-food form pass. Open Food
+  Facts found most products, but the hit rate was not written down: **left for the human**, 20
+  products of the pantry with the products found and the failures. Fixed after the check: back on
+  the search after the camera (a scan or a plate photo) the field no longer opens the keyboard; it
+  does again once the user types. `expo-doctor` reports two patch mismatches that were there before
   this spec (`expo` 58.0.24 → 58.0.25, `expo-sqlite` 58.0.16 → 58.0.17).
 - **Migration `0007_barcode_custom_foods` was applied to dev on 2026-11-17** (with `0008`). It only
   adds: two enums, three values of `food_input_method`, the new columns (with defaults),

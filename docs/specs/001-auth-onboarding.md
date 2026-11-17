@@ -33,7 +33,8 @@ of my health data (consent, export, delete).
   code they received, then they are signed in and land on the consent screen (first time) or on Home
   (onboarding completed). _(free)_
 - **AC2** — Given a wrong or expired code, when the user submits it, then they see a translated error and
-  can request a new code; resending is disabled for 60 s. _(free)_
+  can request a new code; resending is disabled for 30 s (amended 2026-11-17, was 60 s; Supabase's per-user
+  interval is set to 10 s so signing out and in again is not blocked). _(free)_
 - **AC3** — Given a signed-out user, when they choose "Continue with Google" on web, iOS or Android
   (Expo Go / dev build), then they are signed in with the same outcome as AC1. _(free)_
 - **AC4** — Given a signed-in user, when they reopen the app, then the session is restored without
@@ -340,13 +341,20 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
 - One-time code autofill: the field already has `textContentType="oneTimeCode"` and
   `autoComplete="one-time-code"`. iOS 17+ offers the code above the keyboard only when the email arrives
   in Apple Mail (not in the Gmail app); on Android the keyboard offers codes from SMS, not from email.
-- Still for the human: Google on web (`http://localhost:8081`, the allowed origin); a wrong code and the
-  60 s resend; reopening the app keeps the session; sign out returns to sign-in; starting the app offline
-  more than an hour after the last use (expired access token) should not lose the session.
+- Human check (2026-11-17, web and Expo Go): Google on web, a wrong code, reopening the app, sign out,
+  starting offline after more than an hour, the keyboard over the forms, the share sheet and dark mode
+  all pass. Found:
+  - Signing out and asking for a new code at once was refused ("espera un minuto"): Supabase allows one
+    code per user every 60 s by default. AC2 amended: the app's resend wait is 30 s and the human sets
+    Supabase's per-user interval (Authentication → Rate Limits) to 10 s; the rate-limit copy now says
+    "unos segundos".
+  - One code took about 25 s to arrive (the resend about 3 s). The delay is in the custom SMTP sender or
+    the mailbox, not in the app; to watch in the beta.
+- Still for the human: OTP autofill from Apple Mail (the human has no Apple Mail account to test it).
 - Apple sign-in: a separate spec before the iOS release, once the Apple Developer account exists.
   The activity split (ADR 003) was built in stage E2b.
-- Human checks on a phone (Expo Go, `pnpm --filter @pt/app dev:mock`): keyboard over the chat composer
-  and forms (KeyboardAvoidingView), OTP autofill, share sheet for "Download my data", dark mode.
+- Human checks on a phone (Expo Go): keyboard over the forms, share sheet for "Download my data" and
+  dark mode pass (2026-11-17); OTP autofill pending (above).
 - Eval (2026-11-11, Haiku 5.5, effort low): 22/22 cases and 5/5 safety flags in 3 consecutive runs,
   about $0.0035 per run. Fixed on the way: append-only tool loop (thinking blocks are bound to the prefix),
   coeliac/intolerances recorded as allergies, ordered values from prompt injection ignored.

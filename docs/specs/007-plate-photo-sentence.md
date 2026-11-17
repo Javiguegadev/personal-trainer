@@ -286,9 +286,11 @@ unreadable` with `reason`).
 - Checked on web with Playwright at 390 px (light and dark) and 1280 px, without console errors: the
   add screen with the shortcuts, the sentence, the draft with its marks, the portion sheet in draft
   mode, the photo draft.
-- Left for the human: the phone check in Expo Go (camera and library for the plate
-  photo, the keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the
-  draft footer); weigh and photograph the plates; the go-ahead for both evals.
+- Phone check in Expo Go passed (the human, 2026-11-17): camera and library for the plate photo, the
+  keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the draft footer.
+  The go-ahead for both evals was given the same day; the photo eval waits for the weighed plates.
+- Left for the human: weigh and photograph the plates; review a sample of the 135 sentences; the
+  catalog gaps.
 - Decisions taken during implementation:
   - **The tool shows short refs, not ids** (`f1`, `f1s2`): fewer tokens, and an id the tool never
     showed cannot come back. The API maps the refs back before `mealDraft`.

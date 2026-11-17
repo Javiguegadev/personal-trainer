@@ -338,8 +338,10 @@ this catalog and this log.
 - Known limit: the recents are refreshed while the add screen is open. A food added and closed within
   the latency of the write shows in the recents the next time the screen opens with a connection, not
   offline.
-- Left for the human: the phone check in Expo Go (keyboard over the portion sheet and the quick-add
-  form, the modal gestures, `expo-crypto` ids), and the review of 100 foods and of the servings.
+- Phone check in Expo Go passed (the human, 2026-11-17): keyboard over the portion sheet and the
+  quick-add form, the modal gestures, `expo-crypto` ids. The human asked for a way to copy a logged
+  food (or meal) to another meal, e.g. breakfast to the afternoon snack: a new spec.
+- Left for the human: the review of 100 foods and of the servings, and the BEDCA request to AESAN.
 - The search eval
   runs with `pnpm --filter @pt/api eval:food-search` (cases in `apps/api/evals/food-search.jsonl`).
 - Tests by criterion so far: AC1–AC2 `db/knowledge/*.test.ts` (parsers, values, report) and the import
