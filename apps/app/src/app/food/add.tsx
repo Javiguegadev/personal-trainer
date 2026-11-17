@@ -185,6 +185,16 @@ function FoodAdd({
   const [step, setStep] = useState<Step>({ kind: 'search' });
   const [mealType, setMealType] = useState(initialMeal);
   const [query, setQuery] = useState('');
+  /**
+   * Whether the search field opens the keyboard when it shows. Off after the camera (a scan or a plate
+   * photo), so the confirmation of a scanned product is not covered by the keyboard; back on when the
+   * user types again.
+   */
+  const [focusSearch, setFocusSearch] = useState(true);
+  const openCamera = (next: { kind: 'scan' } | { kind: 'platePhoto' }) => {
+    setFocusSearch(false);
+    setStep(next);
+  };
   /** What just happened ("Añadido: 2 huevos"), shown above the search. */
   const [done, setDone] = useState<string | null>(null);
   const [looking, setLooking] = useState(false);
@@ -679,9 +689,12 @@ function FoodAdd({
             label={a.search}
             placeholder={a.searchPlaceholder}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(text) => {
+              setQuery(text);
+              setFocusSearch(true);
+            }}
             maxLength={FOOD_LOG_LIMITS.searchMaxLength}
-            autoFocus
+            autoFocus={focusSearch}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
@@ -693,7 +706,7 @@ function FoodAdd({
           variant="secondary"
           label={s.open}
           accessibilityLabel={s.openLabel}
-          onPress={() => setStep({ kind: 'scan' })}
+          onPress={() => openCamera({ kind: 'scan' })}
           testID="food-scan"
         />
       </View>
@@ -703,7 +716,7 @@ function FoodAdd({
             variant="secondary"
             label={t.food.shortcuts.photo}
             accessibilityLabel={t.food.shortcuts.photoLabel}
-            onPress={() => setStep({ kind: 'platePhoto' })}
+            onPress={() => openCamera({ kind: 'platePhoto' })}
             disabled={!online}
             testID="food-plate-photo"
           />

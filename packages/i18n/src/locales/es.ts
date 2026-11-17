@@ -44,7 +44,7 @@ export const es = {
       invalid_email: 'Ese email no parece válido. Revísalo.',
       invalid_code: 'El código no es correcto. Revísalo o pide uno nuevo.',
       expired_code: 'El código ha caducado. Pide uno nuevo.',
-      rate_limited: 'Demasiados intentos. Espera un minuto y vuelve a probar.',
+      rate_limited: 'Demasiados intentos. Espera unos segundos y vuelve a probar.',
       network: 'No hay conexión. Comprueba tu red y vuelve a intentarlo.',
       cancelled: 'Has cancelado el inicio de sesión con Google.',
       not_configured:

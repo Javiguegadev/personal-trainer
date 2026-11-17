@@ -47,7 +47,7 @@ export const en: DeepStringRecord<typeof es> = {
       invalid_email: "That email doesn't look right. Please check it.",
       invalid_code: "That code isn't right. Check it or request a new one.",
       expired_code: 'The code has expired. Request a new one.',
-      rate_limited: 'Too many attempts. Wait a minute and try again.',
+      rate_limited: 'Too many attempts. Wait a few seconds and try again.',
       network: 'No connection. Check your network and try again.',
       cancelled: 'You cancelled signing in with Google.',
       not_configured:
