@@ -21,6 +21,7 @@ export * from './food/barcode';
 export * from './food/custom-food';
 export * from './food/item-request';
 export * from './food/label';
+export * from './food/meal-draft';
 export * from './food/meal-type';
 export * from './food/nutrition';
 export * from './food/portion';

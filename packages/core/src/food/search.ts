@@ -167,6 +167,12 @@ function singulars(q: string): string[] {
 
 const prefix = (q: string, t: string) => singulars(q).some((form) => t.startsWith(form));
 
+/**
+ * Lifts a recently logged food within its tier: above any popularity (1–9), below the gap between two
+ * tiers (50).
+ */
+const PREFERRED_BONUS = 10;
+
 /** Tiers of AC4: whole name, name prefix, every word of the name, synonyms, then similarity. */
 function tier(
   query: { text: string; tokens: string[] },
@@ -186,7 +192,8 @@ function tier(
 /**
  * Ids of the best matches, best first (AC4). With the English locale, English names count too. `extra`
  * is a second index ranked together with the first: the user's own foods and the products they logged
- * (spec 006 AC11), which are never part of the shared catalog.
+ * (spec 006 AC11), which are never part of the shared catalog. `preferred` holds the ids the user logged
+ * recently: they come first among equal matches (spec 007), never above a better one.
  */
 export function searchFoods(
   index: FoodSearchIndex,
@@ -194,6 +201,7 @@ export function searchFoods(
   locale: Locale,
   limit: number,
   extra?: FoodSearchIndex,
+  preferred?: ReadonlySet<string>,
 ): string[] {
   const text = normalizeSearchText(query);
   if (text.length < 2) return [];
@@ -205,7 +213,8 @@ export function searchFoods(
     if (score > 0) {
       scored.push({
         food: entry.food,
-        score: score + entry.food.popularity,
+        score:
+          score + entry.food.popularity + (preferred?.has(entry.food.id) ? PREFERRED_BONUS : 0),
         length: entry.nameEs.text.length,
       });
     }

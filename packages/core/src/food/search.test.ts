@@ -128,3 +128,20 @@ describe('searchFoods (spec 005 AC4)', () => {
     expect(ids('leche', 'es', 2)).toEqual(['leche-semi', 'leche-entera']);
   });
 });
+
+describe('searchFoods with recently logged foods (spec 007)', () => {
+  const recent = new Set(['leche-cabra']);
+
+  it('puts a recently logged food first among equal matches', () => {
+    expect(searchFoods(index, 'leche', 'es', 25, undefined, recent)).toEqual([
+      'leche-cabra',
+      'leche-semi',
+      'leche-entera',
+    ]);
+  });
+
+  it('never lifts a recent food above a better match', () => {
+    // "Pan" is a whole-name match; "Panceta" only a prefix, even when it was logged recently.
+    expect(searchFoods(index, 'pan', 'es', 25, undefined, new Set(['panceta']))[0]).toBe('pan');
+  });
+});
