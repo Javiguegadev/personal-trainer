@@ -91,11 +91,11 @@ pnpm format
 - E4 food logging: slice (a), spec 005 (catalog, search, Food tab, log, offline writes), is implemented
   with E2E; the phone check in Expo Go and the review of the catalog are left (see its "Progress").
   Slice (b), spec 006 (barcode with Open Food Facts, the user's own foods, label photo with Claude
-  Haiku 5.5), is implemented with E2E; left for the human: apply migration `0007` to dev, the phone
-  check, the label eval (photos and API money) and the reference products (see its "Progress").
+  Haiku 5.5), is implemented with E2E and migration `0007` is applied to dev; left for the human: the
+  phone check, the label eval (photos and API money) and the reference products (see its "Progress").
   Slice (c), spec 007 (plate photo and sentence shortcuts, editable draft, Claude Haiku 5.5 with a
-  `search_foods` tool), is implemented with E2E and a domain review; left for the human: apply
-  migration `0008`, the phone check, the ~30 weighed plates and the go-ahead for both evals (see its
+  `search_foods` tool), is implemented with E2E and a domain review, and migration `0008` is
+  applied to dev; left for the human: the phone check, the ~30 weighed plates and the go-ahead for both evals (see its
   "Progress"). The daily feedback is spec 008, still to write.
 - Next (ADR 003, ADR 006): spec 008 (daily feedback) → E5 workout logging, daily context and the week view →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7

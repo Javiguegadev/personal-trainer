@@ -309,11 +309,12 @@ Stage E4 is done when "barcode totals are within ±5 % of a reference" (BLUEPRIN
   and from the library; the keyboard over the custom-food form; 20 products of the pantry, with the
   hit rate of Open Food Facts). `expo-doctor` reports two patch mismatches that were there before
   this spec (`expo` 58.0.24 → 58.0.25, `expo-sqlite` 58.0.16 → 58.0.17).
-- **Migration `0007_barcode_custom_foods` is generated and not applied to dev yet.** It only adds:
-  two enums, three values of `food_input_method`, the new columns (with defaults), `barcode_misses`,
-  and the stricter `select` policies of `foods` and `food_servings`. After applying it, run
-  `pnpm --filter @pt/db import:foods` once: it upserts the `open-food-facts` and `user` rows of
-  `knowledge_sources`, which products and custom foods reference. Then
+- **Migration `0007_barcode_custom_foods` was applied to dev on 2026-11-17** (with `0008`). It only
+  adds: two enums, three values of `food_input_method`, the new columns (with defaults),
+  `barcode_misses`, and the stricter `select` policies of `foods` and `food_servings`. Then
+  `pnpm --filter @pt/db import:foods` ran (811 foods, 0 invalid rows, 6 energy checks): it upserts
+  the `open-food-facts` and `user` rows of `knowledge_sources`, which products and custom foods
+  reference. Still to run:
   `pnpm --filter @pt/api test:integration` covers the new SQL (custom food, product, miss, the
   `owner_id` cascade of AC22).
 - Tests by criterion so far: AC2 `core/food/barcode.test.ts`; AC4, AC5 `core/food/product.test.ts`;

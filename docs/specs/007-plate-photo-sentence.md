@@ -267,8 +267,8 @@ unreadable` with `reason`).
 - Done (2026-11-17), one commit per step: contracts and consent text (`a476858`), migration `0008`
   (`65c3e44`), core (`667580f`), `@pt/ai` and API (`ea4904d`), client and mock (`81f6eb5`), the 135
   sentences of the eval (`7313599`), UI (`b648658`), E2E (`f28566c`).
-- **Migration `0008_meal_draft_input_methods` is generated and not applied to dev.** It only adds
-  `photo` and `text` to `food_input_method` (two `ALTER TYPE … ADD VALUE`). Apply it after `0007`.
+- **Migration `0008_meal_draft_input_methods` was applied to dev on 2026-11-17** (after `0007`). It
+  only adds `photo` and `text` to `food_input_method` (two `ALTER TYPE … ADD VALUE`).
 - Tests by criterion: AC4–AC6, AC9 `core/food/meal-draft.test.ts`, `api/routes/foods/drafts.test.ts`
   and the prompt in `ai/prompts/meal/meal.test.ts`; AC7 (`portionForReplacement`, `draftTotals`) core;
   AC10–AC12, AC16 `drafts.test.ts` (401 and 403 for both routes, 400, 413, 429, 503, the caps per
@@ -280,13 +280,13 @@ unreadable` with `reason`).
   `ed_soft_stop` on the draft screen (it uses the same `showNumbers` as spec 005 AC18).
 - AC13–AC15: the harness is `pnpm --filter @pt/api eval:meal-text` and `eval:meal-photo`
   (`apps/api/evals/meal-draft.ts`, READMEs in `meal-text/` and `meal-photo/`). **Not run**: it needs
-  the API key, the dev database with `0008`, the go-ahead to spend, and for the photos the ~30
+  the API key, the go-ahead to spend, and for the photos the ~30
   weighed plates of the human. The 135 sentences were written by an agent that saw only the catalog;
   a human should review a sample (its judgement calls are in the commit and below).
 - Checked on web with Playwright at 390 px (light and dark) and 1280 px, without console errors: the
   add screen with the shortcuts, the sentence, the draft with its marks, the portion sheet in draft
   mode, the photo draft.
-- Left for the human: apply `0008`; the phone check in Expo Go (camera and library for the plate
+- Left for the human: the phone check in Expo Go (camera and library for the plate
   photo, the keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the
   draft footer); weigh and photograph the plates; the go-ahead for both evals.
 - Decisions taken during implementation:
