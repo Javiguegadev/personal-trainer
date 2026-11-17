@@ -77,6 +77,8 @@ pnpm format
 - pnpm blocks dependency build scripts by default. Allow them in `pnpm-workspace.yaml` → `allowBuilds`.
 - Expo web dev runs on :8081. The API's CORS list comes from `WEB_ORIGINS`.
 - On a physical phone, `localhost` is the phone: set `EXPO_PUBLIC_API_URL` to the computer's LAN IP.
+  For Google sign-in in Expo Go also set `REACT_NATIVE_PACKAGER_HOSTNAME=<lan-ip>.nip.io`: Supabase
+  rejects redirect URLs whose host is an IP. Under `pnpm dev` Expo shows no QR: run the app alone.
 - Windows dev machine: `.mcp.json` stdio servers use `cmd /c npx`.
 
 ## Status

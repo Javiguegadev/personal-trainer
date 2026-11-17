@@ -322,11 +322,27 @@ i18n namespaces (es reference + en): `auth.*`, `consent.*`, `onboarding.*`, `tar
     reset anyway.
   - Session in expo-sqlite's localStorage on native (the Expo guide) and the token refresh loop tied to
     `AppState`.
-- Left for the human (real sign-in): the email code on web and in Expo Go (arrives, works, a wrong code
-  shows the error, resend after 60 s); Google on web (open `http://localhost:8081`, the allowed origin)
-  and in Expo Go; reopening the app keeps the session; sign out returns to sign-in. Also try starting the
-  app offline more than an hour after the last use (expired access token): the session should not be
-  lost.
+- Human check (2026-11-17, iPhone, Expo Go): the email code and Google both sign in against pt-dev.
+  Found on the way:
+  - **Supabase refuses a redirect URL whose host is an IP address**, even when the exact URL is in the
+    allow list (`exp://192.168.0.44:8081/--/` and `exp://8.8.8.8/--/` both fall back to the Site URL;
+    `exp://<hostname>…` passes `exp://**`). So Expo Go must be served under a hostname:
+    `REACT_NATIVE_PACKAGER_HOSTNAME=<lan-ip>.nip.io` in `.env` (or `expo start --tunnel`). A build uses
+    `personaltrainer://`, which passes.
+  - Expo Go has no Web Crypto: `supabaseClient.ts` installs `getRandomValues` and SHA-256 from
+    expo-crypto so PKCE uses `S256` (809a1c5). In development the original error behind each translated
+    auth message is logged as `[auth]` (00311b2).
+  - Under `pnpm dev` (turbo) Expo prints no QR code: start the app with `pnpm --filter @pt/app dev` in
+    its own terminal.
+- Sign-in screen (6b71f7d, asked by the human): the divider reads "Continuar con" and each provider has
+  its own button below it; the Google button shows the multicolour G and keeps "Continuar con Google" as
+  its accessible label. Checked on web at 390 px, light and dark, no console errors.
+- One-time code autofill: the field already has `textContentType="oneTimeCode"` and
+  `autoComplete="one-time-code"`. iOS 17+ offers the code above the keyboard only when the email arrives
+  in Apple Mail (not in the Gmail app); on Android the keyboard offers codes from SMS, not from email.
+- Still for the human: Google on web (`http://localhost:8081`, the allowed origin); a wrong code and the
+  60 s resend; reopening the app keeps the session; sign out returns to sign-in; starting the app offline
+  more than an hour after the last use (expired access token) should not lose the session.
 - Apple sign-in: a separate spec before the iOS release, once the Apple Developer account exists.
   The activity split (ADR 003) was built in stage E2b.
 - Human checks on a phone (Expo Go, `pnpm --filter @pt/app dev:mock`): keyboard over the chat composer
