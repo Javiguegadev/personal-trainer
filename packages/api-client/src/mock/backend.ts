@@ -17,6 +17,9 @@ import {
   FoodSearchQuerySchema,
   LABEL_SCAN_LIMITS,
   LabelScanRequestSchema,
+  MEAL_DRAFT_LIMITS,
+  MealPhotoDraftRequestSchema,
+  MealTextDraftRequestSchema,
   MealItemDeleteQuerySchema,
   MealItemIdParamSchema,
   MealItemUpsertRequestSchema,
@@ -52,6 +55,7 @@ import {
   evaluateProfileInput,
   isInStoreBarcode,
   labelDraft,
+  mealDraft,
   mealItemFromRequest,
   normalizeBarcode,
   searchFoods,
@@ -62,6 +66,7 @@ import {
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
 import { MOCK_CATALOG, MOCK_SOURCE, toMockFood } from './foods';
+import { mockPhotoReading, mockTextReading } from './drafts';
 import { mockProduct, mockProductById } from './products';
 import { parseMockToken, type MockUser } from './identity';
 
@@ -160,7 +165,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   product_not_found: 'Unknown product',
   product_incomplete: 'The product has no usable nutrition values',
   lookup_unavailable: 'The product database did not answer, try again',
-  ai_cap_reached: 'Daily limit of label photos reached, fill in the form instead',
+  ai_cap_reached: 'Daily limit of AI reads reached, use the search or the form instead',
   image_too_large: 'The image is too large',
   food_limit_reached: 'Too many foods of your own',
 };
@@ -257,6 +262,27 @@ export function createMockApiClient({
     if (catalogFood) return toMockFood(catalogFood, locale);
     return record.customFoods.find((f) => f.id === id) ?? mockProductById(id, locale);
   };
+
+  /** The daily cap of one AI feature (spec 006 AC18, spec 007 AC12), then its metering. */
+  function useAi(record: UserRecord, feature: 'meal_text' | 'meal_photo', perDay: number) {
+    const today = now().toISOString().slice(0, 10);
+    const used = record.aiUsage.filter(
+      (u) => u.feature === feature && u.createdAt.slice(0, 10) === today,
+    ).length;
+    if (used >= perDay) throw fail('ai_cap_reached');
+    record.aiUsage.push({
+      feature,
+      model: 'claude-haiku-5-5',
+      inputTokens: 3000,
+      outputTokens: 400,
+      createdAt: now().toISOString(),
+    });
+    persist();
+  }
+
+  /** The user's own foods, searched with the catalog (spec 006 AC11). */
+  const customIndex = (record: UserRecord) =>
+    buildFoodSearchIndex(record.customFoods.map(searchableBrandedFood));
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -719,6 +745,42 @@ export function createMockApiClient({
           ? { ...MOCK_LABEL_READING, status: 'not_a_label' }
           : MOCK_LABEL_READING,
       );
+    },
+
+    draftFromText: async (body) => {
+      const { record } = await authenticateWithConsent();
+      const { text, locale } = parse(MealTextDraftRequestSchema, body);
+      useAi(record, 'meal_text', MEAL_DRAFT_LIMITS.textsPerDay);
+      const candidates = new Map<string, Food>();
+      const reading = mockTextReading(text, (query) => {
+        const [id] = searchFoods(searchIndex, query, locale, 1, customIndex(record));
+        const food = id ? findFood(record, id, locale) : null;
+        if (food) candidates.set(food.id, food);
+        return food;
+      });
+      // The sentence is read and dropped: nothing of it is stored (AC16).
+      return mealDraft(reading, candidates);
+    },
+
+    draftFromPhoto: async (body) => {
+      const { record } = await authenticateWithConsent();
+      const { image, locale } = parse(MealPhotoDraftRequestSchema, body);
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(image.data)) {
+        throw fail('validation_error', { 'image.data': 'invalid' });
+      }
+      if ((image.data.length * 3) / 4 > LABEL_SCAN_LIMITS.imageBytesMax) {
+        throw fail('image_too_large');
+      }
+      useAi(record, 'meal_photo', MEAL_DRAFT_LIMITS.photosPerDay);
+      const candidates = new Map<string, Food>();
+      const reading = mockPhotoReading(image.data.length, (key) => {
+        const catalogFood = MOCK_CATALOG.find((f) => f.key === key);
+        const food = catalogFood ? toMockFood(catalogFood, locale) : null;
+        if (food) candidates.set(food.id, food);
+        return food;
+      });
+      // The image is read and dropped: nothing of it is stored (AC16).
+      return mealDraft(reading, candidates);
     },
 
     exportData: async () => {

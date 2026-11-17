@@ -9,6 +9,7 @@ import {
   HealthResponseSchema,
   KnowledgeSourcesResponseSchema,
   LabelScanResponseSchema,
+  MealDraftResponseSchema,
   MealItemSaveResponseSchema,
   MeResponseSchema,
   RecentFoodsResponseSchema,
@@ -29,6 +30,9 @@ import {
   type KnowledgeSourcesResponse,
   type LabelScanRequest,
   type LabelScanResponse,
+  type MealDraftResponse,
+  type MealPhotoDraftRequest,
+  type MealTextDraftRequest,
   type Locale,
   type MealItemDeleteQuery,
   type MealItemSaveResponse,
@@ -239,6 +243,20 @@ export function createApiClient({
      */
     scanLabel: (body: LabelScanRequest): Promise<LabelScanResponse> =>
       request('/me/foods/label-scan', LabelScanResponseSchema, { method: 'POST', json: body }),
+
+    /**
+     * `POST /me/food-log/drafts/text`: the editable draft of a typed or dictated meal, or why it gives
+     * none. Needs a connection (never queued). 429 `ai_cap_reached`, 503 `ai_unavailable` (spec 007).
+     */
+    draftFromText: (body: MealTextDraftRequest): Promise<MealDraftResponse> =>
+      request('/me/food-log/drafts/text', MealDraftResponseSchema, { method: 'POST', json: body }),
+
+    /**
+     * `POST /me/food-log/drafts/photo`: the editable draft of a plate photo, or why it gives none.
+     * Needs a connection (never queued). 413 `image_too_large`, 429, 503 (spec 007).
+     */
+    draftFromPhoto: (body: MealPhotoDraftRequest): Promise<MealDraftResponse> =>
+      request('/me/food-log/drafts/photo', MealDraftResponseSchema, { method: 'POST', json: body }),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */
     exportData: (): Promise<ExportResponse> => request('/me/export', ExportResponseSchema),

@@ -256,7 +256,10 @@ describe('mock backend: custom foods (AC9–AC13)', () => {
     expect(await api.saveCustomFood(FOOD_ID, yogurt())).toEqual(
       customFoodAsFood(FOOD_ID, yogurt()),
     );
-    await api.saveCustomFood(FOOD_ID_2, yogurt({ name: 'Pan de casa', brand: null, serving: null }));
+    await api.saveCustomFood(
+      FOOD_ID_2,
+      yogurt({ name: 'Pan de casa', brand: null, serving: null }),
+    );
     await api.saveCustomFood(FOOD_ID, yogurt({ name: 'Yogur griego' }));
     expect((await api.customFoods('es')).foods.map((f) => f.name)).toEqual([
       'Yogur griego',
