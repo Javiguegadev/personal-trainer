@@ -6,6 +6,7 @@ export * from './context';
 export * from './errors';
 export * from './food';
 export * from './health';
+export * from './meal-draft';
 export * from './onboarding';
 export * from './privacy';
 export * from './profile';

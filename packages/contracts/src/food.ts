@@ -42,7 +42,8 @@ export type MealType = z.infer<typeof MealTypeSchema>;
 
 /**
  * How an item reached the log. `barcode`: a scanned product; `label` and `custom`: the first log of a
- * food the user created from a label photo or by hand (spec 006). Slice (c) adds photo and text.
+ * food the user created from a label photo or by hand (spec 006); `photo` and `text`: an item of a
+ * draft made from a plate photo or a sentence (spec 007).
  */
 export const FoodInputMethodSchema = z.enum([
   'search',
@@ -53,6 +54,8 @@ export const FoodInputMethodSchema = z.enum([
   'barcode',
   'label',
   'custom',
+  'photo',
+  'text',
 ]);
 export type FoodInputMethod = z.infer<typeof FoodInputMethodSchema>;
 
@@ -170,7 +173,17 @@ export const MealItemUpsertRequestSchema = z.discriminatedUnion('kind', [
     kind: z.literal('food'),
     foodId: z.uuid(),
     portion: PortionSchema,
-    inputMethod: z.enum(['search', 'recent', 'favourite', 'repeat', 'barcode', 'label', 'custom']),
+    inputMethod: z.enum([
+      'search',
+      'recent',
+      'favourite',
+      'repeat',
+      'barcode',
+      'label',
+      'custom',
+      'photo',
+      'text',
+    ]),
     ...itemPlacement,
   }),
   z.object({
@@ -346,12 +359,16 @@ export const CustomFoodsResponseSchema = z.object({
 });
 export type CustomFoodsResponse = z.infer<typeof CustomFoodsResponseSchema>;
 
-export const LabelImageSchema = z.object({
+/** A photo sent to the AI (label, plate), resized on the device. Never stored (spec 006 AC19). */
+export const ImageUploadSchema = z.object({
   mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
   /** Base64 without the `data:` prefix. */
   data: z.string().min(1),
 });
-export type LabelImage = z.infer<typeof LabelImageSchema>;
+export type ImageUpload = z.infer<typeof ImageUploadSchema>;
+
+export const LabelImageSchema = ImageUploadSchema;
+export type LabelImage = ImageUpload;
 
 /** `POST /me/foods/label-scan`. */
 export const LabelScanRequestSchema = z.object({

@@ -58,7 +58,7 @@ export const es = {
     points: {
       what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso, lo que comes (tu registro de comidas y los alimentos que creas) y, si los rellenas, tus registros de sueño y estrés.',
       where: 'Se guardan en servidores de la Unión Europea y solo tú puedes verlos.',
-      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Si haces una foto a la etiqueta de un producto, la lee un proveedor de IA (Anthropic): la foto no se guarda y viaja sin tus datos de salud. Ningún proveedor de IA procesa el resto de tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
+      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Si haces una foto a la etiqueta de un producto o a tu plato, o describes una comida con una frase, la lee un proveedor de IA (Anthropic): la foto y la frase no se guardan y viajan sin tu perfil ni tus objetivos. Ningún proveedor de IA procesa el resto de tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
       control: 'Puedes descargar o borrar todos tus datos cuando quieras en Ajustes → Privacidad.',
       advice:
         'Las recomendaciones son orientativas y no sustituyen el consejo de un profesional sanitario.',

@@ -61,7 +61,7 @@ export const en: DeepStringRecord<typeof es> = {
     points: {
       what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log, what you eat (your food log and the foods you create) and, if you fill them in, your sleep and stress check-ins.',
       where: 'It is stored on servers in the European Union and only you can see it.',
-      use: 'We use it to calculate your targets and adapt your recommendations. If you take a photo of a product label, an AI provider (Anthropic) reads it: the photo is not stored and travels without your health data. No AI provider processes the rest of your data; if that changes, we will ask for your consent again.',
+      use: 'We use it to calculate your targets and adapt your recommendations. If you take a photo of a product label or of your plate, or describe a meal in a sentence, an AI provider (Anthropic) reads it: the photo and the sentence are not stored and travel without your profile or your targets. No AI provider processes the rest of your data; if that changes, we will ask for your consent again.',
       control: 'You can download or delete all your data at any time in Settings → Privacy.',
       advice: 'Recommendations are for guidance only and do not replace a healthcare professional.',
     },

@@ -54,3 +54,11 @@ describe('messages', () => {
     }
   });
 });
+
+describe('consent text', () => {
+  /** Every input that reaches the AI provider is named (spec 006 AC21, spec 007 AC17). */
+  it('names the label photo, the plate photo and the sentence in both locales', () => {
+    expect(messages.es.consent.points.use).toMatch(/etiqueta.*plato.*frase.*Anthropic/);
+    expect(messages.en.consent.points.use).toMatch(/label.*plate.*sentence.*Anthropic/);
+  });
+});
