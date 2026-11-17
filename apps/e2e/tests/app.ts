@@ -189,3 +189,53 @@ export async function hasSavedWrites(page: Page): Promise<boolean> {
     ),
   );
 }
+
+/**
+ * A JPEG drawn in the page: big enough to be a real photo for the mock (a label, a plate), or a few
+ * pixels, which the mock reads as "not a label" or "no food".
+ */
+export async function jpeg(page: Page, kind: 'photo' | 'tiny'): Promise<Buffer> {
+  const base64 = await page.evaluate(
+    (size) => {
+      // The tests are compiled without the DOM library: only what the drawing needs is typed.
+      interface Canvas {
+        width: number;
+        height: number;
+        getContext(kind: '2d'): {
+          fillStyle: string;
+          fillRect(x: number, y: number, w: number, h: number): void;
+        };
+        toDataURL(type: string, quality: number): string;
+      }
+      const { document } = globalThis as unknown as {
+        document: { createElement(tag: 'canvas'): Canvas };
+      };
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext('2d');
+      // Noise does not compress, so the file is as large as a real photo of that size.
+      for (let y = 0; y < size; y += 4) {
+        for (let x = 0; x < size; x += 4) {
+          context.fillStyle = `rgb(${(x * 7 + y * 3) % 256}, ${(x * 13) % 256}, ${(y * 11) % 256})`;
+          context.fillRect(x, y, 4, 4);
+        }
+      }
+      return canvas.toDataURL('image/jpeg', 0.9).split(',')[1]!;
+    },
+    kind === 'photo' ? 600 : 2,
+  );
+  return Buffer.from(base64, 'base64');
+}
+
+/** Presses a button that opens the system picker and gives it the photo. */
+export async function takePhoto(
+  page: Page,
+  button: Locator,
+  kind: 'photo' | 'tiny',
+): Promise<void> {
+  const buffer = await jpeg(page, kind);
+  const chooser = page.waitForEvent('filechooser');
+  await button.click();
+  await (await chooser).setFiles({ name: 'foto.jpg', mimeType: 'image/jpeg', buffer });
+}

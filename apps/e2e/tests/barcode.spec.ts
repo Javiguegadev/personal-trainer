@@ -10,6 +10,7 @@ import {
   screen,
   setOffline,
   signInWithEmail,
+  takePhoto,
 } from './app';
 
 /**
@@ -102,49 +103,6 @@ async function fillYogurt(form: Locator): Promise<void> {
   await form.getByTestId('custom-food-carbs').fill('4,7');
   await form.getByTestId('custom-food-fat').fill('3,1');
   await form.getByTestId('custom-food-serving-size').fill('125');
-}
-
-/** A JPEG drawn in the page: big enough to be "a label" for the mock, or a few pixels. */
-async function jpeg(page: Page, kind: 'label' | 'tiny'): Promise<Buffer> {
-  const base64 = await page.evaluate(
-    (size) => {
-      // The tests are compiled without the DOM library: only what the drawing needs is typed.
-      interface Canvas {
-        width: number;
-        height: number;
-        getContext(kind: '2d'): {
-          fillStyle: string;
-          fillRect(x: number, y: number, w: number, h: number): void;
-        };
-        toDataURL(type: string, quality: number): string;
-      }
-      const { document } = globalThis as unknown as {
-        document: { createElement(tag: 'canvas'): Canvas };
-      };
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const context = canvas.getContext('2d');
-      // Noise does not compress, so the file is as large as a real photo of that size.
-      for (let y = 0; y < size; y += 4) {
-        for (let x = 0; x < size; x += 4) {
-          context.fillStyle = `rgb(${(x * 7 + y * 3) % 256}, ${(x * 13) % 256}, ${(y * 11) % 256})`;
-          context.fillRect(x, y, 4, 4);
-        }
-      }
-      return canvas.toDataURL('image/jpeg', 0.9).split(',')[1]!;
-    },
-    kind === 'label' ? 600 : 2,
-  );
-  return Buffer.from(base64, 'base64');
-}
-
-/** Presses a button that opens the system picker and gives it the photo. */
-async function takePhoto(page: Page, button: Locator, kind: 'label' | 'tiny'): Promise<void> {
-  const buffer = await jpeg(page, kind);
-  const chooser = page.waitForEvent('filechooser');
-  await button.click();
-  await (await chooser).setFiles({ name: 'etiqueta.jpg', mimeType: 'image/jpeg', buffer });
 }
 
 test.describe('barcode, own foods and label photo (spec 006)', () => {
@@ -284,7 +242,7 @@ test.describe('barcode, own foods and label photo (spec 006)', () => {
     await expect(miss.getByTestId('product-miss-incomplete')).toContainText(INCOMPLETE);
 
     // AC14–AC16: the photo is read and fills the form; nothing is saved yet.
-    await takePhoto(page, miss.getByTestId('product-label-photo'), 'label');
+    await takePhoto(page, miss.getByTestId('product-label-photo'), 'photo');
     const form = await screen(page, 'custom-food-form');
     await expect(form.getByTestId('label-done')).toBeVisible();
     await expect(form.getByTestId('custom-food-name')).toHaveValue('Galletas María');
