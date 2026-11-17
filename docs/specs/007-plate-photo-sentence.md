@@ -289,6 +289,13 @@ unreadable` with `reason`).
 - Phone check in Expo Go passed (the human, 2026-11-17): camera and library for the plate photo, the
   keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the draft footer.
   The go-ahead for both evals was given the same day; the photo eval waits for the weighed plates.
+- **Sentence eval (AC13), 2026-11-17, Claude Haiku 5.5: PASS.** Foods matched 229/243 (94.2 %, gate
+  90 %); extra items 4/233 (1.7 %, gate ≤ 5 %); explicit sentences within ±5 % kcal 54/54 (gate 90 %);
+  no items from sentences without food. 0.11 USD for 135 calls (0.0008 each); latency median 3.1 s,
+  p90 5.0 s. The 15 misses are mostly an implied side food left out ("lomo con pimientos", "cereales
+  con leche", "un bocata de tortilla" without the bread) and judgement calls of the cases (fried vs.
+  grilled egg, raw vs. cooked rice, "un tupper de lentejas con chorizo" adding the chorizo). The cases
+  still need a human sample review before the numbers are trusted.
 - Left for the human: weigh and photograph the plates; review a sample of the 135 sentences; the
   catalog gaps.
 - Decisions taken during implementation:
