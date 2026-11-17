@@ -1,0 +1,31 @@
+{
+  "code": "5449000214911",
+  "status": 1,
+  "product": {
+    "product_name": "Coca-Cola Original",
+    "product_name_es": "Coca-Cola",
+    "generic_name": "Boisson rafraîchissante aux extraits végétaux",
+    "generic_name_es": "",
+    "brands": "Coca-Cola",
+    "quantity": "330ml",
+    "product_quantity": 330,
+    "product_quantity_unit": "ml",
+    "serving_size": "330ml",
+    "serving_quantity": 330,
+    "serving_quantity_unit": "ml",
+    "allergens_tags": [],
+    "traces_tags": [],
+    "nutriments": {
+      "energy-kcal_100g": 42,
+      "energy-kcal_serving": 139,
+      "energy-kj_100g": 180,
+      "energy-kj_serving": 594,
+      "proteins_100g": 0,
+      "proteins_serving": 0,
+      "carbohydrates_100g": 10.6,
+      "carbohydrates_serving": 35,
+      "fat_100g": 0,
+      "fat_serving": 0
+    }
+  }
+}

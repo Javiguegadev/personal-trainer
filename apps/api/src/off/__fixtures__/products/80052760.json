@@ -1,0 +1,33 @@
+{
+  "code": "80052760",
+  "status": 1,
+  "product": {
+    "product_name": "Kinder bueno",
+    "product_name_es": "kinder bueno",
+    "generic_name": "Barre chocolatée au lait et aux noisettes",
+    "generic_name_es": "Crujientes barritas con relleno cremoso de leche y avellanas recubiertas de chocolate con leche",
+    "brands": "Kinder",
+    "quantity": "43 g",
+    "product_quantity": 43,
+    "product_quantity_unit": "g",
+    "serving_size": "1 serving (21.5 g)",
+    "serving_quantity": 21.5,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:gluten", "en:milk", "en:nuts", "en:soybeans"],
+    "traces_tags": ["en:gluten", "en:milk", "en:nuts", "en:soybeans"],
+    "nutriments": {
+      "energy-kcal_100g": 575,
+      "energy-kcal_serving": 124,
+      "energy-kj_100g": 2415.2,
+      "energy-kj_serving": 519,
+      "proteins_100g": 8.6,
+      "proteins_serving": 1.85,
+      "carbohydrates_100g": 52,
+      "carbohydrates_serving": 11.2,
+      "fat_100g": 37,
+      "fat_serving": 7.96,
+      "fiber_100g": 2,
+      "fiber_serving": 0.43
+    }
+  }
+}

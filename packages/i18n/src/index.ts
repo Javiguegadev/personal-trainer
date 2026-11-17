@@ -1,6 +1,7 @@
 /**
  * @pt/i18n — translation dictionaries shared by web and mobile.
- * `es` is the reference locale: every other locale must have the same keys (type-checked).
+ * `es` is the reference locale: every other locale must have the same keys (type-checked) and the same
+ * `{placeholders}` (tested).
  */
 import { es } from './locales/es';
 import { en } from './locales/en';
@@ -12,3 +13,5 @@ export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = 'es';
 
 export const messages: Record<Locale, Messages> = { es, en };
+
+export { format, resolveLocale } from './format';

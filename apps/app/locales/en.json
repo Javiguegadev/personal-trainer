@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Personal Trainer uses the camera to read the barcode and the nutrition label of a product.",
+    "NSPhotoLibraryUsageDescription": "Personal Trainer opens your photos only when you choose the image of a label."
+  }
+}

@@ -2,8 +2,8 @@
 
 # 🏋️ Personal Trainer
 
-**An AI-first nutrition & fitness app: log meals and workouts by just telling it (or snapping a photo), and get
-plans and coaching grounded in official nutrition and training data.**
+**An AI nutrition & fitness app: log meals and workouts in a few taps (or by snapping a photo), and get
+plans and answers grounded in official nutrition and training data.**
 
 Mobile-first. One Expo app for iOS, Android and the web, on a TypeScript monorepo.
 
@@ -76,8 +76,9 @@ flowchart LR
 - **One app, every platform.** A single Expo Router codebase ships to iOS, Android and the web. Business
   rules (TDEE, macros, e1RM, scoring, entitlements) live in `packages/core` as pure, unit-tested
   TypeScript, shared with the API.
-- **AI-first input.** Typing "two eggs and toast" or taking a photo of the plate is faster than searching
-  a database. Every AI input also has a manual fallback.
+- **Touch first, AI where it is faster.** Basic data goes in with taps and forms. A photo of the plate or
+  a spoken sentence is a shortcut that gives an editable draft, and the chat answers questions about the
+  recommendations.
 - **Grounded, not guessed.** The AI doesn't answer from memory. It queries a curated knowledge base
   (official food composition databases like BEDCA and USDA, open exercise databases, WHO/EFSA guidelines,
   study summaries) through tools, and cites what it used.

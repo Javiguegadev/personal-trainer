@@ -1,0 +1,355 @@
+{"query": "leche semidesnatada", "expected": ["c-leche-semidesnatada"], "kind": "exact"}
+{"query": "leche", "expected": ["c-leche-semidesnatada", "c-leche-entera", "c-leche-desnatada"], "kind": "exact"}
+{"query": "leche entera", "expected": ["c-leche-entera"], "kind": "exact"}
+{"query": "leche desnatada", "expected": ["c-leche-desnatada"], "kind": "exact"}
+{"query": "leche sin lactosa", "expected": ["c-leche-sin-lactosa"], "kind": "exact"}
+{"query": "cafe con leche", "expected": ["e-cafe-con-leche"], "kind": "exact"}
+{"query": "cafe solo", "expected": ["e-cafe-solo"], "kind": "exact"}
+{"query": "cafe americano", "expected": ["e-cafe-americano"], "kind": "exact"}
+{"query": "pan", "expected": ["c-pan-blanco-barra"], "kind": "exact"}
+{"query": "pan integral", "expected": ["c-pan-integral", "c-pan-de-molde-integral"], "kind": "exact"}
+{"query": "pan de molde", "expected": ["c-pan-de-molde-blanco", "c-pan-de-molde-integral"], "kind": "exact"}
+{"query": "pan tostado", "expected": ["c-pan-tostado", "c-pan-blanco-tostado"], "kind": "exact"}
+{"query": "yogur natural", "expected": ["c-yogur-natural"], "kind": "exact"}
+{"query": "yogur griego", "expected": ["c-yogur-griego"], "kind": "exact"}
+{"query": "yogur desnatado", "expected": ["c-yogur-natural-desnatado", "c-yogur-sabores-desnatado"], "kind": "exact"}
+{"query": "yogur de proteinas", "expected": ["c-yogur-proteinas-natural", "c-yogur-proteinas-frutas"], "kind": "exact"}
+{"query": "queso fresco", "expected": ["c-queso-fresco-burgos"], "kind": "exact"}
+{"query": "queso semicurado", "expected": ["c-queso-semicurado"], "kind": "exact"}
+{"query": "queso", "expected": ["c-queso-generico", "c-queso-semicurado"], "kind": "exact"}
+{"query": "queso manchego", "expected": ["c-queso-manchego-curado"], "kind": "exact"}
+{"query": "queso de cabra", "expected": ["c-rulo-de-cabra", "c-queso-cabra-curado"], "kind": "exact"}
+{"query": "queso rallado", "expected": ["c-queso-rallado"], "kind": "exact"}
+{"query": "natillas", "expected": ["c-natillas"], "kind": "exact"}
+{"query": "pechuga de pollo", "expected": ["d-pechuga-pollo-plancha", "d-pechuga-pollo-cruda"], "kind": "exact"}
+{"query": "pollo asado", "expected": ["d-pollo-asado"], "kind": "exact"}
+{"query": "huevo cocido", "expected": ["d-huevo-cocido"], "kind": "exact"}
+{"query": "tortilla de patatas", "expected": ["d-tortilla-patatas"], "kind": "exact"}
+{"query": "tortilla francesa", "expected": ["d-tortilla-francesa"], "kind": "exact"}
+{"query": "clara de huevo", "expected": ["d-clara-huevo", "d-clara-huevo-cocida"], "kind": "exact"}
+{"query": "jamon serrano", "expected": ["d-jamon-serrano"], "kind": "exact"}
+{"query": "jamon cocido", "expected": ["d-jamon-cocido", "d-jamon-cocido-extra"], "kind": "exact"}
+{"query": "pavo en lonchas", "expected": ["d-pavo-lonchas"], "kind": "exact"}
+{"query": "chorizo", "expected": ["d-chorizo"], "kind": "exact"}
+{"query": "fuet", "expected": ["d-fuet"], "kind": "exact"}
+{"query": "salchichas", "expected": ["d-salchichas-frankfurt", "d-salchichas-frescas-plancha"], "kind": "exact"}
+{"query": "bacon", "expected": ["d-bacon", "d-bacon-plancha"], "kind": "exact"}
+{"query": "lomo de cerdo", "expected": ["d-lomo-cerdo-plancha", "d-lomo-cerdo-crudo"], "kind": "exact"}
+{"query": "solomillo de cerdo", "expected": ["d-solomillo-cerdo-cocinado", "d-solomillo-cerdo-crudo"], "kind": "exact"}
+{"query": "filete de ternera", "expected": ["d-filete-ternera-plancha", "d-filete-ternera-crudo"], "kind": "exact"}
+{"query": "carne picada", "expected": ["d-carne-picada-ternera", "d-carne-picada-cerdo", "d-carne-picada-ternera-magra"], "kind": "exact"}
+{"query": "hamburguesa", "expected": ["a-hamburguesa", "d-hamburguesa-ternera-plancha"], "kind": "exact"}
+{"query": "salmon", "expected": ["d-salmon-plancha", "d-salmon-crudo"], "kind": "exact"}
+{"query": "salmon ahumado", "expected": ["d-salmon-ahumado"], "kind": "exact"}
+{"query": "merluza", "expected": ["d-merluza-cocinada", "d-merluza-cruda"], "kind": "exact"}
+{"query": "atun en aceite", "expected": ["d-atun-aceite"], "kind": "exact"}
+{"query": "atun al natural", "expected": ["d-atun-natural"], "kind": "exact"}
+{"query": "bacalao", "expected": ["d-bacalao-desalado", "d-bacalao-fresco-cocinado"], "kind": "exact"}
+{"query": "dorada", "expected": ["d-dorada-horno", "d-dorada-cruda"], "kind": "exact"}
+{"query": "gambas", "expected": ["d-gambas-cocidas", "d-gambas-peladas-congeladas", "d-gambas-crudas"], "kind": "exact"}
+{"query": "calamares", "expected": ["d-calamares-romana", "d-calamares-fritos"], "kind": "exact"}
+{"query": "pulpo", "expected": ["d-pulpo-cocido"], "kind": "exact"}
+{"query": "arroz blanco", "expected": ["c-arroz-blanco-cocido", "c-arroz-blanco-crudo"], "kind": "exact"}
+{"query": "arroz integral", "expected": ["c-arroz-integral-cocido", "c-arroz-integral-crudo"], "kind": "exact"}
+{"query": "pasta", "expected": ["c-pasta-cocida", "c-pasta-seca-cruda"], "kind": "exact"}
+{"query": "copos de avena", "expected": ["c-copos-de-avena"], "kind": "exact"}
+{"query": "quinoa", "expected": ["c-quinoa-cocida", "c-quinoa-cruda"], "kind": "exact"}
+{"query": "lentejas", "expected": ["a-lentejas-estofadas", "b-lentejas-cocidas"], "kind": "exact"}
+{"query": "garbanzos cocidos", "expected": ["b-garbanzos-cocidos", "b-garbanzos-bote"], "kind": "exact"}
+{"query": "platano", "expected": ["b-platano"], "kind": "exact"}
+{"query": "manzana", "expected": ["b-manzana"], "kind": "exact"}
+{"query": "naranja", "expected": ["b-naranja"], "kind": "exact"}
+{"query": "kiwi", "expected": ["b-kiwi"], "kind": "exact"}
+{"query": "melon", "expected": ["b-melon"], "kind": "exact"}
+{"query": "sandia", "expected": ["b-sandia"], "kind": "exact"}
+{"query": "aguacate", "expected": ["b-aguacate"], "kind": "exact"}
+{"query": "tomate", "expected": ["b-tomate"], "kind": "exact"}
+{"query": "lechuga", "expected": ["b-lechuga"], "kind": "exact"}
+{"query": "zanahoria", "expected": ["b-zanahoria"], "kind": "exact"}
+{"query": "judias verdes", "expected": ["b-judias-verdes-cocidas", "b-judias-verdes"], "kind": "exact"}
+{"query": "espinacas", "expected": ["b-espinacas-cocidas", "b-espinacas"], "kind": "exact"}
+{"query": "guisantes", "expected": ["b-guisantes-cocidos", "b-guisantes-congelados"], "kind": "exact"}
+{"query": "patata cocida", "expected": ["b-patata-cocida"], "kind": "exact"}
+{"query": "patatas fritas", "expected": ["b-patatas-fritas", "b-patatas-chips"], "kind": "exact"}
+{"query": "aceite de oliva", "expected": ["f-aceite-oliva-virgen-extra"], "kind": "exact"}
+{"query": "mantequilla", "expected": ["f-mantequilla"], "kind": "exact"}
+{"query": "mermelada", "expected": ["e-mermelada", "e-mermelada-fresa"], "kind": "exact"}
+{"query": "miel", "expected": ["e-miel"], "kind": "exact"}
+{"query": "tomate frito", "expected": ["f-tomate-frito"], "kind": "exact"}
+{"query": "mayonesa", "expected": ["f-mayonesa"], "kind": "exact"}
+{"query": "hummus", "expected": ["f-hummus"], "kind": "exact"}
+{"query": "galletas maria", "expected": ["e-galletas-maria"], "kind": "exact"}
+{"query": "magdalena", "expected": ["e-magdalena"], "kind": "exact"}
+{"query": "croissant", "expected": ["e-cruasan", "e-cruasan-mantequilla"], "kind": "exact"}
+{"query": "chocolate negro", "expected": ["e-chocolate-negro-70", "e-chocolate-negro-50"], "kind": "exact"}
+{"query": "chocolate con leche", "expected": ["e-chocolate-con-leche"], "kind": "exact"}
+{"query": "helado", "expected": ["e-helado"], "kind": "exact"}
+{"query": "tarta de queso", "expected": ["e-tarta-queso"], "kind": "exact"}
+{"query": "palomitas", "expected": ["c-palomitas-saladas", "c-palomitas-sin-aceite"], "kind": "exact"}
+{"query": "zumo de naranja", "expected": ["e-zumo-naranja-natural", "e-zumo-naranja-envasado"], "kind": "exact"}
+{"query": "agua", "expected": ["e-agua-mineral", "e-agua-grifo"], "kind": "exact"}
+{"query": "cerveza", "expected": ["e-cerveza"], "kind": "exact"}
+{"query": "cerveza sin alcohol", "expected": ["e-cerveza-sin-alcohol"], "kind": "exact"}
+{"query": "vino tinto", "expected": ["e-vino-tinto"], "kind": "exact"}
+{"query": "te verde", "expected": ["e-te-verde"], "kind": "exact"}
+{"query": "paella", "expected": ["a-paella"], "kind": "exact"}
+{"query": "gazpacho", "expected": ["a-gazpacho"], "kind": "exact"}
+{"query": "ensalada mixta", "expected": ["a-ensalada-mixta"], "kind": "exact"}
+{"query": "ensaladilla rusa", "expected": ["a-ensaladilla-rusa"], "kind": "exact"}
+{"query": "espaguetis a la bolonesa", "expected": ["a-espaguetis-bolonesa"], "kind": "exact"}
+{"query": "albondigas", "expected": ["a-albondigas-tomate", "a-albondigas"], "kind": "exact"}
+{"query": "pizza", "expected": ["a-pizza", "a-pizza-margarita"], "kind": "exact"}
+{"query": "sandwich mixto", "expected": ["a-sandwich-mixto"], "kind": "exact"}
+{"query": "bocadillo de jamon", "expected": ["a-bocadillo-jamon"], "kind": "exact"}
+{"query": "crema de calabaza", "expected": ["a-crema-calabaza"], "kind": "exact"}
+{"query": "pollo al curry", "expected": ["a-pollo-curry"], "kind": "exact"}
+{"query": "kebab", "expected": ["a-kebab"], "kind": "exact"}
+{"query": "pech poll", "expected": ["d-pechuga-pollo-plancha", "d-pechuga-pollo-cruda"], "kind": "short"}
+{"query": "pech pavo", "expected": ["d-pechuga-pavo-plancha", "d-pechuga-pavo-cruda", "d-pavo-lonchas"], "kind": "short"}
+{"query": "yogu", "expected": ["c-yogur-natural"], "kind": "short"}
+{"query": "yog grie", "expected": ["c-yogur-griego"], "kind": "short"}
+{"query": "leche semi", "expected": ["c-leche-semidesnatada"], "kind": "short"}
+{"query": "leche desn", "expected": ["c-leche-desnatada"], "kind": "short"}
+{"query": "cafe c lech", "expected": ["e-cafe-con-leche"], "kind": "short"}
+{"query": "platan", "expected": ["b-platano"], "kind": "short"}
+{"query": "manz", "expected": ["b-manzana"], "kind": "short"}
+{"query": "mandar", "expected": ["b-mandarina"], "kind": "short"}
+{"query": "aguac", "expected": ["b-aguacate"], "kind": "short"}
+{"query": "torti pat", "expected": ["d-tortilla-patatas"], "kind": "short"}
+{"query": "tortilla", "expected": ["d-tortilla-patatas", "d-tortilla-francesa"], "kind": "short"}
+{"query": "huev coc", "expected": ["d-huevo-cocido"], "kind": "short"}
+{"query": "jam serr", "expected": ["d-jamon-serrano"], "kind": "short"}
+{"query": "jamon coc", "expected": ["d-jamon-cocido", "d-jamon-cocido-extra"], "kind": "short"}
+{"query": "pavo lonch", "expected": ["d-pavo-lonchas"], "kind": "short"}
+{"query": "aceite oli", "expected": ["f-aceite-oliva-virgen-extra"], "kind": "short"}
+{"query": "aceite", "expected": ["f-aceite-oliva-virgen-extra", "f-aceite-girasol"], "kind": "short"}
+{"query": "avena", "expected": ["c-copos-de-avena"], "kind": "short"}
+{"query": "galle mar", "expected": ["e-galletas-maria"], "kind": "short"}
+{"query": "merlu", "expected": ["d-merluza-cocinada", "d-merluza-cruda"], "kind": "short"}
+{"query": "salm", "expected": ["d-salmon-plancha", "d-salmon-crudo", "d-salmon-ahumado"], "kind": "short"}
+{"query": "atun", "expected": ["d-atun-aceite", "d-atun-natural"], "kind": "short"}
+{"query": "pan int", "expected": ["c-pan-integral", "c-pan-de-molde-integral"], "kind": "short"}
+{"query": "pan molde", "expected": ["c-pan-de-molde-blanco", "c-pan-de-molde-integral"], "kind": "short"}
+{"query": "arroz", "expected": ["c-arroz-blanco-cocido", "c-arroz-blanco-crudo"], "kind": "short"}
+{"query": "garban", "expected": ["b-garbanzos-cocidos", "b-garbanzos-bote"], "kind": "short"}
+{"query": "lentej", "expected": ["b-lentejas-cocidas", "a-lentejas-estofadas"], "kind": "short"}
+{"query": "queso semi", "expected": ["c-queso-semicurado"], "kind": "short"}
+{"query": "queso fres", "expected": ["c-queso-fresco-burgos"], "kind": "short"}
+{"query": "zumo nar", "expected": ["e-zumo-naranja-natural", "e-zumo-naranja-envasado"], "kind": "short"}
+{"query": "brocol", "expected": ["b-brocoli-cocido", "b-brocoli"], "kind": "short"}
+{"query": "calabac", "expected": ["b-calabacin", "b-calabacin-cocinado"], "kind": "short"}
+{"query": "champi", "expected": ["b-champinones", "b-champinones-plancha"], "kind": "short"}
+{"query": "esparr", "expected": ["b-esparragos-verdes-cocidos", "b-esparragos-blancos-conserva"], "kind": "short"}
+{"query": "boniat", "expected": ["b-boniato-asado", "b-boniato"], "kind": "short"}
+{"query": "chocolate neg", "expected": ["e-chocolate-negro-70", "e-chocolate-negro-50"], "kind": "short"}
+{"query": "cerve", "expected": ["e-cerveza"], "kind": "short"}
+{"query": "cerveza sin", "expected": ["e-cerveza-sin-alcohol"], "kind": "short"}
+{"query": "cruas", "expected": ["e-cruasan"], "kind": "short"}
+{"query": "kef", "expected": ["c-kefir"], "kind": "short"}
+{"query": "flan", "expected": ["c-flan-de-huevo", "c-flan-de-vainilla"], "kind": "short"}
+{"query": "bocad", "expected": ["a-bocadillo", "a-bocadillo-jamon"], "kind": "short"}
+{"query": "macedonia", "expected": ["b-macedonia-fruta"], "kind": "short"}
+{"query": "huevos", "expected": ["d-huevo"], "kind": "plural"}
+{"query": "huevos cocidos", "expected": ["d-huevo-cocido"], "kind": "plural"}
+{"query": "huevo revuelto", "expected": ["d-huevos-revueltos"], "kind": "plural"}
+{"query": "platanos", "expected": ["b-platano"], "kind": "plural"}
+{"query": "manzanas", "expected": ["b-manzana"], "kind": "plural"}
+{"query": "naranjas", "expected": ["b-naranja"], "kind": "plural"}
+{"query": "mandarinas", "expected": ["b-mandarina"], "kind": "plural"}
+{"query": "peras", "expected": ["b-pera"], "kind": "plural"}
+{"query": "kiwis", "expected": ["b-kiwi"], "kind": "plural"}
+{"query": "melocotones", "expected": ["b-melocoton"], "kind": "plural"}
+{"query": "fresa", "expected": ["b-fresas"], "kind": "plural"}
+{"query": "uva", "expected": ["b-uvas"], "kind": "plural"}
+{"query": "cereza", "expected": ["b-cerezas"], "kind": "plural"}
+{"query": "arandano", "expected": ["b-arandanos"], "kind": "plural"}
+{"query": "tomates", "expected": ["b-tomate"], "kind": "plural"}
+{"query": "tomates cherry", "expected": ["b-tomate-cherry"], "kind": "plural"}
+{"query": "zanahorias", "expected": ["b-zanahoria"], "kind": "plural"}
+{"query": "pimientos", "expected": ["b-pimiento-rojo", "b-pimiento-verde"], "kind": "plural"}
+{"query": "calabacines", "expected": ["b-calabacin", "b-calabacin-cocinado"], "kind": "plural"}
+{"query": "aguacates", "expected": ["b-aguacate"], "kind": "plural"}
+{"query": "patatas", "expected": ["b-patata-cocida", "b-patata", "b-patatas-fritas"], "kind": "plural"}
+{"query": "champiñon", "expected": ["b-champinones", "b-champinones-plancha"], "kind": "plural"}
+{"query": "esparrago", "expected": ["b-esparragos-verdes-cocidos", "b-esparragos-blancos-conserva"], "kind": "plural"}
+{"query": "almendra", "expected": ["b-almendras", "b-almendras-tostadas-saladas"], "kind": "plural"}
+{"query": "nuez", "expected": ["b-nueces"], "kind": "plural"}
+{"query": "cacahuete", "expected": ["b-cacahuetes-salados", "b-cacahuetes-tostados"], "kind": "plural"}
+{"query": "pistacho", "expected": ["b-pistachos", "b-pistachos-sin-sal"], "kind": "plural"}
+{"query": "datil", "expected": ["b-datiles"], "kind": "plural"}
+{"query": "aceituna", "expected": ["f-aceitunas-verdes", "f-aceitunas-rellenas", "f-aceitunas-negras"], "kind": "plural"}
+{"query": "galleta maria", "expected": ["e-galletas-maria"], "kind": "plural"}
+{"query": "magdalenas", "expected": ["e-magdalena"], "kind": "plural"}
+{"query": "tortita de arroz", "expected": ["c-tortitas-de-arroz"], "kind": "plural"}
+{"query": "yogures", "expected": ["c-yogur-natural"], "kind": "plural"}
+{"query": "salchicha", "expected": ["d-salchichas-frankfurt", "d-salchichas-frescas-plancha"], "kind": "plural"}
+{"query": "gamba", "expected": ["d-gambas-cocidas", "d-gambas-peladas-congeladas", "d-gambas-crudas"], "kind": "plural"}
+{"query": "langostino", "expected": ["d-langostinos-cocidos"], "kind": "plural"}
+{"query": "mejillon", "expected": ["d-mejillones-vapor", "d-mejillones-conserva"], "kind": "plural"}
+{"query": "sardina", "expected": ["d-sardinas-aceite", "d-sardinas-plancha"], "kind": "plural"}
+{"query": "boqueron", "expected": ["d-boquerones-vinagre", "d-boquerones-crudos"], "kind": "plural"}
+{"query": "chuleta de cordero", "expected": ["d-chuletas-cordero-plancha", "d-chuletas-cordero-crudas"], "kind": "plural"}
+{"query": "alita de pollo", "expected": ["d-alitas-pollo-asadas", "d-alitas-pollo-crudas"], "kind": "plural"}
+{"query": "costilla de cerdo", "expected": ["d-costillas-cerdo-asadas", "d-costillas-cerdo-crudas"], "kind": "plural"}
+{"query": "papa", "expected": ["b-patata-cocida", "b-patata"], "kind": "regional"}
+{"query": "papas fritas", "expected": ["b-patatas-fritas", "b-patatas-chips"], "kind": "regional"}
+{"query": "durazno", "expected": ["b-melocoton"], "kind": "regional"}
+{"query": "durazno en almibar", "expected": ["b-melocoton-almibar"], "kind": "regional"}
+{"query": "palta", "expected": ["b-aguacate"], "kind": "regional"}
+{"query": "banana", "expected": ["b-platano"], "kind": "regional"}
+{"query": "banano", "expected": ["b-platano"], "kind": "regional"}
+{"query": "cambur", "expected": ["b-platano"], "kind": "regional"}
+{"query": "frutilla", "expected": ["b-fresas"], "kind": "regional"}
+{"query": "jugo de naranja", "expected": ["e-zumo-naranja-natural", "e-zumo-naranja-envasado"], "kind": "regional"}
+{"query": "jugo de manzana", "expected": ["e-zumo-manzana"], "kind": "regional"}
+{"query": "frijoles", "expected": ["b-alubias-rojas-cocidas", "b-alubias-rojas-bote", "b-alubias-blancas-cocidas"], "kind": "regional"}
+{"query": "porotos", "expected": ["b-alubias-blancas-cocidas", "b-alubias-rojas-cocidas"], "kind": "regional"}
+{"query": "judias blancas", "expected": ["b-alubias-blancas-cocidas", "b-alubias-blancas-bote"], "kind": "regional"}
+{"query": "fabes", "expected": ["b-alubias-blancas-cocidas", "a-fabada"], "kind": "regional"}
+{"query": "vainas", "expected": ["b-judias-verdes-cocidas", "b-judias-verdes"], "kind": "regional"}
+{"query": "ejotes", "expected": ["b-judias-verdes-cocidas", "b-judias-verdes"], "kind": "regional"}
+{"query": "chauchas", "expected": ["b-judias-verdes-cocidas", "b-judias-verdes"], "kind": "regional"}
+{"query": "arvejas", "expected": ["b-guisantes-cocidos", "b-guisantes-congelados"], "kind": "regional"}
+{"query": "chicharos", "expected": ["b-guisantes-cocidos", "b-guisantes-congelados"], "kind": "regional"}
+{"query": "elote", "expected": ["b-mazorca-maiz", "b-maiz-dulce"], "kind": "regional"}
+{"query": "choclo", "expected": ["b-mazorca-maiz", "b-maiz-dulce"], "kind": "regional"}
+{"query": "zapallo", "expected": ["b-calabaza-cocida", "b-calabaza"], "kind": "regional"}
+{"query": "zucchini", "expected": ["b-calabacin", "b-calabacin-cocinado"], "kind": "regional"}
+{"query": "betabel", "expected": ["b-remolacha-cocida"], "kind": "regional"}
+{"query": "camote", "expected": ["b-boniato-asado", "b-boniato"], "kind": "regional"}
+{"query": "batata", "expected": ["b-boniato-asado", "b-boniato"], "kind": "regional"}
+{"query": "moniato", "expected": ["b-boniato-asado", "b-boniato"], "kind": "regional"}
+{"query": "jitomate", "expected": ["b-tomate"], "kind": "regional"}
+{"query": "morron", "expected": ["b-pimiento-rojo", "b-pimiento-verde"], "kind": "regional"}
+{"query": "repollo morado", "expected": ["b-lombarda-cocida", "b-lombarda"], "kind": "regional"}
+{"query": "ananas", "expected": ["b-pina"], "kind": "regional"}
+{"query": "damasco", "expected": ["b-albaricoque"], "kind": "regional"}
+{"query": "toronja", "expected": ["b-pomelo"], "kind": "regional"}
+{"query": "lechosa", "expected": ["b-papaya"], "kind": "regional"}
+{"query": "mani", "expected": ["b-cacahuetes-tostados", "b-cacahuetes-salados"], "kind": "regional"}
+{"query": "cacahuate", "expected": ["b-cacahuetes-tostados", "b-cacahuetes-salados"], "kind": "regional"}
+{"query": "crema de mani", "expected": ["b-crema-cacahuete"], "kind": "regional"}
+{"query": "pochoclos", "expected": ["c-palomitas-saladas", "c-palomitas-sin-aceite"], "kind": "regional"}
+{"query": "carne molida", "expected": ["d-carne-picada-ternera", "d-carne-picada-cerdo"], "kind": "regional"}
+{"query": "bife", "expected": ["d-filete-ternera-plancha", "d-filete-ternera-crudo"], "kind": "regional"}
+{"query": "tocineta", "expected": ["d-bacon", "d-bacon-plancha"], "kind": "regional"}
+{"query": "jamon dulce", "expected": ["d-jamon-cocido", "d-jamon-cocido-extra"], "kind": "regional"}
+{"query": "quinua", "expected": ["c-quinoa-cocida", "c-quinoa-cruda"], "kind": "regional"}
+{"query": "hot cakes", "expected": ["e-tortitas"], "kind": "regional"}
+{"query": "aceite de maravilla", "expected": ["f-aceite-girasol"], "kind": "regional"}
+{"query": "yougur", "expected": ["c-yogur-natural"], "kind": "typo"}
+{"query": "yogurt griego", "expected": ["c-yogur-griego"], "kind": "typo"}
+{"query": "lehce semidesnatada", "expected": ["c-leche-semidesnatada"], "kind": "typo"}
+{"query": "platno", "expected": ["b-platano"], "kind": "typo"}
+{"query": "manzna", "expected": ["b-manzana"], "kind": "typo"}
+{"query": "madarina", "expected": ["b-mandarina"], "kind": "typo"}
+{"query": "aguacte", "expected": ["b-aguacate"], "kind": "typo"}
+{"query": "pina", "expected": ["b-pina"], "kind": "typo"}
+{"query": "frambuezas", "expected": ["b-frambuesas"], "kind": "typo"}
+{"query": "pechga de pollo", "expected": ["d-pechuga-pollo-plancha", "d-pechuga-pollo-cruda"], "kind": "typo"}
+{"query": "tortila de patatas", "expected": ["d-tortilla-patatas"], "kind": "typo"}
+{"query": "huebo cocido", "expected": ["d-huevo-cocido"], "kind": "typo"}
+{"query": "jamon serano", "expected": ["d-jamon-serrano"], "kind": "typo"}
+{"query": "merlusa", "expected": ["d-merluza-cocinada", "d-merluza-cruda"], "kind": "typo"}
+{"query": "garvanzos", "expected": ["b-garbanzos-cocidos", "b-garbanzos-bote"], "kind": "typo"}
+{"query": "lentajas", "expected": ["b-lentejas-cocidas", "a-lentejas-estofadas"], "kind": "typo"}
+{"query": "berengena", "expected": ["b-berenjena", "b-berenjena-cocinada"], "kind": "typo"}
+{"query": "calavacin", "expected": ["b-calabacin", "b-calabacin-cocinado"], "kind": "typo"}
+{"query": "calabasa", "expected": ["b-calabaza-cocida", "b-calabaza"], "kind": "typo"}
+{"query": "zanaoria", "expected": ["b-zanahoria"], "kind": "typo"}
+{"query": "brocolli", "expected": ["b-brocoli-cocido", "b-brocoli"], "kind": "typo"}
+{"query": "esparagos", "expected": ["b-esparragos-verdes-cocidos", "b-esparragos-blancos-conserva"], "kind": "typo"}
+{"query": "champinones", "expected": ["b-champinones", "b-champinones-plancha"], "kind": "typo"}
+{"query": "lechga", "expected": ["b-lechuga"], "kind": "typo"}
+{"query": "abena", "expected": ["c-copos-de-avena"], "kind": "typo"}
+{"query": "macarones", "expected": ["c-pasta-cocida", "c-pasta-seca-cruda", "a-macarrones-gratinados"], "kind": "typo"}
+{"query": "espagetis", "expected": ["c-pasta-cocida", "c-pasta-seca-cruda", "a-espaguetis-bolonesa"], "kind": "typo"}
+{"query": "espaguetis a la bolognesa", "expected": ["a-espaguetis-bolonesa"], "kind": "typo"}
+{"query": "hamburgesa", "expected": ["a-hamburguesa", "d-hamburguesa-ternera-plancha"], "kind": "typo"}
+{"query": "bocadilo de atun", "expected": ["a-bocadillo-atun"], "kind": "typo"}
+{"query": "ensaladila rusa", "expected": ["a-ensaladilla-rusa"], "kind": "typo"}
+{"query": "mozarella", "expected": ["c-mozzarella"], "kind": "typo"}
+{"query": "mantquilla", "expected": ["f-mantequilla"], "kind": "typo"}
+{"query": "almedras", "expected": ["b-almendras", "b-almendras-tostadas-saladas"], "kind": "typo"}
+{"query": "galletas maira", "expected": ["e-galletas-maria"], "kind": "typo"}
+{"query": "chocolat con leche", "expected": ["e-chocolate-con-leche"], "kind": "typo"}
+{"query": "cerbeza", "expected": ["e-cerveza"], "kind": "typo"}
+{"query": "kepchup", "expected": ["f-ketchup"], "kind": "typo"}
+{"query": "colacao", "expected": ["e-cacao-soluble", "e-leche-con-cacao"], "kind": "brand"}
+{"query": "cola cao", "expected": ["e-cacao-soluble", "e-leche-con-cacao"], "kind": "brand"}
+{"query": "nesquik", "expected": ["e-cacao-soluble", "e-leche-con-cacao"], "kind": "brand"}
+{"query": "nocilla", "expected": ["e-crema-cacao"], "kind": "brand"}
+{"query": "nutella", "expected": ["e-crema-cacao"], "kind": "brand"}
+{"query": "actimel", "expected": ["c-leche-fermentada-liquida", "c-leche-fermentada-liquida-0"], "kind": "brand"}
+{"query": "danonino", "expected": ["c-petit-suisse"], "kind": "brand"}
+{"query": "philadelphia", "expected": ["c-queso-crema", "c-queso-crema-light"], "kind": "brand"}
+{"query": "la vaca que rie", "expected": ["c-quesitos"], "kind": "brand"}
+{"query": "pan bimbo", "expected": ["c-pan-de-molde-blanco", "c-pan-de-molde-sin-corteza"], "kind": "brand"}
+{"query": "wasa", "expected": ["c-pan-crujiente-fibra"], "kind": "brand"}
+{"query": "coca cola", "expected": ["e-refresco-cola"], "kind": "brand"}
+{"query": "cocacola zero", "expected": ["e-refresco-cola-zero"], "kind": "brand"}
+{"query": "pepsi", "expected": ["e-refresco-cola"], "kind": "brand"}
+{"query": "fanta", "expected": ["e-refresco-naranja-limon"], "kind": "brand"}
+{"query": "aquarius", "expected": ["e-bebida-isotonica"], "kind": "brand"}
+{"query": "nestea", "expected": ["e-te-frio"], "kind": "brand"}
+{"query": "red bull", "expected": ["e-bebida-energetica"], "kind": "brand"}
+{"query": "nescafe", "expected": ["e-cafe-soluble"], "kind": "brand"}
+{"query": "mahou", "expected": ["e-cerveza"], "kind": "brand"}
+{"query": "pringles", "expected": ["c-patatas-tubo"], "kind": "brand"}
+{"query": "doritos", "expected": ["c-nachos-sabores"], "kind": "brand"}
+{"query": "oreo", "expected": ["e-galletas-oreo"], "kind": "brand"}
+{"query": "kitkat", "expected": ["e-barrita-barquillo-chocolate"], "kind": "brand"}
+{"query": "lacasitos", "expected": ["e-grageas-chocolate"], "kind": "brand"}
+{"query": "donettes", "expected": ["e-donut-chocolate", "e-donut"], "kind": "brand"}
+{"query": "corn flakes", "expected": ["e-copos-maiz"], "kind": "brand"}
+{"query": "special k", "expected": ["e-copos-trigo-arroz"], "kind": "brand"}
+{"query": "maizena", "expected": ["c-maicena"], "kind": "brand"}
+{"query": "magnum", "expected": ["e-bombon-helado"], "kind": "brand"}
+{"query": "bocata de jamon", "expected": ["a-bocadillo-jamon"], "kind": "colloquial"}
+{"query": "bocata de atun", "expected": ["a-bocadillo-atun"], "kind": "colloquial"}
+{"query": "una caña", "expected": ["e-cerveza"], "kind": "colloquial"}
+{"query": "un tercio", "expected": ["e-cerveza"], "kind": "colloquial"}
+{"query": "un tinto", "expected": ["e-vino-tinto"], "kind": "colloquial"}
+{"query": "copa de vino", "expected": ["e-vino-tinto", "e-vino-blanco"], "kind": "colloquial"}
+{"query": "un vermu", "expected": ["e-vermut"], "kind": "colloquial"}
+{"query": "gintonic", "expected": ["e-ginebra", "e-tonica"], "kind": "colloquial"}
+{"query": "un cafe", "expected": ["e-cafe-solo", "e-cafe-con-leche"], "kind": "colloquial"}
+{"query": "un descafeinado", "expected": ["e-cafe-descafeinado"], "kind": "colloquial"}
+{"query": "una manzanilla", "expected": ["e-infusion"], "kind": "colloquial"}
+{"query": "zumo natural", "expected": ["e-zumo-naranja-natural"], "kind": "colloquial"}
+{"query": "leche de avena", "expected": ["e-bebida-avena"], "kind": "colloquial"}
+{"query": "leche de soja", "expected": ["e-bebida-soja"], "kind": "colloquial"}
+{"query": "leche de almendras", "expected": ["e-bebida-almendra"], "kind": "colloquial"}
+{"query": "una tostada con aceite", "expected": ["c-pan-blanco-tostado", "f-aceite-oliva-virgen-extra"], "kind": "colloquial"}
+{"query": "tostada con tomate y aceite", "expected": ["c-pan-blanco-tostado", "b-tomate", "f-aceite-oliva-virgen-extra"], "kind": "colloquial"}
+{"query": "pan con tomate", "expected": ["c-pan-blanco-barra", "b-tomate", "f-aceite-oliva-virgen-extra"], "kind": "colloquial"}
+{"query": "tostadas", "expected": ["c-pan-tostado", "c-pan-blanco-tostado"], "kind": "colloquial"}
+{"query": "barra de pan", "expected": ["c-pan-blanco-barra"], "kind": "colloquial"}
+{"query": "un chorrito de aceite", "expected": ["f-aceite-oliva-virgen-extra"], "kind": "colloquial"}
+{"query": "cucharada de azucar", "expected": ["e-azucar"], "kind": "colloquial"}
+{"query": "filete de pollo", "expected": ["d-pechuga-pollo-plancha"], "kind": "colloquial"}
+{"query": "pollo a la plancha", "expected": ["d-pechuga-pollo-plancha"], "kind": "colloquial"}
+{"query": "pollo al horno", "expected": ["d-pollo-asado", "d-muslo-pollo-asado"], "kind": "colloquial"}
+{"query": "muslitos de pollo", "expected": ["d-muslo-pollo-asado", "d-muslo-pollo-crudo"], "kind": "colloquial"}
+{"query": "huevo frito", "expected": ["d-huevo-plancha"], "kind": "colloquial"}
+{"query": "un pincho de tortilla", "expected": ["d-tortilla-patatas"], "kind": "colloquial"}
+{"query": "jamon de york", "expected": ["d-jamon-cocido", "d-jamon-cocido-extra"], "kind": "colloquial"}
+{"query": "fiambre de pavo", "expected": ["d-pavo-lonchas"], "kind": "colloquial"}
+{"query": "un mixto", "expected": ["a-sandwich-mixto"], "kind": "colloquial"}
+{"query": "sandwich de jamon y queso", "expected": ["a-sandwich-mixto"], "kind": "colloquial"}
+{"query": "macarrones con tomate", "expected": ["c-pasta-cocida", "f-tomate-frito"], "kind": "colloquial"}
+{"query": "lentejas con chorizo", "expected": ["a-lentejas-estofadas"], "kind": "colloquial"}
+{"query": "carne guisada", "expected": ["d-ternera-guisada", "a-estofado-ternera"], "kind": "colloquial"}
+{"query": "filete empanado", "expected": ["a-filete-ternera-empanado", "a-filete-pavo-empanado"], "kind": "colloquial"}
+{"query": "palitos de pescado", "expected": ["d-varitas-pescado"], "kind": "colloquial"}
+{"query": "pescado empanado", "expected": ["d-varitas-pescado", "d-pescado-rebozado-frito"], "kind": "colloquial"}
+{"query": "surimi", "expected": ["d-palitos-cangrejo"], "kind": "colloquial"}
+{"query": "pure de patatas", "expected": ["b-pure-patata"], "kind": "colloquial"}
+{"query": "ensalada", "expected": ["b-ensalada-verde", "a-ensalada-mixta"], "kind": "colloquial"}
+{"query": "verdura", "expected": ["b-verdura-cocida", "b-menestra-congelada"], "kind": "colloquial"}
+{"query": "patatas de bolsa", "expected": ["b-patatas-chips"], "kind": "colloquial"}
+{"query": "pipas", "expected": ["b-pipas-girasol"], "kind": "colloquial"}
+{"query": "frutos secos", "expected": ["b-frutos-secos-mezcla-salados", "b-frutos-secos-mezcla-naturales"], "kind": "colloquial"}
+{"query": "chuches", "expected": ["e-gominolas", "e-caramelos"], "kind": "colloquial"}
+{"query": "perrito", "expected": ["a-perrito-caliente"], "kind": "colloquial"}
+{"query": "mahonesa", "expected": ["f-mayonesa"], "kind": "colloquial"}

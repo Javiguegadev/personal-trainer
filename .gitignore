@@ -33,3 +33,6 @@ Thumbs.db
 # claude code (personal settings only; shared settings are committed)
 .claude/settings.local.json
 CLAUDE.local.md
+
+# knowledge-base raw downloads (spec 005: only the curated catalog is committed)
+.cache/

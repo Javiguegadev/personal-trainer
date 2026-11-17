@@ -1,0 +1,33 @@
+{
+  "code": "4056489216162",
+  "status": 1,
+  "product": {
+    "product_name": "High Protein Chocolate Flavour Pudding",
+    "product_name_es": "High Protein Chocolate Pudding",
+    "generic_name": "",
+    "generic_name_es": "Pudin sabor chocolate, con edulcorantes",
+    "brands": "LIDL",
+    "quantity": "200g",
+    "product_quantity": 200,
+    "product_quantity_unit": "g",
+    "serving_size": "200 g",
+    "serving_quantity": 200,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:milk", "pt:ISENTO DE GLÚTEN"],
+    "traces_tags": [],
+    "nutriments": {
+      "energy-kcal_100g": 76,
+      "energy-kcal_serving": 152,
+      "energy-kj_100g": 321.1,
+      "energy-kj_serving": 642,
+      "proteins_100g": 10,
+      "proteins_serving": 20,
+      "carbohydrates_100g": 5.2,
+      "carbohydrates_serving": 10.4,
+      "fat_100g": 1.5,
+      "fat_serving": 3,
+      "fiber_100g": 0.9,
+      "fiber_serving": 1.8
+    }
+  }
+}

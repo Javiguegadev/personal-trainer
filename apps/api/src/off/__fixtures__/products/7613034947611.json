@@ -1,0 +1,33 @@
+{
+  "code": "7613034947611",
+  "status": 1,
+  "product": {
+    "product_name": "NESTLE CHOCAPIC Céréales 750g",
+    "product_name_es": "Chocapic",
+    "generic_name": "Céréales aromatisées prêtes à consommer et enrichies en 7 vitamines, calcium et fer",
+    "generic_name_es": "",
+    "brands": "Société des Produits Nestlé S.A.",
+    "quantity": "750 g",
+    "product_quantity": 750,
+    "product_quantity_unit": "g",
+    "serving_size": "30 g (30 g (environ 5 cuillères à soupe))",
+    "serving_quantity": 30,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:gluten"],
+    "traces_tags": ["en:milk", "en:nuts", "en:peanuts"],
+    "nutriments": {
+      "energy-kcal_100g": 388,
+      "energy-kcal_serving": 116,
+      "energy-kj_100g": 1638,
+      "energy-kj_serving": 491,
+      "proteins_100g": 8.8,
+      "proteins_serving": 2.64,
+      "carbohydrates_100g": 73.6,
+      "carbohydrates_serving": 22.1,
+      "fat_100g": 4.8,
+      "fat_serving": 1.44,
+      "fiber_100g": 7.5,
+      "fiber_serving": 2.25
+    }
+  }
+}

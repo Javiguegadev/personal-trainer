@@ -1,0 +1,33 @@
+{
+  "code": "20724696",
+  "status": 1,
+  "product": {
+    "product_name": "Amandes décortiquées",
+    "product_name_es": "Alesto almendras al natural",
+    "generic_name": "",
+    "generic_name_es": "Almendras, sin cáscara",
+    "brands": "Alesto",
+    "quantity": "200 g",
+    "product_quantity": 200,
+    "product_quantity_unit": "g",
+    "serving_size": "30 g",
+    "serving_quantity": 30,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:nuts"],
+    "traces_tags": ["en:nuts", "en:peanuts"],
+    "nutriments": {
+      "energy-kcal_100g": 621,
+      "energy-kcal_serving": 186,
+      "energy-kj_100g": 2567,
+      "energy-kj_serving": 770,
+      "proteins_100g": 24.5,
+      "proteins_serving": 7.35,
+      "carbohydrates_100g": 4.8,
+      "carbohydrates_serving": 1.44,
+      "fat_100g": 53.3,
+      "fat_serving": 16,
+      "fiber_100g": 12.1,
+      "fiber_serving": 3.63
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "code": "5410041001204",
+  "status": 1,
+  "product": {
+    "product_name": "Tuc Original",
+    "product_name_es": "Tuc Original",
+    "generic_name": "Crackers",
+    "generic_name_es": "Crackers",
+    "brands": "Mondelēz",
+    "quantity": "100 gram",
+    "product_quantity": 100,
+    "product_quantity_unit": "g",
+    "serving_size": "30 gram",
+    "serving_quantity": 30,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:eggs", "en:gluten", "it:Metabisolfito"],
+    "traces_tags": ["en:milk", "en:soybeans"],
+    "nutriments": {
+      "energy-kcal_100g": 482,
+      "energy-kcal_serving": 145,
+      "energy-kj_100g": 2002.3,
+      "energy-kj_serving": 601,
+      "proteins_100g": 8.3,
+      "proteins_serving": 2.49,
+      "carbohydrates_100g": 67,
+      "carbohydrates_serving": 20.1,
+      "fat_100g": 19,
+      "fat_serving": 5.7,
+      "fiber_100g": 2.4,
+      "fiber_serving": 0.72
+    }
+  }
+}

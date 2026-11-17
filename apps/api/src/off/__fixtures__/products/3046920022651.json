@@ -1,0 +1,31 @@
+{
+  "code": "3046920022651",
+  "status": 1,
+  "product": {
+    "product_name": "Noir Intense",
+    "generic_name": "Chocolat noir extra-fin traditionnel",
+    "brands": "Lindt",
+    "quantity": "100 g",
+    "product_quantity": 100,
+    "product_quantity_unit": "g",
+    "serving_size": "10 g",
+    "serving_quantity": 10,
+    "serving_quantity_unit": "g",
+    "allergens_tags": [],
+    "traces_tags": ["en:milk", "en:nuts", "en:sesame-seeds", "en:soybeans"],
+    "nutriments": {
+      "energy-kcal_100g": 566,
+      "energy-kcal_serving": 56.6,
+      "energy-kj_100g": 2350,
+      "energy-kj_serving": 235,
+      "proteins_100g": 9.5,
+      "proteins_serving": 0.95,
+      "carbohydrates_100g": 35,
+      "carbohydrates_serving": 3.5,
+      "fat_100g": 41,
+      "fat_serving": 4.1,
+      "fiber_100g": 12.2,
+      "fiber_serving": 1.22
+    }
+  }
+}

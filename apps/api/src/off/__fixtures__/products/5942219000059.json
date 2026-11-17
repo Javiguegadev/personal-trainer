@@ -1,0 +1,18 @@
+{
+  "code": "5942219000059",
+  "status": 1,
+  "product": {
+    "product_name": "Borsec, regina apelor minerale apă minerală, natura carbogozoasă",
+    "generic_name": "",
+    "brands": "Borsec, ROMAQUA GROUP SA",
+    "quantity": "1,5 L",
+    "product_quantity": 1500,
+    "product_quantity_unit": "ml",
+    "serving_size": "1 l",
+    "serving_quantity": 1000,
+    "serving_quantity_unit": "ml",
+    "allergens_tags": [],
+    "traces_tags": ["ro:apa"],
+    "nutriments": {}
+  }
+}

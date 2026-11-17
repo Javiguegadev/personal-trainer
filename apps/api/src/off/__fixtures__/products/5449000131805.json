@@ -1,0 +1,31 @@
+{
+  "code": "5449000131805",
+  "status": 1,
+  "product": {
+    "product_name": "Coca-Cola Zero Sugar",
+    "product_name_es": "Coca Cola Zero",
+    "generic_name": "Boisson rafraîchissante aux extraits végétaux, avec édulcorants",
+    "generic_name_es": "Bebida refrescante aromatizada, con edulcorantes",
+    "brands": "Coca-Cola",
+    "quantity": "330 ml",
+    "product_quantity": 330,
+    "product_quantity_unit": "ml",
+    "serving_size": "1 can (330 ml)",
+    "serving_quantity": 330,
+    "serving_quantity_unit": "ml",
+    "allergens_tags": [],
+    "traces_tags": ["en:nuts"],
+    "nutriments": {
+      "energy-kcal_100g": 0,
+      "energy-kcal_serving": 0,
+      "energy-kj_100g": 0.9,
+      "energy-kj_serving": 2.97,
+      "proteins_100g": 0,
+      "proteins_serving": 0,
+      "carbohydrates_100g": 0,
+      "carbohydrates_serving": 0,
+      "fat_100g": 0,
+      "fat_serving": 0
+    }
+  }
+}

@@ -12,14 +12,17 @@
     "test": "vitest run --passWithNoTests",
     "generate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs generate",
     "migrate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs migrate",
-    "studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio"
+    "studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio",
+    "import:foods": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs src/knowledge/import-foods.ts"
   },
   "devDependencies": {
     "@pt/config": "workspace:*",
     "@types/node": "^26.6.6",
-    "drizzle-kit": "^0.31.11"
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
   },
   "dependencies": {
+    "@pt/contracts": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "postgres": "^4.1.0"
   }

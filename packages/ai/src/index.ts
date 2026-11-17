@@ -1,16 +1,21 @@
 /**
  * @pt/ai — Claude integration. Imported ONLY by apps/api (enforced by ESLint).
  *
- * Planned layout:
- *   src/config.ts        model + effort per feature (Haiku 5.5 for fast/high-volume, Opus 5.5 for
- *                        planning/coaching); changing them requires an eval run
- *   src/client.ts        Anthropic SDK wrapper: refusal + max_tokens handling, usage metering (ai_usage)
- *   src/tools/           knowledge-base tools (search_foods, get_food, search_exercises, get_guideline,
- *                        get_user_stats) backed by Postgres
- *   src/prompts/         one folder per feature (system prompt + Zod output schema from @pt/contracts)
+ * Layout:
+ *   src/config.ts        models, pricing and the settings of each feature; changing them requires an eval run
+ *   src/client.ts        SDK wrapper (injectable `CreateMessage`), usage metering type, errors
+ *   src/prompts/<name>/  one folder per feature: system prompt, tools, runner
  *   evals/               fixtures + graders; run on any prompt, model or knowledge-base change
  *
- * Non-negotiables: grounded answers with citations; structured outputs only; the AI picks catalog IDs +
+ * Features: `label_scan` (spec 006), which reads a nutrition label from a photo; `meal_text` and
+ * `meal_photo` (spec 007), which turn a sentence or a plate photo into catalog foods with a tool loop. The onboarding chat
+ * was retired (ADR 004, spec 002); the questions assistant of stage E5b is the next one.
+ *
+ * Non-negotiables: grounded answers with citations; validated tool inputs; the AI picks catalog IDs +
  * quantities and @pt/core computes and validates; minimal personal data in prompts; never expose keys.
  */
-export {};
+export * from './client';
+export * from './config';
+export * from './loop';
+export * from './prompts/label';
+export * from './prompts/meal';

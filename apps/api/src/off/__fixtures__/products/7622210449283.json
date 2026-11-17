@@ -1,0 +1,33 @@
+{
+  "code": "7622210449283",
+  "status": 1,
+  "product": {
+    "product_name": "Prince",
+    "product_name_es": "Príncipe Galletas de Chocolate",
+    "generic_name": "BISCUITS FOURRÉS (35%) PARFUM CHOCOLAT",
+    "generic_name_es": "",
+    "brands": "LU, Prince",
+    "quantity": "300 g ℮",
+    "product_quantity": 300,
+    "product_quantity_unit": "g",
+    "serving_size": "20g",
+    "serving_quantity": 20,
+    "serving_quantity_unit": "g",
+    "allergens_tags": ["en:eggs", "en:gluten", "en:milk", "en:soybeans"],
+    "traces_tags": ["en:eggs"],
+    "nutriments": {
+      "energy-kcal_100g": 467,
+      "energy-kcal_serving": 93.4,
+      "energy-kj_100g": 1962,
+      "energy-kj_serving": 392,
+      "proteins_100g": 6.3,
+      "proteins_serving": 1.26,
+      "carbohydrates_100g": 69,
+      "carbohydrates_serving": 13.8,
+      "fat_100g": 17,
+      "fat_serving": 3.4,
+      "fiber_100g": 4,
+      "fiber_serving": 0.8
+    }
+  }
+}

@@ -12,6 +12,14 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@pt/config": "workspace:*"
+    "@pt/config": "workspace:*",
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@pt/contracts": "workspace:*",
+    "@pt/core": "workspace:*",
+    "zod": "^4.6.7"
   }
 }

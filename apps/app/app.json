@@ -36,7 +36,25 @@
       ],
       "expo-font",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-localization",
+      "expo-sqlite",
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Personal Trainer uses the camera to read the barcode and the nutrition label of a product.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Personal Trainer uses the camera to read the barcode and the nutrition label of a product.",
+          "photosPermission": "Personal Trainer opens your photos only when you choose the image of a label.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -47,6 +65,10 @@
         "projectId": "5b66b624-7ea7-4527-bbc4-b8dac8299362"
       }
     },
-    "owner": "javiguegadevs-team"
+    "owner": "javiguegadevs-team",
+    "locales": {
+      "es": "./locales/es.json",
+      "en": "./locales/en.json"
+    }
   }
 }
