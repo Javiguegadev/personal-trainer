@@ -6,7 +6,7 @@
  * session here. Both URLs are in the Supabase redirect allow list.
  */
 import { createClient } from '@supabase/supabase-js';
-import { CryptoDigestAlgorithm, digest } from 'expo-crypto';
+import { CryptoDigestAlgorithm, digest, getRandomValues } from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { AppState } from 'react-native';
@@ -14,18 +14,28 @@ import '../storage';
 import { AuthError } from './types';
 
 /**
- * React Native has `crypto.getRandomValues` but no `crypto.subtle`, so supabase-js would fall back to the
- * `plain` PKCE method. SHA-256 from expo-crypto lets it use `S256`, as on the web.
+ * Expo Go has no Web Crypto global, so supabase-js would build the PKCE verifier with `Math.random` and
+ * fall back to the `plain` method. expo-crypto provides secure random values and SHA-256, so it uses
+ * `S256`, as on the web.
  */
-function installSha256Digest() {
-  const crypto = globalThis.crypto as { subtle?: unknown } | undefined;
-  if (!crypto || crypto.subtle) return;
-  crypto.subtle = {
+function installWebCrypto() {
+  const subtle = {
     digest: (algorithm: string, data: BufferSource) => {
       if (algorithm !== 'SHA-256') throw new Error(`Unsupported digest: ${algorithm}`);
       return digest(CryptoDigestAlgorithm.SHA256, data);
     },
   };
+  const current = (globalThis as { crypto?: { getRandomValues?: unknown; subtle?: unknown } })
+    .crypto;
+  if (current?.subtle && current.getRandomValues) return;
+  Object.defineProperty(globalThis, 'crypto', {
+    configurable: true,
+    value: {
+      ...current,
+      getRandomValues: current?.getRandomValues ?? getRandomValues,
+      subtle: current?.subtle ?? subtle,
+    },
+  });
 }
 
 /** Supabase may put the result in the query (PKCE) or in the fragment (errors); read both. */
@@ -39,7 +49,7 @@ function callbackParams(url: string): URLSearchParams {
 }
 
 export function createSupabaseClient(url: string, key: string) {
-  installSha256Digest();
+  installWebCrypto();
   const client = createClient(url, key, {
     auth: {
       storage: globalThis.localStorage,
