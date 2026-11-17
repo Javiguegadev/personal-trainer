@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { GoogleLogo } from '@/components/GoogleLogo';
 import { Notice } from '@/components/Notice';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
@@ -95,14 +96,17 @@ export default function SignInScreen() {
       >
         <View style={[styles.line, { backgroundColor: colors.border }]} />
         <AppText variant="caption" tone="muted">
-          {t.auth.signIn.or}
+          {t.auth.signIn.continueWith}
         </AppText>
         <View style={[styles.line, { backgroundColor: colors.border }]} />
       </View>
 
+      {/* One button per provider; Apple joins Google here in its own spec. */}
       <Button
         variant="secondary"
         label={t.auth.signIn.google}
+        accessibilityLabel={t.auth.signIn.googleA11y}
+        icon={<GoogleLogo />}
         onPress={() => void continueWithGoogle()}
         loading={busy === 'google'}
         disabled={busy !== null}

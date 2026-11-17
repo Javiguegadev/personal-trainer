@@ -1,4 +1,5 @@
 import { tokens, type Palette } from '@pt/ui';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -8,6 +9,8 @@ interface ButtonProps {
   label: string;
   onPress: () => void;
   variant?: Variant;
+  /** Shown before the label (hidden while loading, where the spinner takes its place). */
+  icon?: ReactNode;
   loading?: boolean;
   disabled?: boolean;
   /** Read instead of the label when the label alone is ambiguous ("Add" → "Add to breakfast"). */
@@ -33,6 +36,7 @@ export function Button({
   label,
   onPress,
   variant = 'primary',
+  icon,
   loading = false,
   disabled = false,
   accessibilityLabel,
@@ -60,7 +64,7 @@ export function Button({
         },
       ]}
     >
-      {loading ? <ActivityIndicator color={palette.text} /> : null}
+      {loading ? <ActivityIndicator color={palette.text} /> : icon}
       <Text style={[styles.label, { color: palette.text }]}>{label}</Text>
     </Pressable>
   );

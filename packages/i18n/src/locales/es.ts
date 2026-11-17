@@ -25,8 +25,9 @@ export const es = {
       emailLabel: 'Email',
       emailPlaceholder: 'tu@email.com',
       sendCode: 'Enviar código',
-      or: 'o',
-      google: 'Continuar con Google',
+      continueWith: 'Continuar con',
+      google: 'Google',
+      googleA11y: 'Continuar con Google',
     },
     verify: {
       title: 'Introduce el código',

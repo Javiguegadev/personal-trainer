@@ -28,8 +28,9 @@ export const en: DeepStringRecord<typeof es> = {
       emailLabel: 'Email',
       emailPlaceholder: 'you@email.com',
       sendCode: 'Send code',
-      or: 'or',
-      google: 'Continue with Google',
+      continueWith: 'Continue with',
+      google: 'Google',
+      googleA11y: 'Continue with Google',
     },
     verify: {
       title: 'Enter the code',
