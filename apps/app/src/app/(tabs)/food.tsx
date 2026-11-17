@@ -115,7 +115,7 @@ function FoodLog({ profile, targets }: { profile: Profile; targets: Targets | nu
             message={
               undo.kind === 'deleted'
                 ? format(f.item.deleted, { food: undo.item.label })
-                : format(f.item.repeated, {
+                : format(undo.kind === 'added' ? f.item.added : f.item.repeated, {
                     count:
                       undo.items.length === 1
                         ? f.foodsOne

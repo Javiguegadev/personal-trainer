@@ -1,9 +1,9 @@
-import { LABEL_SCAN_LIMITS, type LabelImage } from '@pt/contracts';
+import { LABEL_SCAN_LIMITS, type ImageUpload } from '@pt/contracts';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
-export type LabelPhoto =
-  | { status: 'ok'; image: LabelImage }
+export type PickedPhoto =
+  | { status: 'ok'; image: ImageUpload }
   | { status: 'cancelled' }
   /** The user refused the camera permission. */
   | { status: 'denied' };
@@ -18,13 +18,13 @@ function dataUriBase64(uri: string): string | null {
 }
 
 /**
- * A photo of a nutrition label for the label reader (spec 006 AC14): taken with the system camera or
+ * A photo for the AI: a nutrition label (spec 006 AC14) or a plate (spec 007 AC3): taken with the system camera or
  * picked from the library, resized on the device to 1568 px on its longest side and encoded as JPEG.
  * The photo goes to the API and is kept nowhere on the device.
  *
  * Call it straight from a button press: a browser only opens its picker during a user gesture.
  */
-export async function pickLabelPhoto(source: 'camera' | 'library'): Promise<LabelPhoto> {
+export async function pickPhoto(source: 'camera' | 'library'): Promise<PickedPhoto> {
   if (source === 'camera') {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return { status: 'denied' };
@@ -49,6 +49,6 @@ export async function pickLabelPhoto(source: 'camera' | 'library'): Promise<Labe
     base64: true,
   });
   const data = saved.base64 ?? dataUriBase64(saved.uri);
-  if (!data) throw new Error('pickLabelPhoto: the image has no data');
+  if (!data) throw new Error('pickPhoto: the image has no data');
   return { status: 'ok', image: { mediaType: 'image/jpeg', data } };
 }

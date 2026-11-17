@@ -4,9 +4,12 @@ import { useSyncExternalStore } from 'react';
 /** How long a delete or a "repeat yesterday" can be undone (spec 005 AC11, AC13). */
 export const FOOD_UNDO_MS = 5000;
 
-/** The last change that can still be undone: a deleted item, or the copies made by "repeat yesterday". */
+/**
+ * The last change that can still be undone: a deleted item, the copies made by "repeat yesterday", or
+ * the items of a saved draft (spec 007 AC8).
+ */
 export type FoodUndo =
-  { kind: 'deleted'; item: MealItem } | { kind: 'repeated'; items: readonly MealItem[] };
+  { kind: 'deleted'; item: MealItem } | { kind: 'repeated' | 'added'; items: readonly MealItem[] };
 
 // Outside React: the item sheet offers the undo while it closes, and the Food tab shows it.
 let current: FoodUndo | null = null;

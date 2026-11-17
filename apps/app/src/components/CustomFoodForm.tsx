@@ -25,7 +25,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useScanLabel } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { newId } from '@/lib/id';
-import { pickLabelPhoto } from '@/lib/labelPhoto';
+import { pickPhoto } from '@/lib/photo';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { ChoiceGroup } from './ChoiceGroup';
@@ -135,7 +135,7 @@ export function CustomFoodForm({
 
   const takePhoto = async (source: 'camera' | 'library') => {
     try {
-      const photo = await pickLabelPhoto(source);
+      const photo = await pickPhoto(source);
       if (photo.status === 'denied') return setLabel({ kind: 'failed', message: l.permission });
       if (photo.status === 'ok') readLabel(photo.image);
     } catch {

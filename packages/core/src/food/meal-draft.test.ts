@@ -6,7 +6,7 @@ import {
   type MealReadingItem,
 } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
-import { draftTotals, mealDraft } from './meal-draft';
+import { draftTotals, mealDraft, portionForReplacement } from './meal-draft';
 
 const EGG_ID = '00000000-0000-4000-8000-000000000001';
 const RICE_ID = '00000000-0000-4000-8000-000000000002';
@@ -290,5 +290,29 @@ describe('draftTotals (AC7)', () => {
 
   it('is zero for an empty draft', () => {
     expect(draftTotals([])).toEqual({ kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: null });
+  });
+});
+
+describe('portionForReplacement (AC7)', () => {
+  const friedEgg: Food = {
+    ...egg,
+    id: '00000000-0000-4000-8000-000000000010',
+    servings: [{ id: '55555555-5555-4555-8555-555555555555', label: '1 huevo mediano', grams: 55 }],
+  };
+
+  it('keeps the count of a serving with the same name', () => {
+    expect(
+      portionForReplacement({ kind: 'serving', servingId: EGG, servings: 2 }, egg, friedEgg),
+    ).toEqual({ kind: 'serving', servingId: '55555555-5555-4555-8555-555555555555', servings: 2 });
+  });
+
+  it('keeps the grams when the new food has no such serving', () => {
+    expect(
+      portionForReplacement({ kind: 'serving', servingId: DOZEN, servings: 0.5 }, egg, rice),
+    ).toEqual({ kind: 'grams', grams: 360 });
+    expect(portionForReplacement({ kind: 'grams', grams: 150 }, rice, egg)).toEqual({
+      kind: 'grams',
+      grams: 150,
+    });
   });
 });

@@ -42,7 +42,7 @@ export function useFoodLogActions() {
     });
   };
 
-  return {
+  const actions = {
     /**
      * AC8: a portion of a food: of the catalog, a scanned product or one of the user's own (spec 006).
      * Returns the item as the log shows it.
@@ -130,6 +130,28 @@ export function useFoodLogActions() {
       }
     },
 
+    /**
+     * Spec 007 AC8: every entry of a reviewed draft, in order, as new items of one meal, with one undo
+     * for all of them. Queued offline like any other item.
+     */
+    addDraft(
+      entries: readonly (
+        | { kind: 'food'; food: Food; portion: Portion }
+        | { kind: 'quick'; values: QuickAddValues & { label: string } }
+      )[],
+      inputMethod: 'photo' | 'text',
+      localDate: string,
+      mealType: MealType,
+    ): MealItem[] {
+      const items = entries.map((entry) =>
+        entry.kind === 'food'
+          ? actions.addFood(entry.food, entry.portion, inputMethod, localDate, mealType)
+          : actions.addQuick(entry.values, localDate, mealType),
+      );
+      if (items.length > 0) offerFoodUndo({ kind: 'added', items });
+      return items;
+    },
+
     /** A deleted item is written again with a later time, which wins over the delete (AC20). */
     undo(undo: FoodUndo): void {
       clearFoodUndo();
@@ -137,4 +159,5 @@ export function useFoodLogActions() {
       else for (const item of undo.items) remove.mutate({ id: item.id, recordedAt: now() });
     },
   };
+  return actions;
 }

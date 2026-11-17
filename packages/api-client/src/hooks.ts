@@ -6,6 +6,8 @@ import type {
   ConsentRequest,
   Food,
   LabelScanRequest,
+  MealPhotoDraftRequest,
+  MealTextDraftRequest,
   Locale,
   MealItemSaveResponse,
   MeResponse,
@@ -96,6 +98,10 @@ export function afterProfileSaved(queryClient: QueryClient, me: MeResponse): voi
 export function afterAccountDeleted(queryClient: QueryClient): void {
   queryClient.clear();
 }
+
+/** What `useMealDraft` sends: a sentence or a plate photo. */
+export type MealDraftInput =
+  { kind: 'text'; body: MealTextDraftRequest } | { kind: 'photo'; body: MealPhotoDraftRequest };
 
 export function createApiHooks(api: ApiClient) {
   return {
@@ -242,6 +248,17 @@ export function createApiHooks(api: ApiClient) {
     /** Reads a label photo into an editable draft (spec 006 AC14). Not retried: every call is metered. */
     useScanLabel: () =>
       useMutation({ mutationFn: (body: LabelScanRequest) => api.scanLabel(body), retry: false }),
+
+    /**
+     * The draft of a plate photo or a sentence (spec 007). Never retried and never queued: it needs a
+     * connection and costs a call to the model.
+     */
+    useMealDraft: () =>
+      useMutation({
+        mutationFn: (input: MealDraftInput) =>
+          input.kind === 'photo' ? api.draftFromPhoto(input.body) : api.draftFromText(input.body),
+        retry: false,
+      }),
 
     /** Items with a write that has not reached the server yet ("waiting to sync", AC19). */
     usePendingMealItemIds: (): string[] =>

@@ -128,3 +128,24 @@ export function draftTotals(items: readonly Pick<DraftItem, 'food' | 'portion'>[
     };
   }, ZERO);
 }
+
+/**
+ * The portion a draft item keeps when the user picks another food for it (AC7): the same count of a
+ * serving with the same name ("2 × 1 huevo mediano"), else the same grams, within the log limits.
+ */
+export function portionForReplacement(
+  portion: Portion,
+  from: Pick<Food, 'servings'>,
+  to: Pick<Food, 'servings'>,
+): Portion {
+  if (portion.kind === 'serving') {
+    const label = from.servings.find((s) => s.id === portion.servingId)?.label;
+    const same = label === undefined ? undefined : to.servings.find((s) => s.label === label);
+    if (same) return { kind: 'serving', servingId: same.id, servings: portion.servings };
+  }
+  const grams = portionGrams(portion, from.servings) ?? DEFAULT_GRAMS;
+  return {
+    kind: 'grams',
+    grams: clamp(Math.round(grams * 10) / 10, FOOD_LOG_LIMITS.gramsMin, FOOD_LOG_LIMITS.gramsMax),
+  };
+}

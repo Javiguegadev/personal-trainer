@@ -4,9 +4,13 @@ import {
   IsoDateSchema,
   MEAL_TYPES,
   MealTypeSchema,
+  type DraftItem,
   type Food,
   type FoodInputMethod,
+  type ImageUpload,
   type LabelImage,
+  type MealDraftResponse,
+  type MealUnreadableReason,
   type MealType,
   type Portion,
 } from '@pt/contracts';
@@ -23,7 +27,7 @@ import {
 import { tokens } from '@pt/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 import { BlockingState } from '@/components/BlockingState';
@@ -32,7 +36,10 @@ import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { CustomFoodForm } from '@/components/CustomFoodForm';
 import { FoodRejectedNotice } from '@/components/FoodRejectedNotice';
 import { FoodRow } from '@/components/FoodRow';
+import { MealDraftView } from '@/components/MealDraftView';
+import { MealTextInput } from '@/components/MealTextInput';
 import { Notice } from '@/components/Notice';
+import { PlatePhotoPicker } from '@/components/PlatePhotoPicker';
 import { PortionSheet } from '@/components/PortionSheet';
 import { ProductNotFound, type ProductMiss } from '@/components/ProductNotFound';
 import { QuickAddForm } from '@/components/QuickAddForm';
@@ -51,13 +58,15 @@ import {
   useCustomFoods,
   useFavouriteFoods,
   useFoodSearch,
+  useMealDraft,
   useMe,
   useRecentFoods,
   useSaveCustomFood,
   useSetFavouriteFood,
 } from '@/lib/api';
+import { useFoodUndo } from '@/lib/foodUndo';
 import { newId } from '@/lib/id';
-import { pickLabelPhoto } from '@/lib/labelPhoto';
+import { pickPhoto } from '@/lib/photo';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -72,7 +81,35 @@ type Step =
   /** A scanned code without a food (spec 006 AC6, AC7). */
   | { kind: 'miss'; barcode: string; reason: ProductMiss }
   /** "Crear alimento": new (with the barcode of a scan, or a label photo already taken) or `food`. */
-  | { kind: 'custom'; barcode: string | null; name: string; image?: LabelImage; food?: Food };
+  | { kind: 'custom'; barcode: string | null; name: string; image?: LabelImage; food?: Food }
+  /** The shortcuts of spec 007: a sentence, a plate photo, the wait, the draft, or why there is none. */
+  | { kind: 'describe'; text: string }
+  | { kind: 'platePhoto' }
+  | { kind: 'preparing'; run: number; source: DraftSource; text: string; photoUri: string | null }
+  | {
+      kind: 'draft';
+      source: DraftSource;
+      items: DraftItem[];
+      unresolved: { mention: string }[];
+      photoUri: string | null;
+    }
+  | { kind: 'draftFailed'; source: DraftSource; text: string; message: string };
+
+type DraftSource = 'text' | 'photo';
+
+/** What the screen says when a draft cannot be made (spec 007 AC11, AC12). */
+function draftFailure(
+  error: unknown,
+  d: { capReached: string; unavailable: string; tooLarge: string; error: string },
+): string {
+  if (isApiError(error, 'ai_cap_reached')) return d.capReached;
+  if (isApiError(error, 'ai_unavailable')) return d.unavailable;
+  if (isApiError(error, 'image_too_large')) return d.tooLarge;
+  return d.error;
+}
+
+/** Each draft request gets a number, so the answer of one the user cancelled is dropped. */
+let draftRuns = 0;
 
 /** Why the API gave no food for a barcode. Anything unexpected counts as "could not ask". */
 function missReason(error: unknown): ProductMiss {
@@ -140,6 +177,8 @@ function FoodAdd({
   const saveFood = useSaveCustomFood();
   const deferredDelete = useDeferredFoodDelete();
   const barcodes = useBarcodeLookup();
+  const mealDraft = useMealDraft();
+  const undo = useFoodUndo();
   const recents = useRecentFoods(locale);
   const favourites = useFavouriteFoods(locale);
   const ownFoods = useCustomFoods(locale);
@@ -204,7 +243,7 @@ function FoodAdd({
     setPhotoError(null);
     setPhotoBusy(true);
     try {
-      const photo = await pickLabelPhoto('camera');
+      const photo = await pickPhoto('camera');
       if (photo.status === 'ok') setStep({ kind: 'custom', barcode, name: '', image: photo.image });
       if (photo.status === 'denied') setPhotoError(t.food.label.permission);
     } catch {
@@ -213,6 +252,162 @@ function FoodAdd({
       setPhotoBusy(false);
     }
   };
+
+  /** Sends the sentence or the photo and opens the draft (spec 007 AC4, AC5, AC10–AC12). */
+  const prepareDraft = async (
+    source: DraftSource,
+    input: { text: string } | { image: ImageUpload },
+  ) => {
+    const run = ++draftRuns;
+    const text = 'text' in input ? input.text : '';
+    const photoUri =
+      'image' in input ? `data:${input.image.mediaType};base64,${input.image.data}` : null;
+    setStep({ kind: 'preparing', run, source, text, photoUri });
+    const still = (current: Step) => current.kind === 'preparing' && current.run === run;
+    let draft: MealDraftResponse;
+    try {
+      draft =
+        'text' in input
+          ? await mealDraft.mutateAsync({ kind: 'text', body: { text: input.text, locale } })
+          : await mealDraft.mutateAsync({ kind: 'photo', body: { image: input.image, locale } });
+    } catch (error) {
+      const message = draftFailure(error, t.food.draft);
+      setStep((current) =>
+        still(current) ? { kind: 'draftFailed', source, text, message } : current,
+      );
+      return;
+    }
+    setStep((current) => {
+      if (!still(current)) return current;
+      if (draft.status === 'ok') {
+        return {
+          kind: 'draft',
+          source,
+          items: draft.items,
+          unresolved: draft.unresolved,
+          photoUri,
+        };
+      }
+      const reason: MealUnreadableReason = draft.reason;
+      const message =
+        source === 'text' && reason === 'not_food'
+          ? t.food.draft.notFoodText
+          : t.food.draft.unreadable[reason];
+      return { kind: 'draftFailed', source, text, message };
+    });
+  };
+
+  if (step.kind === 'describe') {
+    return (
+      <MealTextInput
+        initialText={step.text}
+        online={online}
+        onSubmit={(text) => void prepareDraft('text', { text })}
+        onCancel={toSearch}
+      />
+    );
+  }
+  if (step.kind === 'platePhoto') {
+    return (
+      <PlatePhotoPicker
+        online={online}
+        onPhoto={(image) => void prepareDraft('photo', { image })}
+        onCancel={toSearch}
+      />
+    );
+  }
+  if (step.kind === 'preparing') {
+    return (
+      <Screen
+        testID="meal-draft-preparing"
+        footer={<Button variant="ghost" label={t.food.portion.cancel} onPress={toSearch} />}
+      >
+        <AppText variant="title" accessibilityRole="header">
+          {t.food.draft.title}
+        </AppText>
+        {step.photoUri ? (
+          <Image
+            source={{ uri: step.photoUri }}
+            style={styles.photo}
+            resizeMode="cover"
+            accessibilityIgnoresInvertColors
+          />
+        ) : (
+          <AppText tone="muted">«{step.text}»</AppText>
+        )}
+        <View style={styles.heading}>
+          <ActivityIndicator color={colors.primary} />
+          <AppText accessibilityLiveRegion="polite">{t.food.draft.preparing}</AppText>
+        </View>
+      </Screen>
+    );
+  }
+  if (step.kind === 'draftFailed') {
+    const { source, text } = step;
+    return (
+      <Screen
+        testID="meal-draft-failed"
+        footer={<Button variant="ghost" label={t.food.portion.cancel} onPress={toSearch} />}
+      >
+        <AppText variant="title" accessibilityRole="header">
+          {t.food.draft.title}
+        </AppText>
+        <Notice tone="warning" message={step.message} testID="meal-draft-failed-message" />
+        <Button
+          label={source === 'photo' ? t.food.draft.retakePhoto : t.food.draft.editText}
+          onPress={() =>
+            setStep(source === 'photo' ? { kind: 'platePhoto' } : { kind: 'describe', text })
+          }
+          testID="meal-draft-retry"
+        />
+        <Button
+          variant="secondary"
+          label={t.food.draft.toSearch}
+          onPress={toSearch}
+          testID="meal-draft-to-search"
+        />
+      </Screen>
+    );
+  }
+  if (step.kind === 'draft') {
+    const { source } = step;
+    return (
+      <MealDraftView
+        source={source}
+        items={step.items}
+        unresolved={step.unresolved}
+        photoUri={step.photoUri}
+        mealPicker={
+          mealFixed ? null : (
+            <ChoiceGroup
+              label={a.meal}
+              options={MEAL_TYPES.map((value) => ({ value, label: t.food.meals[value] }))}
+              value={mealType}
+              onChange={setMealType}
+              testID="draft-meal"
+            />
+          )
+        }
+        showNumbers={showNumbers}
+        favouriteIds={favouriteIds}
+        onToggleFavourite={toggleFavourite}
+        onSave={(entries) => {
+          const items = actions.addDraft(entries, source, date, mealType);
+          setDone(
+            format(t.food.item.added, {
+              count:
+                items.length === 1
+                  ? t.food.foodsOne
+                  : format(t.food.foodsOther, { count: String(items.length) }),
+            }),
+          );
+          setQuery('');
+          toSearch();
+        }}
+        onCancel={toSearch}
+      />
+    );
+  }
 
   if (step.kind === 'portion') {
     const { food, inputMethod } = step;
@@ -443,6 +638,19 @@ function FoodAdd({
               message={format(c.deleted, { food: deleted.name })}
               onUndo={deferredDelete.undo}
             />
+          ) : undo?.kind === 'added' ? (
+            <UndoToast
+              message={format(t.food.item.added, {
+                count:
+                  undo.items.length === 1
+                    ? t.food.foodsOne
+                    : format(t.food.foodsOther, { count: String(undo.items.length) }),
+              })}
+              onUndo={() => {
+                actions.undo(undo);
+                setDone(null);
+              }}
+            />
           ) : null}
           <Button label={a.done} onPress={close} testID="food-add-done" />
         </>
@@ -489,7 +697,34 @@ function FoodAdd({
           testID="food-scan"
         />
       </View>
-      {online ? null : <Notice tone="info" message={a.offline} testID="food-search-offline" />}
+      <View style={styles.shortcuts}>
+        <View style={styles.shortcut}>
+          <Button
+            variant="secondary"
+            label={t.food.shortcuts.photo}
+            accessibilityLabel={t.food.shortcuts.photoLabel}
+            onPress={() => setStep({ kind: 'platePhoto' })}
+            disabled={!online}
+            testID="food-plate-photo"
+          />
+        </View>
+        <View style={styles.shortcut}>
+          <Button
+            variant="secondary"
+            label={t.food.shortcuts.describe}
+            accessibilityLabel={t.food.shortcuts.describeLabel}
+            onPress={() => setStep({ kind: 'describe', text: '' })}
+            disabled={!online}
+            testID="food-describe"
+          />
+        </View>
+      </View>
+      {online ? null : (
+        <>
+          <Notice tone="info" message={a.offline} testID="food-search-offline" />
+          <Notice tone="info" message={t.food.shortcuts.offline} testID="food-shortcuts-offline" />
+        </>
+      )}
       {list}
       <Button
         variant="secondary"
@@ -519,4 +754,7 @@ const styles = StyleSheet.create({
   // The scan button sits beside the field, level with its input (the label is above it).
   searchRow: { flexDirection: 'row', alignItems: 'flex-end', gap: tokens.space.sm },
   searchField: { flex: 1 },
+  shortcuts: { flexDirection: 'row', gap: tokens.space.sm },
+  shortcut: { flex: 1 },
+  photo: { width: '100%', aspectRatio: 4 / 3, maxHeight: 140, borderRadius: tokens.radius.md },
 });
