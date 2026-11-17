@@ -1,4 +1,4 @@
-import type { AiFeature, AiUsage, ReadLabel } from '@pt/ai';
+import type { AiFeature, AiUsage, ReadLabel, ReadMeal } from '@pt/ai';
 import type {
   ConsentKind,
   DietaryPrefs,
@@ -243,5 +243,7 @@ export interface Deps {
   lookupProduct: LookupProduct;
   /** Claude reading a nutrition label (spec 006 AC15). */
   readLabel: ReadLabel;
+  /** Claude turning a sentence or a plate photo into catalog foods (spec 007). */
+  readMeal: ReadMeal;
   now: () => Date;
 }

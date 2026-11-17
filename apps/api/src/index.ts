@@ -3,8 +3,11 @@ import {
   AiUnavailableError,
   FEATURES,
   createLabelReader,
+  createMealReader,
   createMessageFn,
+  type AiFeature,
   type ReadLabel,
+  type ReadMeal,
 } from '@pt/ai';
 import { createDb } from '@pt/db';
 import { createApp } from './app';
@@ -14,24 +17,37 @@ import { createOffClient } from './off/client';
 import { createDrizzleStore } from './store/drizzle-store';
 import { createSupabaseAuthAdmin } from './store/supabase-admin';
 
+/** The failure of every AI call when there is no API key: the app falls back to its forms. */
+function noApiKey(feature: AiFeature): AiUnavailableError {
+  return new AiUnavailableError(
+    'error',
+    {
+      feature,
+      model: FEATURES[feature].model,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      latencyMs: 0,
+      status: 'error',
+    },
+    'ANTHROPIC_API_KEY is not set',
+  );
+}
+
 /** Without an API key every label read fails as "AI unavailable", and the form is filled by hand. */
 function createReadLabel(apiKey: string | undefined): ReadLabel {
   if (apiKey) return createLabelReader(createMessageFn(apiKey));
   console.warn('ANTHROPIC_API_KEY missing: label photos answer 503 (ai_unavailable)');
   return async () => {
-    throw new AiUnavailableError(
-      'error',
-      {
-        feature: 'label_scan',
-        model: FEATURES.label_scan.model,
-        inputTokens: 0,
-        outputTokens: 0,
-        costUsd: 0,
-        latencyMs: 0,
-        status: 'error',
-      },
-      'ANTHROPIC_API_KEY is not set',
-    );
+    throw noApiKey('label_scan');
+  };
+}
+
+/** Without an API key the plate photo and the sentence answer 503; the search keeps working. */
+function createReadMeal(apiKey: string | undefined): ReadMeal {
+  if (apiKey) return createMealReader(createMessageFn(apiKey));
+  return async (input) => {
+    throw noApiKey(input.kind === 'photo' ? 'meal_photo' : 'meal_text');
   };
 }
 
@@ -64,6 +80,7 @@ function createDeps(env: NodeJS.ProcessEnv): Deps | undefined {
     }),
     lookupProduct: createOffClient({ fetch, userAgent: offUserAgent(env) }),
     readLabel: createReadLabel(env.ANTHROPIC_API_KEY),
+    readMeal: createReadMeal(env.ANTHROPIC_API_KEY),
     now: () => new Date(),
   };
 }

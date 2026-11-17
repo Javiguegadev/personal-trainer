@@ -1,8 +1,16 @@
-import { AiUnavailableError, type AiFeature, type AiUsage, type ReadLabel } from '@pt/ai';
+import {
+  AiUnavailableError,
+  type AiFeature,
+  type AiUsage,
+  type MealInput,
+  type ReadLabel,
+  type ReadMeal,
+} from '@pt/ai';
 import type {
   ConsentKind,
   CustomFoodUpsertRequest,
   LabelReading,
+  MealReading,
   MealItem,
   ProfileInput,
   WeightEntry,
@@ -454,6 +462,46 @@ export function labelUsage(status: AiUsage['status'] = 'ok'): AiUsage {
   };
 }
 
+export function mealUsage(
+  feature: 'meal_text' | 'meal_photo',
+  status: AiUsage['status'] = 'ok',
+): AiUsage {
+  return {
+    feature,
+    model: 'claude-haiku-5-5',
+    inputTokens: status === 'error' ? 0 : 3000,
+    outputTokens: status === 'error' ? 0 : 400,
+    costUsd: status === 'error' ? 0 : 0.0005,
+    latencyMs: 2500,
+    status,
+  };
+}
+
+/** One `search_foods` result as the tool sends it to the model (spec 007). */
+export interface FakeToolResult {
+  results: {
+    query: string;
+    foods: {
+      ref: string;
+      name: string;
+      unit: string;
+      kcalPer100: number;
+      servings: { ref: string; label: string; grams: number }[];
+    }[];
+  }[];
+}
+
+/**
+ * The meal model: the searches it makes (one array of queries per round), then its answer, built from
+ * what the tool returned. Records the inputs it received and the raw tool results.
+ */
+export interface FakeMealModel {
+  searches: string[][];
+  answer: ((results: FakeToolResult[]) => MealReading) | AiUnavailableError | null;
+  calls: MealInput[];
+  toolResults: string[];
+}
+
 export async function createTestApp() {
   const store = new FakeStore();
   const deleted: string[] = [];
@@ -476,6 +524,20 @@ export async function createTestApp() {
     if (label.answer instanceof AiUnavailableError) throw label.answer;
     return { reading: label.answer, usage: labelUsage() };
   };
+  const meal: FakeMealModel = { searches: [], answer: null, calls: [], toolResults: [] };
+  const readMeal: ReadMeal = async (input, searchFoods) => {
+    meal.calls.push(input);
+    const results: FakeToolResult[] = [];
+    for (const queries of meal.searches) {
+      const text = await searchFoods(queries);
+      meal.toolResults.push(text);
+      results.push(JSON.parse(text) as FakeToolResult);
+    }
+    if (meal.answer === null) throw new Error('no fake meal answer set');
+    if (meal.answer instanceof AiUnavailableError) throw meal.answer;
+    const feature = input.kind === 'photo' ? 'meal_photo' : 'meal_text';
+    return { reading: meal.answer(results), usage: mealUsage(feature) };
+  };
   const clock = { now: NOW };
   const deps: Deps = {
     verifyToken: tokens.verifyToken,
@@ -486,6 +548,7 @@ export async function createTestApp() {
       return off.answers.get(barcode) ?? { status: 'not_found' };
     },
     readLabel,
+    readMeal,
     now: () => clock.now,
   };
   const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test', deps });
@@ -502,7 +565,7 @@ export async function createTestApp() {
     });
   }
 
-  return { app, store, deleted, tokens, token, call, off, label, clock };
+  return { app, store, deleted, tokens, token, call, off, label, meal, clock };
 }
 
 /** A valid adult profile (35-year-old woman, 165 cm, 70 kg, seated, no training, lose). */

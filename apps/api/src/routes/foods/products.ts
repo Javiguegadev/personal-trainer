@@ -17,6 +17,7 @@ import { checkCustomFood, labelDraft, normalizeBarcode } from '@pt/core';
 import { bodyLimit } from 'hono/body-limit';
 import type { Deps } from '../../deps';
 import { apiError, createRouter, errorBody } from '../../http';
+import { IMAGE_BODY_MAX, checkImage, utcDayStart } from '../../images';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { toFood } from '../../services/foods';
 import { createBarcodeLookup } from '../../services/products';
@@ -29,17 +30,6 @@ const json = <T>(description: string, schema: T) => ({
   description,
   content: { 'application/json': { schema } },
 });
-
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
-
-/** Bytes a base64 string decodes to. */
-function decodedBytes(data: string): number {
-  const padding = data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0;
-  return Math.floor((data.length * 3) / 4) - padding;
-}
-
-/** The whole JSON body: the image in base64 (4/3 of its bytes) plus the rest of the request. */
-const LABEL_BODY_MAX = Math.ceil((LABEL_SCAN_LIMITS.imageBytesMax * 4) / 3) + 16 * 1024;
 
 /**
  * Scanned products, the user's own foods and the label photo (spec 006). Every route needs the current
@@ -123,7 +113,7 @@ export function productRoutes(deps: Deps) {
       auth,
       consent,
       bodyLimit({
-        maxSize: LABEL_BODY_MAX,
+        maxSize: IMAGE_BODY_MAX,
         onError: (c) => c.json(errorBody('image_too_large'), 413),
       }),
     ] as const,
@@ -197,17 +187,11 @@ export function productRoutes(deps: Deps) {
     .openapi(labelScan, async (c) => {
       const { image } = c.req.valid('json');
       const { userId } = c.var.user;
-      if (!BASE64.test(image.data)) {
+      const bad = checkImage(image);
+      if (bad === 'invalid')
         return apiError(c, 400, 'validation_error', { 'image.data': 'invalid' });
-      }
-      if (decodedBytes(image.data) > LABEL_SCAN_LIMITS.imageBytesMax) {
-        return apiError(c, 413, 'image_too_large');
-      }
-      const now = deps.now();
-      const dayStart = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-      );
-      const used = await deps.store.countAiUsage(userId, 'label_scan', dayStart);
+      if (bad === 'too_large') return apiError(c, 413, 'image_too_large');
+      const used = await deps.store.countAiUsage(userId, 'label_scan', utcDayStart(deps.now()));
       if (used >= LABEL_SCAN_LIMITS.perDay) return apiError(c, 429, 'ai_cap_reached');
 
       // AC19: the image goes to the model and nowhere else. It is never stored or logged.

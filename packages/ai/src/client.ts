@@ -4,11 +4,12 @@ import type { AiFeature, ModelId } from './config';
 /** The one SDK call the features use. Injected so tests and evals can swap it. */
 export type CreateMessage = (
   params: Anthropic.MessageCreateParamsNonStreaming,
+  options?: { signal?: AbortSignal },
 ) => Promise<Anthropic.Message>;
 
 export function createMessageFn(apiKey: string): CreateMessage {
   const client = new Anthropic({ apiKey, maxRetries: 2, timeout: 30_000 });
-  return (params) => client.messages.create(params);
+  return (params, options) => client.messages.create(params, options);
 }
 
 export type AiCallStatus = 'ok' | 'refusal' | 'max_tokens' | 'invalid_output' | 'error';

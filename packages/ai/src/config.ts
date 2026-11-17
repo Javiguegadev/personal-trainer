@@ -31,6 +31,13 @@ export const FEATURES = {
    * transcription, and thinking counts towards `maxTokens`. Provisional until the label eval runs.
    */
   label_scan: { model: MODELS.haiku, effort: 'low', maxTokens: 2048, maxToolRounds: 0 },
+  /**
+   * A meal from a sentence or a plate photo (spec 007): the model searches our catalog with
+   * `search_foods` (two rounds at most) and returns catalog refs with portions. Low effort: matching
+   * names and reading quantities. Provisional until the meal evals run.
+   */
+  meal_text: { model: MODELS.haiku, effort: 'low', maxTokens: 4096, maxToolRounds: 2 },
+  meal_photo: { model: MODELS.haiku, effort: 'low', maxTokens: 4096, maxToolRounds: 2 },
 } as const satisfies Record<string, FeatureConfig>;
 /** The name stored in `ai_usage.feature`. */
 export type AiFeature = keyof typeof FEATURES;

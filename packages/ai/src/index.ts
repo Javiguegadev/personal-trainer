@@ -7,7 +7,8 @@
  *   src/prompts/<name>/  one folder per feature: system prompt, tools, runner
  *   evals/               fixtures + graders; run on any prompt, model or knowledge-base change
  *
- * Features: `label_scan` (spec 006), which reads a nutrition label from a photo. The onboarding chat
+ * Features: `label_scan` (spec 006), which reads a nutrition label from a photo; `meal_text` and
+ * `meal_photo` (spec 007), which turn a sentence or a plate photo into catalog foods with a tool loop. The onboarding chat
  * was retired (ADR 004, spec 002); the questions assistant of stage E5b is the next one.
  *
  * Non-negotiables: grounded answers with citations; validated tool inputs; the AI picks catalog IDs +
@@ -15,4 +16,6 @@
  */
 export * from './client';
 export * from './config';
+export * from './loop';
 export * from './prompts/label';
+export * from './prompts/meal';
