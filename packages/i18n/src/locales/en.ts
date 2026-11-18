@@ -724,19 +724,20 @@ export const en: DeepStringRecord<typeof es> = {
       day_incomplete:
         'You logged little this day. If you ate something else, add it so the summary is useful.',
       protein_low:
-        'You fell a bit short on protein. On a similar day, add one more serving at a meal.',
+        "This day's protein ended below your target. On a similar day, add one more serving at a meal.",
       protein_gap: 'There is still protein left for {meals}: a good moment to add some.',
       kcal_low:
-        'You ended below your energy for the day. On a similar day, one more snack gets you closer.',
+        "This day's energy ended below your target. On a similar day, one more snack gets you closer.",
       kcal_above:
-        'Today you went above your energy for the day. One day does not change the trend: the week is what counts.',
+        "This day's energy ended above your target. One day does not change the trend: the week is what counts.",
       fiber_low:
-        'It was a low-fibre day. On a similar day, add fruit, vegetables, pulses or wholemeal bread.',
-      fiber_gap: 'There is still fibre left for {meals}: fruit, vegetables or pulses add it.',
+        "This day's fibre ended below your target. On a similar day, add a fibre-rich food you already eat.",
+      fiber_gap:
+        'There is still fibre left for {meals}: a fibre-rich food you already eat adds it.',
       protein_uneven:
         'Almost all the protein came in one meal. Spreading it over several helps you use it.',
       carbs_low_training:
-        'On a training day you fell short on carbs. Adding them helps you perform and recover.',
+        'On this training day, carbs ended below your target. Adding them helps you perform and recover.',
       carbs_gap_training:
         'You train today and there are still carbs left for {meals}: they help you perform and recover.',
       on_track: 'Protein, fibre and carbs close to your targets.',

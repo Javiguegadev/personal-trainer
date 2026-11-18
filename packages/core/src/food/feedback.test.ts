@@ -741,6 +741,18 @@ describe('the compensation term list (AC14)', () => {
       'purge',
       'eat less tomorrow',
       'make up for it',
+      // Domain review 2026-11-18
+      'Mañana, una cena más ligera',
+      'Puedes saltarte el postre',
+      'un poco menos de pan',
+      'reduce el pan',
+      'sin cenar',
+      'no pasa nada por un exceso',
+      'Fue un mal día',
+      'work it off tomorrow',
+      'a smaller portion at dinner',
+      'You ate too much',
+      'no guilt',
     ]) {
       expect(hasCompensationTerm(text), text).toBe(true);
     }
@@ -752,6 +764,10 @@ describe('the compensation term list (AC14)', () => {
       'A good breakfast helps',
       'Unas lentejas en la comida',
       'Añade algo de queso fresco',
+      'Suma al menos una pieza de fruta',
+      'por lo menos un yogur',
+      'Fast-digesting carbs before training',
+      'Un plato de salteado de verduras',
     ]) {
       expect(hasCompensationTerm(text), text).toBe(false);
     }

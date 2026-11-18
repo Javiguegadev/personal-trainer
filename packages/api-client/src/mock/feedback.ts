@@ -22,12 +22,12 @@ const SCRIPT: Partial<Record<FeedbackObservationKind, Record<Locale, string>>> =
     en: 'Next time, one more serving of protein at a meal brings you closer to your target.',
   },
   fiber_gap: {
-    es: 'Una legumbre, fruta o pan integral en la próxima comida suma fibra.',
-    en: 'A pulse, some fruit or wholemeal bread at your next meal adds fibre.',
+    es: 'Algún alimento con fibra que ya sueles comer, en la próxima comida, la suma.',
+    en: 'A fibre-rich food you already eat, at your next meal, adds some.',
   },
   fiber_low: {
-    es: 'La próxima vez, añade fruta, verdura o legumbre para sumar fibra.',
-    en: 'Next time, add fruit, vegetables or pulses to get more fibre.',
+    es: 'La próxima vez, algún alimento con fibra que ya sueles comer te acerca a tu objetivo.',
+    en: 'Next time, a fibre-rich food you already eat gets you closer to your target.',
   },
   carbs_gap_training: {
     es: 'Hoy entrenas: unos hidratos en la próxima comida te ayudan a rendir y recuperar.',

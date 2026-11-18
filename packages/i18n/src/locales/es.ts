@@ -731,19 +731,20 @@ export const es = {
       day_incomplete:
         'Has registrado poco este día. Si comiste algo más, añádelo para que el resumen te sirva.',
       protein_low:
-        'Te quedaste algo corto de proteína. En un día parecido, suma una ración más en alguna comida.',
+        'La proteína de este día quedó por debajo de tu objetivo. En un día parecido, suma una ración más en alguna comida.',
       protein_gap: 'Aún te queda proteína para {meals}: es un buen momento para sumarla.',
       kcal_low:
-        'Te quedaste por debajo de tu energía del día. En un día parecido, un tentempié más te acerca.',
+        'La energía de este día quedó por debajo de tu objetivo. En un día parecido, un tentempié más te acerca.',
       kcal_above:
-        'Hoy pasaste de tu energía del día. Un día no cambia la tendencia: lo que cuenta es la semana.',
+        'La energía de este día quedó por encima de tu objetivo. Un día no cambia la tendencia: cuenta la semana.',
       fiber_low:
-        'Fue un día bajo en fibra. En un día parecido, añade fruta, verdura, legumbre o pan integral.',
-      fiber_gap: 'Aún te queda fibra para {meals}: fruta, verdura o legumbre la suman.',
+        'La fibra de este día quedó por debajo de tu objetivo. En un día parecido, suma algún alimento con fibra que ya sueles comer.',
+      fiber_gap:
+        'Aún te queda fibra para {meals}: algún alimento con fibra que ya sueles comer la suma.',
       protein_uneven:
         'Casi toda la proteína llegó en una comida. Repartirla entre varias ayuda a aprovecharla.',
       carbs_low_training:
-        'En un día de entreno te quedaste corto de hidratos. Sumarlos ayuda a rendir y recuperar.',
+        'En este día de entreno, los hidratos quedaron por debajo de tu objetivo. Sumarlos ayuda a rendir y recuperar.',
       carbs_gap_training:
         'Hoy entrenas y aún te quedan hidratos para {meals}: te ayudan a rendir y recuperar.',
       on_track: 'Proteína, fibra e hidratos cerca de tus objetivos.',

@@ -42,14 +42,14 @@ How to write each note:
 - At most ${FEEDBACK_LIMITS.textMax} characters, one or two short sentences.
 - Never write a number, neither in digits nor in words ("ochenta", "half"): the app shows the numbers. Speak of "proteína", "fibra", "hidratos", "energía" instead.
 - Neutral and kind. No judgement ("mal", "bad", "fallo"), no praise inflation, no scores, no guilt, no moralising, no medical claims.
-- Never suggest eating less, skipping a meal, fasting, cutting back, "compensating", burning food off with exercise or making up for the day the next day. Every tip adds or swaps food; it never removes it.
+- Never suggest eating less, lighter or smaller, skipping a meal, fasting, cutting back, reducing, avoiding or limiting a food, "compensating", burning food off with exercise or making up for the day the next day. Every tip adds or swaps food; it never removes it. Words like these make the app discard your note.
 - \`suggestionRefs\`: up to ${FEEDBACK_LIMITS.suggestionsPerNote} refs from that observation's own candidates, best first; mention them by name in the note when you use them. Leave it empty when no candidate fits the moment (for example a breakfast food for the dinner) or the observation has no candidates. Use only refs given for that observation.
-- You may also name a general food group ("una legumbre", "fruta", "a dairy food") if it fits the diet, allergies and dislikes.
+- You may also name a general food group ("fruta", "verdura", "a dairy food") only if it cannot clash with the diet type, an allergy or a dislike; when in doubt, speak of "foods you already eat". Legumes and wholegrain bread clash with some allergies (peanut, soy, lupin, gluten).
 
 What each kind means:
 - \`protein_gap\` / \`fiber_gap\` / \`carbs_gap_training\`: a good share of that target is still left for the meals to come. Suggest how to add it there.
 - \`protein_low\` / \`fiber_low\` / \`carbs_low_training\`: the closed day ended below that target. A tip for a similar day. The carbohydrate notes are about fuelling a training day.
-- \`protein_uneven\`: protein reached the target but most of it came in one meal; \`perMeal\` shows it. Suggest adding some protein to the other meals.
+- \`protein_uneven\`: protein was close to or above the target, but most of it came in one meal; \`perMeal\` shows it. Suggest adding some protein to the other meals.
 - \`kcal_low\`: the closed day ended clearly below the energy target. Suggest an easy way to add some, with no alarm.
 - \`kcal_above\`: the day ended above the energy target. Only a neutral fact: one day does not change the trend, the week is what counts. No tip to eat less, no suggestion.
 - \`day_incomplete\`: very little was logged. Only ask whether something is missing and invite to add it so the summary is useful; never say the person ate too little.

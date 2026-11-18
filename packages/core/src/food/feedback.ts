@@ -346,43 +346,81 @@ export function feedbackCandidates(
 // ── Validation (AC14) ────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Restriction and compensation (AC14, "Safety"): a note with any of these falls back to the fixed
- * wording. Matched on lower-case text without accents. To review with the professional reviewer.
+ * Restriction, compensation and judgement (AC14, "Safety"): a note with any of these falls back to the
+ * fixed wording. Matched on lower-case text without accents, after removing "al menos" / "por lo
+ * menos" ("at least"). Broad on purpose: a false positive only costs the AI wording. To review with
+ * the professional reviewer (domain review 2026-11-18 added the second half of each list).
  */
 export const COMPENSATION_TERMS: readonly RegExp[] = [
-  // es
-  /\bsalt(a|ar|arte|ate|atela|atelo|es|e|ando)\b/,
+  // es: restriction and compensation
+  /\bsalt(a|ar|arte|arse|arla|arlo|ate|atela|atelo|es|e|ando)\b/,
   /\bayun/,
-  /\bquem(a|ar|arlo|arla|alo|ala|as|e|es)\b/,
+  /\bquem/,
   /\bcompens/,
   /\bpurg/,
   /\bvomit/,
-  /\bcomer? menos\b/,
-  /\bcomas menos\b/,
-  /\bmenos manana\b/,
+  /\bmenos\b/,
   /\brestring/,
   /\brestricc/,
+  /\breduc/,
+  /\brecort/,
+  /\blimit/,
+  /\belimin/,
+  /\bquit(a|ar|arte|ate)\b/,
+  /\bliger/,
+  /\bpasar hambre\b/,
+  /\bsin (cenar|comer|desayunar|merendar)\b/,
   /\bdeja de comer\b/,
   /\bno (cenes|comas|desayunes|meriendes)\b/,
+  /\bdeficit\b/,
+  /\bcardio\b/,
   /\bdetox\b/,
-  // en
+  // es: judgement
+  /\btrampa/,
+  /\bculpa/,
+  /\batracon/,
+  /\bexceso/,
+  /\bte pasaste\b/,
+  /\bmal\b/,
+  /\bfallo\b/,
+  // en: restriction and compensation
   /\bskip/,
-  /\bfast(s|ing|ed)?\b/,
+  /\bfast(ing|ed)\b|\bto fast\b/,
   /\bburn/,
   /\bcompensat/,
   /\bmake up for\b/,
   /\bpurg/,
   /\beat less\b/,
-  /\bcut (back|down)\b/,
+  /\bcut (back|down|out)\b/,
   /\brestrict/,
+  /\breduc/,
+  /\bavoid/,
+  /\blimit/,
+  /\bsmaller portion/,
+  /\blighter\b/,
+  /\bwork (it )?off\b/,
+  /\boffset\b/,
+  /\bbalance (it )?out\b/,
+  /\bexercise more\b/,
+  /\bearn/,
+  /\bdeficit\b/,
   /\bstarv/,
   /\bcleanse\b/,
+  // en: judgement
+  /\bcheat/,
+  /\bguilt/,
+  /\bbinge/,
+  /\boverate\b/,
+  /\btoo much\b/,
+  /\bexcess/,
+  /\bbad\b/,
 ];
 
 const normalize = (text: string) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export function hasCompensationTerm(text: string): boolean {
-  const plain = normalize(text);
+  // "al menos" and "por lo menos" mean "at least", not "eat less".
+  const plain = normalize(text).replace(/\b(al|lo) menos\b/g, ' ');
   return COMPENSATION_TERMS.some((term) => term.test(plain));
 }
 

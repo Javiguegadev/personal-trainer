@@ -249,5 +249,44 @@ Fixed in core, shown per observation (AC18). To confirm with the professional re
 
 ## Progress
 
-- [ ] contracts · [ ] db (none) · [ ] core · [ ] ai · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db (none) · [x] core · [x] ai · [x] api · [x] client · [x] ui · [x] e2e
+      (implemented 2026-11-18; `pnpm check` green; E2E `apps/e2e/tests/feedback.spec.ts` 5/5)
+- AC → tests: AC4–AC12, AC14, AC17 `core/food/feedback.test.ts`; AC2, AC13–AC15, AC20
+  `apps/api/src/routes/me/feedback.test.ts` and `packages/ai/src/prompts/feedback/feedback.test.ts`;
+  AC3, AC17 `packages/api-client/src/feedback.test.ts`; AC1, AC2, AC10, AC16–AC18 E2E. AC19 is the
+  eval (not run). AC21: consent text + `CONSENT_VERSION` `2026-11-v6`.
+- Left for the human: run the eval and read 20 notes of its report (AC19, needs
+  `ANTHROPIC_API_KEY`); the phone check in Expo Go (the card on Food and Today, a suggestion opening
+  the portion sheet, the source links opening the browser, dark mode); the professional review of the
+  open questions above.
+- Domain review (2026-11-18, agent): no blocker; DOIs and thresholds consistent with the cited
+  guidelines. Applied: the fixed wording of fiber names no food group (legumes and wholegrain bread
+  clash with peanut, soy, lupin or gluten allergies), neutral "quedó por debajo / por encima" wording
+  for the closed-day notes, a broader compensation and judgement term list (es, en; "al menos" is not
+  "menos"), and the prompt's `protein_uneven` says "close to or above the target".
 - Decisions taken during implementation:
+  - `ed_soft_stop` cannot be set from the form (only by the safety rules), so the E2E covers AC2 with
+    pregnancy; `ed_soft_stop` is covered by the core, API and mock tests.
+  - A candidate must bring a minimum of the missing nutrient per portion (5 g protein, 10 g carbs,
+    1.5 g fiber, `FEEDBACK_LIMITS.candidateMinG`): without it an egg was suggested for carbohydrates.
+  - A suggestion opens the add screen with `?date&meal&foodId&portion`; the card puts the food in the
+    query cache first, so the portion sheet opens without a request. The item is logged with
+    `inputMethod: 'recent'` (no new enum value, no migration).
+  - On Today the card sits inside the summary card, under "Registrar comida"; on the Food tab it sits
+    under the summary. The last feedback of a day is shared by both screens (one cache key per day).
+  - The request also carries `today` (the device's date, ±1 day of server UTC, as in spec 005), so the
+    API can tell today from a past day; 400 when `localDate` is after it or more than 6 days before.
+  - A fixed-wording note has `text: null` and `source: template`: the app renders
+    `feedback.template.<kind>` with core's numbers, so the wording lives only in i18n.
+  - A fixed-wording note still carries core's 2 best candidates as suggestions (AC15: the wording is
+    fixed, the foods are still the user's own).
+  - The breakdown is not stored: the API derives the reference weight and the carbohydrate minimum with
+    `referenceWeightKg` and `sportCarbsMinimum` (`core/nutrition/focus`), as `computeTargets` does.
+  - `feedbackFingerprint` is FNV-1a over the sorted `id@epoch-ms(recordedAt)` pairs, prefixed with the
+    item count, so the time-zone format of `recordedAt` does not matter.
+  - AC3: a pending save of that day, or any pending delete (the queue does not keep its day), holds
+    the request ("Sincronizando…").
+  - The mock backend scripts an "AI" note for the kinds food can fix (protein, fiber, carbohydrates)
+    and leaves the rest to the fixed wording, so both paths show in the E2E.
+  - Eval: `pnpm --filter @pt/api eval:daily-feedback` (60 days: 12 scenarios × 5 profiles, es/en
+    alternating); report in `apps/api/evals/daily-feedback/reports/`. Not run yet.

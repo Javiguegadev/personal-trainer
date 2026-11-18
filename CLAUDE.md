@@ -99,7 +99,11 @@ pnpm format
   007 (plate photo and sentence shortcuts, editable draft, Claude Haiku 5.5 with a `search_foods`
   tool): the sentence eval passed (2026-11-17); left, the ~30 weighed plates for the photo eval, a
   sample review of the eval sentences and the catalog gaps. See each spec's "Progress".
-- Spec 008 (daily feedback, last piece of E4): approved 2026-11-18, to implement.
-- Next (ADR 003, ADR 006): spec 008 → E5 workout logging, daily context and the week view →
+- Spec 008 (daily feedback, last piece of E4): implemented with E2E on 2026-11-18
+  (`POST /me/food-log/feedback`, Claude Haiku 5.5 wording with a fixed-wording fallback, consent
+  `2026-11-v6`). Left: the eval (`pnpm --filter @pt/api eval:daily-feedback`, needs
+  `ANTHROPIC_API_KEY`) and a read of 20 notes, the phone check, the professional review of the
+  thresholds.
+- Next (ADR 003, ADR 006): E5 workout logging, daily context and the week view →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
   premium AI → E6 payments.
