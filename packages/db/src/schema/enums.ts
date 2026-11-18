@@ -4,15 +4,23 @@ import {
   FoodInputMethodSchema,
   FoodOriginSchema,
   DietTypeSchema,
+  EquipmentSchema,
+  ExerciseCategorySchema,
+  ExerciseOriginSchema,
+  ExerciseTrackingSchema,
   GoalSchema,
   IntensitySchema,
   JobActivitySchema,
   LocaleSchema,
   MealTypeSchema,
+  MuscleGroupSchema,
   QuantityUnitSchema,
   SexSchema,
   TrainingFocusSchema,
   UnitsSchema,
+  ActivityTypeSchema,
+  WorkoutInputMethodSchema,
+  WorkoutKindSchema,
 } from '@pt/contracts';
 import { pgEnum } from 'drizzle-orm/pg-core';
 
@@ -36,3 +44,14 @@ export const mealTypeEnum = pgEnum('meal_type', values(MealTypeSchema));
 export const foodInputMethodEnum = pgEnum('food_input_method', values(FoodInputMethodSchema));
 export const quantityUnitEnum = pgEnum('quantity_unit', values(QuantityUnitSchema));
 export const foodOriginEnum = pgEnum('food_origin', values(FoodOriginSchema));
+export const exerciseOriginEnum = pgEnum('exercise_origin', values(ExerciseOriginSchema));
+export const exerciseTrackingEnum = pgEnum('exercise_tracking', values(ExerciseTrackingSchema));
+export const exerciseCategoryEnum = pgEnum('exercise_category', values(ExerciseCategorySchema));
+export const muscleGroupEnum = pgEnum('muscle_group', values(MuscleGroupSchema));
+export const equipmentEnum = pgEnum('equipment', values(EquipmentSchema));
+export const workoutKindEnum = pgEnum('workout_kind', values(WorkoutKindSchema));
+export const activityTypeEnum = pgEnum('activity_type', values(ActivityTypeSchema));
+export const workoutInputMethodEnum = pgEnum(
+  'workout_input_method',
+  values(WorkoutInputMethodSchema),
+);

@@ -11,6 +11,8 @@ interface ScreenProps {
   footer?: ReactNode;
   /** Scrollable content (default). Use false for screens that manage their own list, like the chat. */
   scroll?: boolean;
+  /** Narrower side margins, for rows that must fit 360 px (the live session, spec 009). */
+  dense?: boolean;
   testID?: string;
 }
 
@@ -18,7 +20,7 @@ interface ScreenProps {
  * Screen frame: safe areas, theme background, keyboard avoidance (edge-to-edge Android needs an explicit
  * `behavior`), and a capped content width on web/tablets.
  */
-export function Screen({ children, footer, scroll = true, testID }: ScreenProps) {
+export function Screen({ children, footer, scroll = true, dense = false, testID }: ScreenProps) {
   const { colors } = useTheme();
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} testID={testID}>
@@ -27,13 +29,13 @@ export function Screen({ children, footer, scroll = true, testID }: ScreenProps)
         {scroll ? (
           <ScrollView
             style={styles.flex}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, dense && styles.dense]}
             keyboardShouldPersistTaps="handled"
           >
             {children}
           </ScrollView>
         ) : (
-          <View style={[styles.content, styles.flex]}>{children}</View>
+          <View style={[styles.content, dense && styles.dense, styles.flex]}>{children}</View>
         )}
         {footer ? (
           <View
@@ -60,6 +62,7 @@ const styles = StyleSheet.create({
     maxWidth: tokens.layout.maxContentWidth,
     alignSelf: 'center',
   },
+  dense: { paddingHorizontal: tokens.space.sm },
   footer: {
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: tokens.space.lg,

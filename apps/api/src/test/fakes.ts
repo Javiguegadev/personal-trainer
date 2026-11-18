@@ -2,20 +2,26 @@ import {
   AiUnavailableError,
   type AiFeature,
   type AiUsage,
+  type FeedbackPromptInput,
   type MealInput,
   type ReadLabel,
   type ReadMeal,
+  type WordFeedback,
 } from '@pt/ai';
 import type {
   ConsentKind,
   CustomFoodUpsertRequest,
+  FeedbackReading,
   LabelReading,
   MealReading,
   MealItem,
   ProfileInput,
   WeightEntry,
+  CustomExerciseUpsertRequest,
+  Exercise,
+  Workout,
 } from '@pt/contracts';
-import { USER_FOOD_SOURCE } from '@pt/core';
+import { USER_FOOD_SOURCE, customExercise, type ExerciseSetRow } from '@pt/core';
 import { randomUUID } from 'node:crypto';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { createApp } from '../app';
@@ -51,6 +57,16 @@ interface UserRows {
   /** The food log, with deleted items kept as tombstones (spec 005 AC20). */
   mealItems: (MealItem & { deleted: boolean })[];
   favourites: { foodId: string; createdAt: string }[];
+  /** The training log, with deleted workouts kept as tombstones (spec 009 AC23). */
+  workouts: (Workout & { deleted: boolean })[];
+}
+
+/** A custom exercise as stored: its owner, write time and tombstone (spec 009). */
+export interface StoredCustomExercise {
+  exercise: Exercise;
+  ownerId: string;
+  recordedAt: string;
+  deletedAt: string | null;
 }
 
 /** In-memory Store with the same semantics as the Drizzle one (targets history, sticky completion). */
@@ -62,6 +78,11 @@ export class FakeStore implements Store {
   /** Products read from Open Food Facts and the users' own foods (spec 006), most recent last. */
   extraFoods: CatalogFood[] = [];
   misses = new Map<string, { reason: BarcodeMissReason; checkedAt: Date }>();
+  /** The exercise catalog (spec 009); tests fill it with `exerciseCatalogFixture()`. */
+  exerciseCatalog: Exercise[] = [];
+  exerciseCatalogVersion = 'test-1';
+  /** Custom exercises of every user, most recent last. */
+  customExercises: StoredCustomExercise[] = [];
 
   rows(userId: string): UserRows {
     let rows = this.users.get(userId);
@@ -75,6 +96,7 @@ export class FakeStore implements Store {
         weights: [],
         mealItems: [],
         favourites: [],
+        workouts: [],
       };
       this.users.set(userId, rows);
     }
@@ -396,6 +418,111 @@ export class FakeStore implements Store {
     this.rows(userId).aiUsage.push({ ...usage, createdAt: at.toISOString() });
   }
 
+  // Exercise catalog and workout log (spec 009), same semantics as `store/training-store.ts`.
+
+  private liveWorkouts(rows: UserRows): Workout[] {
+    return rows.workouts.filter((w) => !w.deleted).map(({ deleted: _, ...w }) => w);
+  }
+
+  async listExerciseCatalog() {
+    return { exercises: this.exerciseCatalog, version: this.exerciseCatalogVersion };
+  }
+
+  async listCustomExercises(userId: string) {
+    return this.customExercises
+      .filter((e) => e.ownerId === userId && e.deletedAt === null)
+      .map((e) => e.exercise)
+      .reverse();
+  }
+
+  async getLoggableExercises(userId: string, ids: readonly string[]) {
+    const own = this.customExercises.filter((e) => e.ownerId === userId).map((e) => e.exercise);
+    return [...this.exerciseCatalog, ...own].filter((e) => ids.includes(e.id));
+  }
+
+  async upsertCustomExercise(userId: string, id: string, request: CustomExerciseUpsertRequest) {
+    if (this.exerciseCatalog.some((e) => e.id === id)) return 'id_taken' as const;
+    const stored = this.customExercises.find((e) => e.exercise.id === id);
+    if (stored && stored.ownerId !== userId) return 'id_taken' as const;
+    if (!stored || Date.parse(stored.recordedAt) <= Date.parse(request.recordedAt)) {
+      const next: StoredCustomExercise = {
+        exercise: customExercise(id, request),
+        ownerId: userId,
+        recordedAt: new Date(request.recordedAt).toISOString(),
+        deletedAt: null,
+      };
+      this.customExercises = [...this.customExercises.filter((e) => e.exercise.id !== id), next];
+    }
+    const current = this.customExercises.find((e) => e.exercise.id === id)!;
+    return current.deletedAt === null ? current.exercise : null;
+  }
+
+  async deleteCustomExercise(userId: string, id: string, recordedAt: string) {
+    const stored = this.customExercises.find((e) => e.exercise.id === id && e.ownerId === userId);
+    if (stored && Date.parse(stored.recordedAt) <= Date.parse(recordedAt)) {
+      stored.deletedAt = NOW.toISOString();
+      stored.recordedAt = new Date(recordedAt).toISOString();
+    }
+  }
+
+  async listWorkouts(userId: string, from: string, to: string) {
+    return this.liveWorkouts(this.rows(userId))
+      .filter((w) => w.localDate >= from && w.localDate <= to)
+      .sort(newestWorkoutFirst);
+  }
+
+  async listWorkoutIdsOfDay(userId: string, localDate: string) {
+    return this.liveWorkouts(this.rows(userId))
+      .filter((w) => w.localDate === localDate)
+      .map((w) => w.id);
+  }
+
+  async upsertWorkout(userId: string, workout: Workout) {
+    for (const [owner, rows] of this.users) {
+      if (owner !== userId && rows.workouts.some((w) => w.id === workout.id)) return null;
+    }
+    const rows = this.rows(userId);
+    const stored = rows.workouts.find((w) => w.id === workout.id);
+    if (!stored || Date.parse(stored.recordedAt) <= Date.parse(workout.recordedAt)) {
+      const next = {
+        ...structuredClone(workout),
+        startedAt: new Date(workout.startedAt).toISOString(),
+        recordedAt: new Date(workout.recordedAt).toISOString(),
+        deleted: false,
+      };
+      rows.workouts = [...rows.workouts.filter((w) => w.id !== workout.id), next];
+    }
+    const current = rows.workouts.find((w) => w.id === workout.id);
+    return current && !current.deleted ? (({ deleted: _, ...w }) => w)(current) : null;
+  }
+
+  async deleteWorkout(userId: string, id: string, recordedAt: string) {
+    const stored = this.rows(userId).workouts.find((w) => w.id === id);
+    if (stored && Date.parse(stored.recordedAt) <= Date.parse(recordedAt)) {
+      stored.deleted = true;
+      stored.recordedAt = new Date(recordedAt).toISOString();
+    }
+  }
+
+  async listExerciseSetRows(userId: string, exerciseId?: string): Promise<ExerciseSetRow[]> {
+    return this.liveWorkouts(this.rows(userId))
+      .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+      .flatMap((w) =>
+        w.exercises.flatMap((e) =>
+          e.exerciseId !== null && (!exerciseId || e.exerciseId === exerciseId)
+            ? e.sets.map((set) => ({
+                workoutId: w.id,
+                localDate: w.localDate,
+                startedAt: w.startedAt,
+                exerciseId: e.exerciseId!,
+                tracking: e.tracking,
+                set,
+              }))
+            : [],
+        ),
+      );
+  }
+
   async exportUser(userId: string): Promise<ExportRecord> {
     const rows = this.rows(userId);
     return {
@@ -405,6 +532,10 @@ export class FakeStore implements Store {
       weights: rows.weights,
       mealItems: this.live(rows).sort(byDayThenTime),
       customFoods: this.extraFoods.filter((f) => f.ownerId === userId).map((f) => toFood(f, 'es')),
+      workouts: this.liveWorkouts(rows).sort(newestWorkoutFirst).reverse(),
+      customExercises: this.customExercises
+        .filter((e) => e.ownerId === userId)
+        .map((e) => ({ ...e.exercise, deletedAt: e.deletedAt })),
       favouriteFoods: rows.favourites.map((f) => ({
         foodId: f.foodId,
         key: [...this.catalog, ...this.extraFoods].find((c) => c.id === f.foodId)?.key ?? '',
@@ -502,6 +633,24 @@ export interface FakeMealModel {
   toolResults: string[];
 }
 
+/** The feedback model (spec 008): its answer, built from the input, and the inputs it received. */
+export interface FakeFeedbackModel {
+  answer: ((input: FeedbackPromptInput) => FeedbackReading) | AiUnavailableError | null;
+  calls: FeedbackPromptInput[];
+}
+
+export function feedbackUsage(status: AiUsage['status'] = 'ok'): AiUsage {
+  return {
+    feature: 'daily_feedback',
+    model: 'claude-haiku-5-5',
+    inputTokens: status === 'error' ? 0 : 1500,
+    outputTokens: status === 'error' ? 0 : 150,
+    costUsd: status === 'error' ? 0 : 0.000225,
+    latencyMs: 1200,
+    status,
+  };
+}
+
 export async function createTestApp() {
   const store = new FakeStore();
   const deleted: string[] = [];
@@ -511,6 +660,7 @@ export async function createTestApp() {
       deleted.push(userId);
       store.users.delete(userId);
       store.extraFoods = store.extraFoods.filter((f) => f.ownerId !== userId);
+      store.customExercises = store.customExercises.filter((e) => e.ownerId !== userId);
     },
   };
   const tokens = await createTestTokens();
@@ -538,6 +688,14 @@ export async function createTestApp() {
     const feature = input.kind === 'photo' ? 'meal_photo' : 'meal_text';
     return { reading: meal.answer(results), usage: mealUsage(feature) };
   };
+  /** The feedback model: what it answers next and the inputs it received (spec 008). */
+  const feedback: FakeFeedbackModel = { answer: null, calls: [] };
+  const wordFeedback: WordFeedback = async (input) => {
+    feedback.calls.push(input);
+    if (feedback.answer === null) throw new Error('no fake feedback answer set');
+    if (feedback.answer instanceof AiUnavailableError) throw feedback.answer;
+    return { reading: feedback.answer(input), usage: feedbackUsage() };
+  };
   const clock = { now: NOW };
   const deps: Deps = {
     verifyToken: tokens.verifyToken,
@@ -549,6 +707,7 @@ export async function createTestApp() {
     },
     readLabel,
     readMeal,
+    wordFeedback,
     now: () => clock.now,
   };
   const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test', deps });
@@ -565,7 +724,7 @@ export async function createTestApp() {
     });
   }
 
-  return { app, store, deleted, tokens, token, call, off, label, meal, clock };
+  return { app, store, deleted, tokens, token, call, off, label, meal, feedback, clock };
 }
 
 /** A valid adult profile (35-year-old woman, 165 cm, 70 kg, seated, no training, lose). */
@@ -589,6 +748,9 @@ export function profileInput(overrides: Partial<ProfileInput> = {}): ProfileInpu
     ...overrides,
   };
 }
+
+const newestWorkoutFirst = (a: Workout, b: Workout) =>
+  b.localDate.localeCompare(a.localDate) || b.startedAt.localeCompare(a.startedAt);
 
 const byDayThenTime = (a: MealItem, b: MealItem) =>
   a.localDate.localeCompare(b.localDate) || a.recordedAt.localeCompare(b.recordedAt);
@@ -671,5 +833,89 @@ export function catalogFixture(): CatalogFood[] {
       fatG: 1.4,
       fiberG: 3.2,
     }),
+  ];
+}
+
+/** Ids of the exercise catalog fixture (spec 009). */
+export const EXERCISE = {
+  bench: 'e1000000-0000-4000-8000-000000000001',
+  pullUp: 'e1000000-0000-4000-8000-000000000002',
+  plank: 'e1000000-0000-4000-8000-000000000003',
+  rowing: 'e1000000-0000-4000-8000-000000000004',
+} as const;
+
+/** One exercise of each tracking type. */
+export function exerciseCatalogFixture(): Exercise[] {
+  const exercise = (
+    id: string,
+    key: string,
+    nameEs: string,
+    nameEn: string,
+    tracking: Exercise['tracking'],
+    category: Exercise['category'],
+    primaryMuscles: Exercise['primaryMuscles'],
+    equipment: Exercise['equipment'],
+    popularity: number,
+  ): Exercise => ({
+    id,
+    key,
+    origin: 'catalog',
+    nameEs,
+    nameEn,
+    synonymsEs: [],
+    synonymsEn: [],
+    tracking,
+    category,
+    primaryMuscles,
+    secondaryMuscles: [],
+    equipment,
+    popularity,
+    source: 'free-exercise-db',
+  });
+  return [
+    exercise(
+      EXERCISE.bench,
+      'press-banca',
+      'Press de banca',
+      'Bench press',
+      'weight_reps',
+      'strength',
+      ['chest'],
+      ['barbell'],
+      10,
+    ),
+    exercise(
+      EXERCISE.pullUp,
+      'dominadas',
+      'Dominadas',
+      'Pull-up',
+      'reps',
+      'strength',
+      ['back'],
+      ['bodyweight'],
+      9,
+    ),
+    exercise(
+      EXERCISE.plank,
+      'plancha',
+      'Plancha',
+      'Plank',
+      'duration',
+      'strength',
+      ['core'],
+      ['bodyweight'],
+      8,
+    ),
+    exercise(
+      EXERCISE.rowing,
+      'remo-ergometro',
+      'Remo ergómetro',
+      'Rowing machine',
+      'distance_duration',
+      'cardio',
+      ['back'],
+      ['machine'],
+      6,
+    ),
   ];
 }

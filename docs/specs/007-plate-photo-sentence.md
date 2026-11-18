@@ -267,8 +267,8 @@ unreadable` with `reason`).
 - Done (2026-11-17), one commit per step: contracts and consent text (`a476858`), migration `0008`
   (`65c3e44`), core (`667580f`), `@pt/ai` and API (`ea4904d`), client and mock (`81f6eb5`), the 135
   sentences of the eval (`7313599`), UI (`b648658`), E2E (`f28566c`).
-- **Migration `0008_meal_draft_input_methods` is generated and not applied to dev.** It only adds
-  `photo` and `text` to `food_input_method` (two `ALTER TYPE … ADD VALUE`). Apply it after `0007`.
+- **Migration `0008_meal_draft_input_methods` was applied to dev on 2026-11-17** (after `0007`). It
+  only adds `photo` and `text` to `food_input_method` (two `ALTER TYPE … ADD VALUE`).
 - Tests by criterion: AC4–AC6, AC9 `core/food/meal-draft.test.ts`, `api/routes/foods/drafts.test.ts`
   and the prompt in `ai/prompts/meal/meal.test.ts`; AC7 (`portionForReplacement`, `draftTotals`) core;
   AC10–AC12, AC16 `drafts.test.ts` (401 and 403 for both routes, 400, 413, 429, 503, the caps per
@@ -280,15 +280,24 @@ unreadable` with `reason`).
   `ed_soft_stop` on the draft screen (it uses the same `showNumbers` as spec 005 AC18).
 - AC13–AC15: the harness is `pnpm --filter @pt/api eval:meal-text` and `eval:meal-photo`
   (`apps/api/evals/meal-draft.ts`, READMEs in `meal-text/` and `meal-photo/`). **Not run**: it needs
-  the API key, the dev database with `0008`, the go-ahead to spend, and for the photos the ~30
+  the API key, the go-ahead to spend, and for the photos the ~30
   weighed plates of the human. The 135 sentences were written by an agent that saw only the catalog;
   a human should review a sample (its judgement calls are in the commit and below).
 - Checked on web with Playwright at 390 px (light and dark) and 1280 px, without console errors: the
   add screen with the shortcuts, the sentence, the draft with its marks, the portion sheet in draft
   mode, the photo draft.
-- Left for the human: apply `0008`; the phone check in Expo Go (camera and library for the plate
-  photo, the keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the
-  draft footer); weigh and photograph the plates; the go-ahead for both evals.
+- Phone check in Expo Go passed (the human, 2026-11-17): camera and library for the plate photo, the
+  keyboard's dictation in "Describir", the keyboard over "Preparar borrador" and over the draft footer.
+  The go-ahead for both evals was given the same day; the photo eval waits for the weighed plates.
+- **Sentence eval (AC13), 2026-11-17, Claude Haiku 5.5: PASS.** Foods matched 229/243 (94.2 %, gate
+  90 %); extra items 4/233 (1.7 %, gate ≤ 5 %); explicit sentences within ±5 % kcal 54/54 (gate 90 %);
+  no items from sentences without food. 0.11 USD for 135 calls (0.0008 each); latency median 3.1 s,
+  p90 5.0 s. The 15 misses are mostly an implied side food left out ("lomo con pimientos", "cereales
+  con leche", "un bocata de tortilla" without the bread) and judgement calls of the cases (fried vs.
+  grilled egg, raw vs. cooked rice, "un tupper de lentejas con chorizo" adding the chorizo). The cases
+  still need a human sample review before the numbers are trusted.
+- Left for the human: weigh and photograph the plates; review a sample of the 135 sentences; the
+  catalog gaps.
 - Decisions taken during implementation:
   - **The tool shows short refs, not ids** (`f1`, `f1s2`): fewer tokens, and an id the tool never
     showed cannot come back. The API maps the refs back before `mealDraft`.

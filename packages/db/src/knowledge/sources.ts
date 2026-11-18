@@ -41,6 +41,20 @@ export const OPEN_FOOD_FACTS: KnowledgeSourceDefinition = {
     'Products with a barcode: contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). It is written by volunteers and may contain errors: always check the package.',
 };
 
+/** The exercise catalog (spec 009 AC1, AC2), pinned to one commit of the repository. */
+export const FREE_EXERCISE_DB: KnowledgeSourceDefinition & { dataUrl: string } = {
+  id: 'free-exercise-db',
+  name: 'Free Exercise DB',
+  url: 'https://github.com/yuhonas/free-exercise-db',
+  license: 'The Unlicense (public domain)',
+  version: 'f00c92c (2026-09-27)',
+  attributionEs:
+    'Ejercicios: categorías, músculos y material de Free Exercise DB (https://github.com/yuhonas/free-exercise-db), de dominio público (The Unlicense). Nombres en español y sinónimos: elaboración propia.',
+  attributionEn:
+    'Exercises: categories, muscles and equipment from Free Exercise DB (https://github.com/yuhonas/free-exercise-db), public domain (The Unlicense). Spanish names and synonyms: our own work.',
+  dataUrl: 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/f00c92c/dist/exercises.json',
+};
+
 /** The source of the foods a user creates. It is not a knowledge source and is never listed. */
 export const USER_SOURCE: KnowledgeSourceDefinition = {
   id: 'user',
@@ -52,4 +66,9 @@ export const USER_SOURCE: KnowledgeSourceDefinition = {
   attributionEn: '',
 };
 
-export const KNOWLEDGE_SOURCES = [CIQUAL_2025, OPEN_FOOD_FACTS, USER_SOURCE] as const;
+export const KNOWLEDGE_SOURCES = [
+  CIQUAL_2025,
+  OPEN_FOOD_FACTS,
+  USER_SOURCE,
+  FREE_EXERCISE_DB,
+] as const;

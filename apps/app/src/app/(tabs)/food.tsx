@@ -15,6 +15,7 @@ import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
 import { Button } from '@/components/Button';
 import { DaySelector } from '@/components/DaySelector';
+import { FeedbackCard } from '@/components/FeedbackCard';
 import { FoodRejectedNotice } from '@/components/FoodRejectedNotice';
 import { MealSection } from '@/components/MealSection';
 import { Notice } from '@/components/Notice';
@@ -84,6 +85,14 @@ function FoodLog({ profile, targets }: { profile: Profile; targets: Targets | nu
             targets={targets}
           />
         ) : null}
+        <FeedbackCard
+          key={day}
+          localDate={day}
+          today={today}
+          items={dayItems}
+          safetyFlags={profile.safetyFlags}
+          hasTargets={targets !== null}
+        />
         {items.length === 0 ? (
           <AppText tone="muted" testID="food-first-hint">
             {f.firstHint}

@@ -54,7 +54,16 @@
           "photosPermission": "Personal Trainer opens your photos only when you choose the image of a label.",
           "microphonePermission": false
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

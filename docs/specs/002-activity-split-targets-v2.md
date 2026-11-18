@@ -284,5 +284,5 @@ ships a chat that ADR 004 retires.
   ceiling limited the estimate; 1 MET taken as BMR / 24, about 9 % below 1 kcal/kg/h; Mifflin-St Jeor at
   16–17; and the "below the recommended range" wording of the low-BMI notice of spec 001 (it shows below
   BMI 20).
-- Left for the human: check the form on a phone with Expo Go (the steppers and chips are new touch
-  controls), and apply the migrations to any other environment.
+- Phone check in Expo Go passed (the human, 2026-11-17): the steppers and chips. Left for the human:
+  apply the migrations to any other environment.

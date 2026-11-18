@@ -203,7 +203,7 @@ food and training suggestions of later stages fit it too.
     editing migration files). Dev recorded 0005 as applied while it was still empty, so its INSERT was
     run once by hand on dev (0 profiles there, nothing to fill). Other databases apply it normally.
   - Step 6: domain review done and applied (see the last decision), CLAUDE.md status and memory updated.
-  - Left for the human: check the form on a phone (Expo Go): the focus list, "Add a sport" and the sport
+  - Phone check in Expo Go passed (the human, 2026-11-17): the focus list, "Add a sport" and the sport
     name field with the keyboard open. The professional reviewer gets the open questions before the beta.
 - Decisions taken during implementation:
   - **One commit for steps 1–3**: the required `ProfileInput.trainingFocus` breaks api, api-client and

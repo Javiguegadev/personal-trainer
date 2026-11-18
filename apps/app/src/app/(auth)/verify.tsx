@@ -13,8 +13,8 @@ import { AuthError, auth } from '@/lib/auth';
 import { MOCK_BACKEND } from '@/lib/backend';
 import { errorMessage } from '@/lib/errors';
 
-/** AC2: resending is disabled for 60 s after each code. */
-const RESEND_SECONDS = 60;
+/** AC2: resending is disabled for 30 s after each code (Supabase's own per-user interval must be lower). */
+const RESEND_SECONDS = 30;
 const CODE_LENGTH = 6;
 
 export default function VerifyScreen() {

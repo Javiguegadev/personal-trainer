@@ -1,6 +1,6 @@
 /**
- * Auth port used by the whole app. Implementations: the mock (dev/E2E), and the Supabase one (email OTP +
- * Google) once the spec 001 prerequisites exist. Screens depend only on this interface.
+ * Auth port used by the whole app. Implementations: the mock (dev/E2E), the Supabase one (email OTP +
+ * Google), and a placeholder when the Supabase env is missing. Screens depend only on this interface.
  */
 export interface AuthSession {
   userId: string;

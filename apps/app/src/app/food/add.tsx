@@ -4,6 +4,7 @@ import {
   IsoDateSchema,
   MEAL_TYPES,
   MealTypeSchema,
+  PortionSchema,
   type DraftItem,
   type Food,
   type FoodInputMethod,
@@ -26,7 +27,7 @@ import {
 } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
@@ -57,6 +58,7 @@ import {
   useBarcodeLookup,
   useCustomFoods,
   useFavouriteFoods,
+  useFood,
   useFoodSearch,
   useMealDraft,
   useMe,
@@ -75,7 +77,8 @@ type AddMethod = Exclude<FoodInputMethod, 'quick_add' | 'repeat'>;
 
 type Step =
   | { kind: 'search' }
-  | { kind: 'portion'; food: Food; inputMethod: AddMethod }
+  /** `portion`: the one a daily-feedback suggestion brings (spec 008 AC16). */
+  | { kind: 'portion'; food: Food; inputMethod: AddMethod; portion?: Portion }
   | { kind: 'quick'; name: string }
   | { kind: 'scan' }
   /** A scanned code without a food (spec 006 AC6, AC7). */
@@ -128,7 +131,12 @@ function missReason(error: unknown): ProductMiss {
 export default function FoodAddRoute() {
   const me = useMe();
   const today = useToday();
-  const params = useLocalSearchParams<{ date?: string; meal?: string }>();
+  const params = useLocalSearchParams<{
+    date?: string;
+    meal?: string;
+    foodId?: string;
+    portion?: string;
+  }>();
   // The meal is chosen once, when the screen opens: it must not change while the user adds foods.
   const [timeMeal] = useState(() => {
     const now = new Date();
@@ -151,8 +159,23 @@ export default function FoodAddRoute() {
       initialMeal={requestedMeal.success ? requestedMeal.data : timeMeal}
       mealFixed={requestedMeal.success}
       showNumbers={showsFoodNumbers(me.data.profile.safetyFlags)}
+      suggested={suggestedFood(params.foodId, params.portion)}
     />
   );
+}
+
+/** A food and portion suggested by the daily feedback (spec 008 AC16), from the route params. */
+function suggestedFood(
+  foodId: string | undefined,
+  portion: string | undefined,
+): { foodId: string; portion: Portion } | null {
+  if (!foodId || !portion) return null;
+  try {
+    const parsed = PortionSchema.safeParse(JSON.parse(portion));
+    return parsed.success ? { foodId, portion: parsed.data } : null;
+  } catch {
+    return null;
+  }
 }
 
 function FoodAdd({
@@ -161,12 +184,14 @@ function FoodAdd({
   initialMeal,
   mealFixed,
   showNumbers,
+  suggested,
 }: {
   date: string;
   today: string;
   initialMeal: MealType;
   mealFixed: boolean;
   showNumbers: boolean;
+  suggested: { foodId: string; portion: Portion } | null;
 }) {
   const { t, format, locale } = useI18n();
   const { colors } = useTheme();
@@ -183,8 +208,32 @@ function FoodAdd({
   const favourites = useFavouriteFoods(locale);
   const ownFoods = useCustomFoods(locale);
   const [step, setStep] = useState<Step>({ kind: 'search' });
+  // A suggestion of the daily feedback opens its portion sheet once, with the suggested portion; the
+  // food is in the cache already (the feedback card put it there). Nothing is logged until "Añadir".
+  const suggestion = useFood(suggested?.foodId ?? null, locale);
+  const suggestionShown = useRef(false);
+  useEffect(() => {
+    if (!suggested || suggestionShown.current || !suggestion.data) return;
+    suggestionShown.current = true;
+    setStep({
+      kind: 'portion',
+      food: suggestion.data,
+      inputMethod: 'recent',
+      portion: suggested.portion,
+    });
+  }, [suggested, suggestion.data]);
   const [mealType, setMealType] = useState(initialMeal);
   const [query, setQuery] = useState('');
+  /**
+   * Whether the search field opens the keyboard when it shows. Off after the camera (a scan or a plate
+   * photo), so the confirmation of a scanned product is not covered by the keyboard; back on when the
+   * user types again.
+   */
+  const [focusSearch, setFocusSearch] = useState(true);
+  const openCamera = (next: { kind: 'scan' } | { kind: 'platePhoto' }) => {
+    setFocusSearch(false);
+    setStep(next);
+  };
   /** What just happened ("Añadido: 2 huevos"), shown above the search. */
   const [done, setDone] = useState<string | null>(null);
   const [looking, setLooking] = useState(false);
@@ -414,7 +463,7 @@ function FoodAdd({
     return (
       <PortionSheet
         food={food}
-        initial={initialPortion(food, lastPortion(food))}
+        initial={initialPortion(food, step.portion ?? lastPortion(food))}
         favourite={favouriteIds.has(food.id)}
         onToggleFavourite={() => toggleFavourite(food)}
         showNumbers={showNumbers}
@@ -679,9 +728,12 @@ function FoodAdd({
             label={a.search}
             placeholder={a.searchPlaceholder}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(text) => {
+              setQuery(text);
+              setFocusSearch(true);
+            }}
             maxLength={FOOD_LOG_LIMITS.searchMaxLength}
-            autoFocus
+            autoFocus={focusSearch}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
@@ -693,7 +745,7 @@ function FoodAdd({
           variant="secondary"
           label={s.open}
           accessibilityLabel={s.openLabel}
-          onPress={() => setStep({ kind: 'scan' })}
+          onPress={() => openCamera({ kind: 'scan' })}
           testID="food-scan"
         />
       </View>
@@ -703,7 +755,7 @@ function FoodAdd({
             variant="secondary"
             label={t.food.shortcuts.photo}
             accessibilityLabel={t.food.shortcuts.photoLabel}
-            onPress={() => setStep({ kind: 'platePhoto' })}
+            onPress={() => openCamera({ kind: 'platePhoto' })}
             disabled={!online}
             testID="food-plate-photo"
           />

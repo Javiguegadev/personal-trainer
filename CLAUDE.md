@@ -77,26 +77,37 @@ pnpm format
 - pnpm blocks dependency build scripts by default. Allow them in `pnpm-workspace.yaml` → `allowBuilds`.
 - Expo web dev runs on :8081. The API's CORS list comes from `WEB_ORIGINS`.
 - On a physical phone, `localhost` is the phone: set `EXPO_PUBLIC_API_URL` to the computer's LAN IP.
+  For Google sign-in in Expo Go also set `REACT_NATIVE_PACKAGER_HOSTNAME=<lan-ip>.nip.io`: Supabase
+  rejects redirect URLs whose host is an IP. Under `pnpm dev` Expo shows no QR: run the app alone.
 - Windows dev machine: `.mcp.json` stdio servers use `cmd /c npx`.
 
 ## Status
 
 - E0 Accounts ✅ · E1 Foundation ✅ (monorepo, CI, Expo universal app, typed API).
-- E2 auth + onboarding: in progress (`docs/specs/001-auth-onboarding.md`, see its "Progress"). Only the
-  Supabase auth adapter is left; it waits for dashboard settings.
+- E2 auth + onboarding ✅ (`docs/specs/001-auth-onboarding.md`): the Supabase auth adapter (email code +
+  Google) signs in against dev on web and in Expo Go (human check 2026-11-17). Apple sign-in is a later
+  spec.
 - E2b logging & context foundations ✅: spec 002 (job, weekly training, `targets-v2`, user context, consent
   version, chat retired) and spec 003 (tabs Today/Progress/Profile, weight log with trend, offline cache
   and write queue; ADR 005), plus spec 004 (training focus: muscle, strength, sport performance, general
   fitness; `targets-v3`, `context-v3`).
-- E4 food logging: slice (a), spec 005 (catalog, search, Food tab, log, offline writes), is implemented
-  with E2E; the phone check in Expo Go and the review of the catalog are left (see its "Progress").
-  Slice (b), spec 006 (barcode with Open Food Facts, the user's own foods, label photo with Claude
-  Haiku 5.5), is implemented with E2E; left for the human: apply migration `0007` to dev, the phone
-  check, the label eval (photos and API money) and the reference products (see its "Progress").
-  Slice (c), spec 007 (plate photo and sentence shortcuts, editable draft, Claude Haiku 5.5 with a
-  `search_foods` tool), is implemented with E2E and a domain review; left for the human: apply
-  migration `0008`, the phone check, the ~30 weighed plates and the go-ahead for both evals (see its
-  "Progress"). The daily feedback is spec 008, still to write.
-- Next (ADR 003, ADR 006): spec 008 (daily feedback) → E5 workout logging, daily context and the week view →
+- E4 food logging: slices (a) to (c) are implemented with E2E and passed the phone check in Expo Go
+  (2026-11-17); migrations up to `0008` are applied to dev. Spec 005 (catalog, search, Food tab, log,
+  offline writes): left for the human, the review of the catalog and the BEDCA request. Spec 006
+  (barcode with Open Food Facts, the user's own foods, label photo with Claude Haiku 5.5): left, the
+  Open Food Facts hit rate on ~20 products and the label eval (30 photos, `ANTHROPIC_API_KEY`). Spec
+  007 (plate photo and sentence shortcuts, editable draft, Claude Haiku 5.5 with a `search_foods`
+  tool): the sentence eval passed (2026-11-17); left, the ~30 weighed plates for the photo eval, a
+  sample review of the eval sentences and the catalog gaps. See each spec's "Progress".
+- Spec 008 (daily feedback, last piece of E4): implemented with E2E on 2026-11-18
+  (`POST /me/food-log/feedback`, Claude Haiku 5.5 wording with a fixed-wording fallback, consent
+  `2026-11-v6`). The eval passed on 2026-11-18 (after a fix: notes of "en" days came in Spanish).
+  Left: a human read of 20 notes of its report, the phone check, the professional review of the
+  thresholds.
+- Spec 009 (E5 a: exercise catalog, Training tab, live session, activities, records): every step
+  implemented with E2E on 2026-11-19; migration `0009` applied and the catalog imported on dev. Left:
+  the phone check in Expo Go (rest haptic and chime, keep-awake, keyboard), the review of 50 exercise
+  names and the search fixture, the professional review (see its Open questions).
+- Next (ADR 003, ADR 006): E5 spec 010 (training profile, week view) and spec 011 (daily check-in) →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
   premium AI → E6 payments.

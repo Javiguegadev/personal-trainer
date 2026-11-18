@@ -10,6 +10,8 @@ import {
   CUSTOM_FOOD_LIMITS,
   ConsentRequestSchema,
   CustomFoodUpsertRequestSchema,
+  DailyFeedbackRequestSchema,
+  FEEDBACK_LIMITS,
   FOOD_LOG_LIMITS,
   FoodIdParamSchema,
   FoodLocaleQuerySchema,
@@ -25,12 +27,24 @@ import {
   MealItemUpsertRequestSchema,
   ProfileInputSchema,
   WEIGHT_LIMITS,
+  WORKOUT_LIMITS,
+  CustomExerciseDeleteQuerySchema,
+  CustomExerciseUpsertRequestSchema,
+  ExerciseHistoryQuerySchema,
+  ExerciseIdParamSchema,
   WeightDateParamSchema,
   WeightDeleteQuerySchema,
   WeightListQuerySchema,
   WeightUpsertRequestSchema,
+  WorkoutDeleteQuerySchema,
+  WorkoutIdParamSchema,
+  WorkoutLogQuerySchema,
+  WorkoutUpsertRequestSchema,
   type ApiErrorCode,
   type DietaryPrefs,
+  type Exercise,
+  type Workout,
+  type FeedbackNote,
   type ExportResponse,
   type Food,
   type LabelReading,
@@ -39,12 +53,25 @@ import {
   type MeResponse,
   type Portion,
   type Profile,
+  type RecentFood,
   type WeightEntry,
   type WeightSaveResponse,
 } from '@pt/contracts';
 import {
   addDays,
   applyLatestWeight,
+  dailyObservations,
+  feedbackAvailable,
+  feedbackCandidates,
+  feedbackCitations,
+  feedbackFingerprint,
+  isPlausibleClientDate,
+  minuteOfDay,
+  referenceWeightKg,
+  sportCarbsMinimum,
+  templateNotes,
+  trainingMinutesPerWeek,
+  validateFeedback,
   buildFoodSearchIndex,
   checkCustomFood,
   checkFoodLogRange,
@@ -62,11 +89,21 @@ import {
   searchableBrandedFood,
   targetsOnly,
   writeWins,
+  buildExerciseStats,
+  checkWorkoutRange,
+  checkWorkoutWrite,
+  customExercise,
+  exerciseHistory,
+  workoutFromRequest,
+  type ExerciseSetRow,
+  type LoggableExercise,
 } from '@pt/core';
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
+import { MOCK_EXERCISE_CATALOG_VERSION, MOCK_EXERCISES } from './exercises';
 import { MOCK_CATALOG, MOCK_SOURCE, toMockFood } from './foods';
 import { mockPhotoReading, mockTextReading } from './drafts';
+import { mockFeedbackReading } from './feedback';
 import { mockProduct, mockProductById } from './products';
 import { parseMockToken, type MockUser } from './identity';
 
@@ -101,14 +138,55 @@ interface UserRecord {
   favourites: { foodId: string; createdAt: string }[];
   /** The user's own foods, most recently changed first (spec 006). One name for every locale. */
   customFoods: Food[];
+  /** The training log, deletes included as tombstones (spec 009 AC23). */
+  workouts: StoredWorkout[];
+  /** The user's own exercises, most recently changed first, deletes kept as tombstones (spec 009). */
+  customExercises: StoredCustomExercise[];
 }
 
 type StoredMealItem = MealItem & { deleted: boolean };
+type StoredWorkout = Workout & { deleted: boolean };
+interface StoredCustomExercise {
+  exercise: Exercise;
+  recordedAt: string;
+  deletedAt: string | null;
+}
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v6: spec 006). */
-export const MOCK_DB_KEY = 'pt.mock-db.v6';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v7: spec 009). */
+export const MOCK_DB_KEY = 'pt.mock-db.v7';
+
+const exerciseById = new Map(MOCK_EXERCISES.map((e) => [e.id, e]));
+
+/** Newest first, as the API lists workouts: by day, then by start time. */
+const newestWorkoutFirst = (a: Workout, b: Workout) =>
+  b.localDate.localeCompare(a.localDate) || Date.parse(b.startedAt) - Date.parse(a.startedAt);
+
+const withoutDeleted = ({ deleted: _, ...workout }: StoredWorkout): Workout => workout;
+
+const liveWorkouts = (record: UserRecord): Workout[] =>
+  record.workouts.filter((w) => !w.deleted).map(withoutDeleted);
+
+/** Every set of the live workouts, oldest workout first (the rows of the stats, spec 009 AC14). */
+function exerciseSetRows(record: UserRecord, exerciseId?: string): ExerciseSetRow[] {
+  return liveWorkouts(record)
+    .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))
+    .flatMap((w) =>
+      w.exercises.flatMap((e) => {
+        const id = e.exerciseId;
+        if (id === null || (exerciseId && id !== exerciseId)) return [];
+        return e.sets.map((set) => ({
+          workoutId: w.id,
+          localDate: w.localDate,
+          startedAt: w.startedAt,
+          exerciseId: id,
+          tracking: e.tracking,
+          set,
+        }));
+      }),
+    );
+}
 
 /** What the mock "reads" from every label photo (spec 006 AC15): a pack of biscuits. */
 const MOCK_LABEL_READING: LabelReading = {
@@ -128,6 +206,9 @@ const MOCK_LABEL_READING: LabelReading = {
 
 /** An image this small (a few pixels, in base64 characters) is "not a label" for the mock (AC17). */
 const MOCK_UNREADABLE_BELOW = 2000;
+
+/** Recently logged foods the feedback candidates come from (spec 008 AC12). */
+const FEEDBACK_RECENTS_MAX = 60;
 
 const catalogById = new Map(MOCK_CATALOG.map((f) => [f.id, f]));
 const searchIndex = buildFoodSearchIndex(MOCK_CATALOG);
@@ -168,6 +249,9 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   ai_cap_reached: 'Daily limit of AI reads reached, use the search or the form instead',
   image_too_large: 'The image is too large',
   food_limit_reached: 'Too many foods of your own',
+  feedback_unavailable: 'The daily feedback is not available for this profile',
+  exercise_limit_reached: 'Too many exercises of your own',
+  id_taken: 'This id is already used',
 };
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -185,6 +269,9 @@ const STATUS: Record<ApiErrorCode, number> = {
   ai_cap_reached: 429,
   image_too_large: 413,
   food_limit_reached: 400,
+  feedback_unavailable: 422,
+  exercise_limit_reached: 400,
+  id_taken: 409,
 };
 
 const fail = (code: ApiErrorCode, fields?: Record<string, string>) =>
@@ -217,6 +304,8 @@ const emptyUser = (email: string | null): UserRecord => ({
   mealItems: [],
   favourites: [],
   customFoods: [],
+  workouts: [],
+  customExercises: [],
 });
 
 export function createMockApiClient({
@@ -283,6 +372,61 @@ export function createMockApiClient({
   /** The user's own foods, searched with the catalog (spec 006 AC11). */
   const customIndex = (record: UserRecord) =>
     buildFoodSearchIndex(record.customFoods.map(searchableBrandedFood));
+
+  /** The latest item of each food logged in the last 60 days, with its portion (spec 005 AC7). */
+  function recentsOf(record: UserRecord, locale: Locale, max: number): RecentFood[] {
+    const since = addDays(now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
+    const latest = new Map<string, MealItem>();
+    for (const item of live(record)) {
+      if (item.foodId === null || item.localDate < since) continue;
+      const seen = latest.get(item.foodId);
+      if (!seen || seen.recordedAt < item.recordedAt) latest.set(item.foodId, item);
+    }
+    return [...latest.values()]
+      .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+      .slice(0, max)
+      .flatMap((item) => {
+        const food = item.foodId ? findFood(record, item.foodId, locale) : null;
+        const portion = food ? lastPortion(item, food) : null;
+        return food && portion ? [{ food, lastPortion: portion }] : [];
+      });
+  }
+
+  /** Starred foods, most recently starred first (spec 005 AC14). */
+  function favouritesOf(record: UserRecord, locale: Locale): Food[] {
+    return [...record.favourites]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .flatMap((f) => {
+        const food = findFood(record, f.foodId, locale);
+        return food ? [food] : [];
+      });
+  }
+
+  /** The user's own exercises that were not deleted, most recently changed first. */
+  const ownExercises = (record: UserRecord): Exercise[] =>
+    record.customExercises.filter((e) => e.deletedAt === null).map((e) => e.exercise);
+
+  /**
+   * The exercises a workout may use: the catalog and the user's own, deleted ones included (an old
+   * session that used one can still be edited, as in the API).
+   */
+  const loggable = (record: UserRecord): Map<string, LoggableExercise> =>
+    new Map<string, LoggableExercise>([
+      ...exerciseById,
+      ...record.customExercises.map((e) => [e.exercise.id, e.exercise] as const),
+    ]);
+
+  /** An id of the catalog or of another user's exercise is never written (409 `id_taken`). */
+  const exerciseIdTaken = (userId: string, id: string) =>
+    exerciseById.has(id) ||
+    Object.entries(db).some(
+      ([owner, other]) =>
+        owner !== userId && other.customExercises.some((e) => e.exercise.id === id),
+    );
+
+  /** A device clock more than a day ahead of the server is rejected. */
+  const inFuture = (recordedAt: string) =>
+    Date.parse(recordedAt) > now().getTime() + 24 * 60 * 60 * 1000;
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -536,8 +680,154 @@ export function createMockApiClient({
                 ? 'Products with a barcode: contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). It is written by volunteers and may contain errors: always check the package.'
                 : 'Productos con código de barras: contiene datos de Open Food Facts (https://openfoodfacts.org), disponibles bajo la Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). Los escriben voluntarios y pueden tener errores: comprueba siempre el envase.',
           },
+          {
+            id: 'free-exercise-db',
+            name: 'Free Exercise DB',
+            url: 'https://github.com/yuhonas/free-exercise-db',
+            license: 'The Unlicense (public domain)',
+            version: 'f00c92c (2026-09-27)',
+            attribution:
+              locale === 'en'
+                ? 'Exercises: categories, muscles and equipment from Free Exercise DB (https://github.com/yuhonas/free-exercise-db), public domain (The Unlicense). Spanish names and synonyms: our own work.'
+                : 'Ejercicios: categorías, músculos y material de Free Exercise DB (https://github.com/yuhonas/free-exercise-db), de dominio público (The Unlicense). Nombres en español y sinónimos: elaboración propia.',
+          },
         ],
       };
+    },
+
+    exerciseCatalog: async () => {
+      const { record } = await authenticateWithConsent();
+      return {
+        version: MOCK_EXERCISE_CATALOG_VERSION,
+        exercises: [...MOCK_EXERCISES, ...ownExercises(record)],
+      };
+    },
+
+    saveCustomExercise: async (exerciseId, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { id } = parse(ExerciseIdParamSchema, { id: exerciseId });
+      const request = parse(CustomExerciseUpsertRequestSchema, body);
+      if (inFuture(request.recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const own = ownExercises(record);
+      if (own.length >= WORKOUT_LIMITS.customExercisesMax && !own.some((e) => e.id === id)) {
+        throw fail('exercise_limit_reached');
+      }
+      if (exerciseIdTaken(user.userId, id)) throw fail('id_taken', { id: 'taken' });
+      const stored = record.customExercises.find((e) => e.exercise.id === id);
+      // The write recorded later on its device wins, also against a delete.
+      if (writeWins(stored?.recordedAt ?? null, request.recordedAt)) {
+        record.customExercises = [
+          {
+            exercise: customExercise(id, request),
+            recordedAt: new Date(request.recordedAt).toISOString(),
+            deletedAt: null,
+          },
+          ...record.customExercises.filter((e) => e.exercise.id !== id),
+        ];
+        persist();
+      }
+      const current = record.customExercises.find((e) => e.exercise.id === id);
+      return { exercise: current && current.deletedAt === null ? current.exercise : null };
+    },
+
+    deleteCustomExercise: async (exerciseId, query) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(ExerciseIdParamSchema, { id: exerciseId });
+      const { recordedAt } = parse(CustomExerciseDeleteQuerySchema, query);
+      if (inFuture(recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const stored = record.customExercises.find((e) => e.exercise.id === id);
+      // Past sets keep their label; the row stays as a tombstone.
+      if (stored && writeWins(stored.recordedAt, recordedAt)) {
+        stored.deletedAt = now().toISOString();
+        stored.recordedAt = new Date(recordedAt).toISOString();
+        persist();
+      }
+      return { exercise: null };
+    },
+
+    listWorkouts: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { from, to } = parse(WorkoutLogQuerySchema, query);
+      const invalid = checkWorkoutRange(from, to);
+      if (invalid) throw fail('validation_error', invalid);
+      return {
+        workouts: liveWorkouts(record)
+          .filter((w) => w.localDate >= from && w.localDate <= to)
+          .sort(newestWorkoutFirst),
+      };
+    },
+
+    saveWorkout: async (workoutId, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { id } = parse(WorkoutIdParamSchema, { id: workoutId });
+      const request = parse(WorkoutUpsertRequestSchema, body);
+      const invalid = checkWorkoutWrite(request, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const ids = request.kind === 'gym' ? request.exercises.map((e) => e.exerciseId) : [];
+      const workout = workoutFromRequest(id, request, loggable(record));
+      if ('error' in workout) {
+        if (workout.error === 'exercise_not_found') {
+          throw fail('not_found', { exerciseId: 'not_found' });
+        }
+        const index = ids.indexOf(workout.exerciseId);
+        throw fail('validation_error', {
+          [`exercises.${index}.sets.${workout.setNumber - 1}`]: 'set_mismatch',
+        });
+      }
+      const ofDay = liveWorkouts(record).filter((w) => w.localDate === request.localDate);
+      if (ofDay.length >= WORKOUT_LIMITS.workoutsPerDayMax && !ofDay.some((w) => w.id === id)) {
+        throw fail('validation_error', { localDate: 'too_many_workouts' });
+      }
+      // Ids are global: an id that belongs to another user is never touched.
+      for (const [owner, other] of Object.entries(db)) {
+        if (owner !== user.userId && other.workouts.some((w) => w.id === id)) {
+          return { workout: null };
+        }
+      }
+      const stored = record.workouts.find((w) => w.id === id);
+      // The write recorded later on its device wins, also against a delete (AC23).
+      if (writeWins(stored?.recordedAt ?? null, workout.recordedAt)) {
+        record.workouts = [
+          ...record.workouts.filter((w) => w.id !== id),
+          {
+            ...workout,
+            startedAt: new Date(workout.startedAt).toISOString(),
+            recordedAt: new Date(workout.recordedAt).toISOString(),
+            deleted: false,
+          },
+        ];
+        persist();
+      }
+      const current = record.workouts.find((w) => w.id === id);
+      return { workout: current && !current.deleted ? withoutDeleted(current) : null };
+    },
+
+    deleteWorkout: async (workoutId, query) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(WorkoutIdParamSchema, { id: workoutId });
+      const { recordedAt } = parse(WorkoutDeleteQuerySchema, query);
+      if (inFuture(recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const stored = record.workouts.find((w) => w.id === id);
+      // A delete older than the stored write does not remove it; the tombstone keeps the delete time.
+      if (stored && writeWins(stored.recordedAt, recordedAt)) {
+        stored.deleted = true;
+        stored.recordedAt = new Date(recordedAt).toISOString();
+        persist();
+      }
+      return { workout: null };
+    },
+
+    exerciseStats: async () => {
+      const { record } = await authenticateWithConsent();
+      return { stats: buildExerciseStats(exerciseSetRows(record)) };
+    },
+
+    exerciseHistory: async (exerciseId, limit) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(ExerciseIdParamSchema, { id: exerciseId });
+      const query = parse(ExerciseHistoryQuerySchema, limit === undefined ? {} : { limit });
+      if (!loggable(record).has(id)) throw fail('not_found', { id: 'not_found' });
+      return exerciseHistory(id, exerciseSetRows(record, id), query.limit);
     },
 
     listFoodLog: async (query) => {
@@ -606,33 +896,82 @@ export function createMockApiClient({
 
     recentFoods: async (locale) => {
       const { record } = await authenticateWithConsent();
-      const since = addDays(now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
-      const latest = new Map<string, MealItem>();
-      for (const item of live(record)) {
-        if (item.foodId === null || item.localDate < since) continue;
-        const seen = latest.get(item.foodId);
-        if (!seen || seen.recordedAt < item.recordedAt) latest.set(item.foodId, item);
-      }
-      const recents = [...latest.values()]
-        .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
-        .slice(0, FOOD_LOG_LIMITS.recentsMax)
-        .flatMap((item) => {
-          const food = item.foodId ? findFood(record, item.foodId, locale) : null;
-          const portion = food ? lastPortion(item, food) : null;
-          return food && portion ? [{ food, lastPortion: portion }] : [];
-        });
-      return { recents };
+      return { recents: recentsOf(record, locale, FOOD_LOG_LIMITS.recentsMax) };
     },
 
     favouriteFoods: async (locale) => {
       const { record } = await authenticateWithConsent();
-      const foods = [...record.favourites]
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .flatMap((f) => {
-          const food = findFood(record, f.foodId, locale);
-          return food ? [food] : [];
+      return { foods: favouritesOf(record, locale) };
+    },
+
+    dailyFeedback: async (body) => {
+      const { record } = await authenticateWithConsent();
+      const request = parse(DailyFeedbackRequestSchema, body);
+      if (!isPlausibleClientDate(request.today, now().toISOString())) {
+        throw fail('validation_error', { today: 'implausible' });
+      }
+      const back = daysBetween(request.localDate, request.today);
+      if (back < 0) throw fail('validation_error', { localDate: 'in_future' });
+      if (back > FEEDBACK_LIMITS.daysBack) throw fail('validation_error', { localDate: 'too_old' });
+      const { profile } = record;
+      const targets = record.targets.find((t) => t.validTo === null);
+      if (!profile || !targets || !feedbackAvailable(profile.safetyFlags, true)) {
+        throw fail('feedback_unavailable');
+      }
+      const items = live(record).filter((i) => i.localDate === request.localDate);
+      const focus = profile.trainingFocus ?? 'general_fitness';
+      const reference = referenceWeightKg(profile.heightCm, profile.weightKg);
+      const carbsMin = sportCarbsMinimum(
+        focus,
+        trainingMinutesPerWeek(profile.plannedActivities),
+        reference,
+      );
+      const { state, observations } = dailyObservations(
+        { localDate: request.localDate, items, trainingDay: request.trainingDay },
+        targets,
+        {
+          referenceWeightKg: reference,
+          trainingFocus: focus,
+          carbsMinGPerKg: carbsMin?.gPerKg ?? null,
+        },
+        { safetyFlags: profile.safetyFlags },
+        { today: request.today, minuteOfDay: minuteOfDay(request.localTime) },
+      );
+      const candidates = feedbackCandidates(
+        observations,
+        {
+          recents: recentsOf(record, request.locale, FEEDBACK_RECENTS_MAX),
+          favourites: favouritesOf(record, request.locale),
+        },
+        targets.kcal,
+      );
+      // The daily cap of the AI wording (AC15): past it, every note in fixed wording.
+      const today = now().toISOString().slice(0, 10);
+      const used = record.aiUsage.filter(
+        (u) => u.feature === 'daily_feedback' && u.createdAt.slice(0, 10) === today,
+      ).length;
+      let notes: FeedbackNote[];
+      if (used < FEEDBACK_LIMITS.aiPerDay) {
+        record.aiUsage.push({
+          feature: 'daily_feedback',
+          model: 'claude-haiku-5-5',
+          inputTokens: 1500,
+          outputTokens: 150,
+          createdAt: now().toISOString(),
         });
-      return { foods };
+        persist();
+        const reading = mockFeedbackReading(observations, candidates, request.locale);
+        notes = validateFeedback(reading, observations, candidates);
+      } else {
+        notes = templateNotes(observations, candidates);
+      }
+      return {
+        localDate: request.localDate,
+        state,
+        notes,
+        citations: feedbackCitations(notes),
+        fingerprint: feedbackFingerprint(items),
+      };
     },
 
     setFavouriteFood: async (id, favourite) => {
@@ -795,6 +1134,12 @@ export function createMockApiClient({
         weights: record.weights,
         mealItems: live(record),
         customFoods: record.customFoods,
+        workouts: liveWorkouts(record).sort(newestWorkoutFirst).reverse(),
+        // Deleted ones too, with `deletedAt`: the tombstone is still data we hold (spec 009 AC25).
+        customExercises: record.customExercises.map((e) => ({
+          ...e.exercise,
+          deletedAt: e.deletedAt,
+        })),
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

@@ -3,6 +3,7 @@ import {
   createApiHooks,
   registerCustomFoodMutations,
   registerFoodMutations,
+  registerTrainingMutations,
   registerWeightMutations,
   type ApiClient,
 } from '@pt/api-client';
@@ -36,6 +37,7 @@ export const api: ApiClient = MOCK_BACKEND
 registerWeightMutations(queryClient, api);
 registerFoodMutations(queryClient, api);
 registerCustomFoodMutations(queryClient, api);
+registerTrainingMutations(queryClient, api);
 setupOnlineManager();
 
 export const {
@@ -59,6 +61,8 @@ export const {
   useDeleteMealItem,
   useSetFavouriteFood,
   usePendingMealItemIds,
+  useDailyFeedback,
+  useFoodLogSyncing,
   useRejectedFoodWrite,
   useCustomFoods,
   useSaveCustomFood,
@@ -66,6 +70,16 @@ export const {
   useBarcodeLookup,
   useScanLabel,
   useMealDraft,
+  useExerciseCatalog,
+  useWorkouts,
+  useExerciseStats,
+  useExerciseHistory,
+  useSaveWorkout,
+  useDeleteWorkout,
+  useSaveCustomExercise,
+  useDeleteCustomExercise,
+  usePendingTrainingIds,
+  useRejectedTrainingWrite,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

@@ -2,12 +2,14 @@ import { serve } from '@hono/node-server';
 import {
   AiUnavailableError,
   FEATURES,
+  createFeedbackWriter,
   createLabelReader,
   createMealReader,
   createMessageFn,
   type AiFeature,
   type ReadLabel,
   type ReadMeal,
+  type WordFeedback,
 } from '@pt/ai';
 import { createDb } from '@pt/db';
 import { createApp } from './app';
@@ -51,6 +53,14 @@ function createReadMeal(apiKey: string | undefined): ReadMeal {
   };
 }
 
+/** Without an API key the daily feedback uses the fixed wording (spec 008 AC15). */
+function createWordFeedback(apiKey: string | undefined): WordFeedback {
+  if (apiKey) return createFeedbackWriter(createMessageFn(apiKey));
+  return async () => {
+    throw noApiKey('daily_feedback');
+  };
+}
+
 /** Open Food Facts asks every app for `AppName/Version (ContactEmail)`. */
 function offUserAgent(env: NodeJS.ProcessEnv): string {
   const app = `PersonalTrainer/${env.APP_VERSION ?? '0.0.0'}`;
@@ -81,6 +91,7 @@ function createDeps(env: NodeJS.ProcessEnv): Deps | undefined {
     lookupProduct: createOffClient({ fetch, userAgent: offUserAgent(env) }),
     readLabel: createReadLabel(env.ANTHROPIC_API_KEY),
     readMeal: createReadMeal(env.ANTHROPIC_API_KEY),
+    wordFeedback: createWordFeedback(env.ANTHROPIC_API_KEY),
     now: () => new Date(),
   };
 }

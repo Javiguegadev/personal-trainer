@@ -8,5 +8,6 @@ export * from './lifestyle';
 export * from './body';
 export * from './nutrition';
 export * from './food';
+export * from './training';
 export * from './privacy';
 export * from './ai';

@@ -1,4 +1,5 @@
 import { auth } from './auth';
+import { removeSessions } from './liveSession';
 import { stopOfflineCache } from './offline';
 import { queryClient } from './query';
 
@@ -8,9 +9,12 @@ import { queryClient } from './query';
  * still waiting to sync.
  */
 export async function signOut(): Promise<void> {
+  const user = auth.getState().session?.userId ?? null;
   const removeSavedCache = stopOfflineCache();
   await auth.signOut();
   // Clears the queries and the mutations (the queue).
   queryClient.clear();
   await removeSavedCache();
+  // The workout in progress and a draft are this user's too (spec 009 AC11).
+  if (user) removeSessions(user);
 }

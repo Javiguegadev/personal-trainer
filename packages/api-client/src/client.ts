@@ -1,6 +1,11 @@
 import {
   ApiErrorSchema,
+  CustomExerciseSaveResponseSchema,
   CustomFoodsResponseSchema,
+  DailyFeedbackResponseSchema,
+  ExerciseCatalogResponseSchema,
+  ExerciseHistoryResponseSchema,
+  ExerciseStatsResponseSchema,
   ExportResponseSchema,
   FavouriteFoodsResponseSchema,
   FoodLogResponseSchema,
@@ -16,10 +21,20 @@ import {
   TargetsPreviewResponseSchema,
   WeightListResponseSchema,
   WeightSaveResponseSchema,
+  WorkoutLogResponseSchema,
+  WorkoutSaveResponseSchema,
   type ApiErrorCode,
   type ConsentRequest,
+  type CustomExerciseDeleteQuery,
+  type CustomExerciseSaveResponse,
+  type CustomExerciseUpsertRequest,
   type CustomFoodUpsertRequest,
   type CustomFoodsResponse,
+  type DailyFeedbackRequest,
+  type DailyFeedbackResponse,
+  type ExerciseCatalogResponse,
+  type ExerciseHistoryResponse,
+  type ExerciseStatsResponse,
   type ExportResponse,
   type FavouriteFoodsResponse,
   type Food,
@@ -46,6 +61,11 @@ import {
   type WeightListResponse,
   type WeightSaveResponse,
   type WeightUpsertRequest,
+  type WorkoutDeleteQuery,
+  type WorkoutLogQuery,
+  type WorkoutLogResponse,
+  type WorkoutSaveResponse,
+  type WorkoutUpsertRequest,
 } from '@pt/contracts';
 import type { z } from 'zod';
 
@@ -257,6 +277,65 @@ export function createApiClient({
      */
     draftFromPhoto: (body: MealPhotoDraftRequest): Promise<MealDraftResponse> =>
       request('/me/food-log/drafts/photo', MealDraftResponseSchema, { method: 'POST', json: body }),
+
+    /**
+     * `POST /me/food-log/feedback`: a few notes on one day (spec 008). Needs a connection (never
+     * queued). 422 `feedback_unavailable` with `ed_soft_stop` or without numeric targets (AC2).
+     */
+    dailyFeedback: (body: DailyFeedbackRequest): Promise<DailyFeedbackResponse> =>
+      request('/me/food-log/feedback', DailyFeedbackResponseSchema, { method: 'POST', json: body }),
+
+    /** `GET /exercises`: the whole catalog and the user's own exercises, cached on the device (spec 009). */
+    exerciseCatalog: (): Promise<ExerciseCatalogResponse> =>
+      request('/exercises', ExerciseCatalogResponseSchema),
+
+    /** `PUT /me/exercises/:id`: an exercise of the user's own under a client id; idempotent (spec 009). */
+    saveCustomExercise: (
+      id: string,
+      body: CustomExerciseUpsertRequest,
+    ): Promise<CustomExerciseSaveResponse> =>
+      request(`/me/exercises/${id}`, CustomExerciseSaveResponseSchema, {
+        method: 'PUT',
+        json: body,
+      }),
+
+    /** `DELETE /me/exercises/:id`: succeeds when it does not exist; past sets keep their label. */
+    deleteCustomExercise: (
+      id: string,
+      { recordedAt }: CustomExerciseDeleteQuery,
+    ): Promise<CustomExerciseSaveResponse> =>
+      request(
+        `/me/exercises/${id}?recordedAt=${encodeURIComponent(recordedAt)}`,
+        CustomExerciseSaveResponseSchema,
+        { method: 'DELETE' },
+      ),
+
+    /** `GET /me/workouts`: the workouts of at most 62 days, newest first (spec 009). */
+    listWorkouts: ({ from, to }: WorkoutLogQuery): Promise<WorkoutLogResponse> =>
+      request(`/me/workouts?from=${from}&to=${to}`, WorkoutLogResponseSchema),
+
+    /** `PUT /me/workouts/:id`: replaces the whole workout; the later `recordedAt` wins (spec 009 AC23). */
+    saveWorkout: (id: string, body: WorkoutUpsertRequest): Promise<WorkoutSaveResponse> =>
+      request(`/me/workouts/${id}`, WorkoutSaveResponseSchema, { method: 'PUT', json: body }),
+
+    /** `DELETE /me/workouts/:id`: succeeds when it does not exist; leaves a tombstone (AC19, AC23). */
+    deleteWorkout: (id: string, { recordedAt }: WorkoutDeleteQuery): Promise<WorkoutSaveResponse> =>
+      request(
+        `/me/workouts/${id}?recordedAt=${encodeURIComponent(recordedAt)}`,
+        WorkoutSaveResponseSchema,
+        { method: 'DELETE' },
+      ),
+
+    /** `GET /me/exercises/stats`: last session, bests and last rest of each exercise done (AC7–AC10). */
+    exerciseStats: (): Promise<ExerciseStatsResponse> =>
+      request('/me/exercises/stats', ExerciseStatsResponseSchema),
+
+    /** `GET /me/exercises/:id/history`: the last sessions and the bests of one exercise (AC15). */
+    exerciseHistory: (id: string, limit?: number): Promise<ExerciseHistoryResponse> =>
+      request(
+        `/me/exercises/${id}/history${limit === undefined ? '' : `?limit=${limit}`}`,
+        ExerciseHistoryResponseSchema,
+      ),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */
     exportData: (): Promise<ExportResponse> => request('/me/export', ExportResponseSchema),

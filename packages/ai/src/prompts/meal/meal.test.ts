@@ -36,7 +36,13 @@ function message(over: Partial<Anthropic.Message>): Anthropic.Message {
 
 const text = (value: string) => ({ type: 'text', text: value, citations: null }) as const;
 const toolUse = (id: string, queries: unknown) =>
-  ({ type: 'tool_use', id, name: 'search_foods', input: { queries }, caller: { type: 'direct' } }) as const;
+  ({
+    type: 'tool_use',
+    id,
+    name: 'search_foods',
+    input: { queries },
+    caller: { type: 'direct' },
+  }) as const;
 const searchCall = (id: string, ...queries: string[]) =>
   message({ stop_reason: 'tool_use', content: [toolUse(id, queries)] });
 const answer = (value: MealReading = reading) =>

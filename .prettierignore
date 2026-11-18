@@ -3,3 +3,5 @@ packages/db/migrations/
 .next/
 dist/
 coverage/
+.agents/
+.aider-desk/

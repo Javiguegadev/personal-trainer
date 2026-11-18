@@ -8,6 +8,7 @@ import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useMe } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
+import { setSessionUser } from '@/lib/liveSession';
 import { startOfflineCache, useOfflineCacheRestored } from '@/lib/offline';
 import { queryClient } from '@/lib/query';
 import { signOut } from '@/lib/session';
@@ -19,6 +20,7 @@ export default function RootLayout() {
   const restored = useOfflineCacheRestored(userId);
   useEffect(() => {
     if (userId) startOfflineCache(userId);
+    setSessionUser(userId);
   }, [userId]);
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = {
@@ -88,6 +90,13 @@ function RootNavigator() {
           <Stack.Screen name="weight" options={{ presentation: 'modal' }} />
           <Stack.Screen name="food/add" options={{ presentation: 'modal' }} />
           <Stack.Screen name="food/item/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="training/session" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="training/picker" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="training/activity" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="training/workout/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="training/exercises/index" />
+          <Stack.Screen name="training/exercises/[id]" />
+          <Stack.Screen name="training/exercises/new" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" />
         </Stack.Protected>
       </Stack>

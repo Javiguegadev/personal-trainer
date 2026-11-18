@@ -1,9 +1,37 @@
-import { CATALOG_FOOD_FIELDS, CONSENT_VERSION, type MealItemUpsertRequest } from '@pt/contracts';
+import {
+  CATALOG_FOOD_FIELDS,
+  CONSENT_VERSION,
+  type CustomExerciseUpsertRequest,
+  type MealItemUpsertRequest,
+  type WorkoutUpsertRequest,
+} from '@pt/contracts';
+import { NO_BESTS } from '@pt/core';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, createApiClient, isApiError } from './client';
 import { meBody, profileInput } from './test/fixtures';
 
 const BASE = 'http://api.test';
+const EXERCISE_ID = 'e1000000-0000-4000-8000-000000000001';
+const WORKOUT_ID = '70000000-0000-4000-8000-000000000001';
+const customExerciseBody: CustomExerciseUpsertRequest = {
+  name: 'Remo en máquina Hammer',
+  tracking: 'weight_reps',
+  primaryMuscle: 'back',
+  recordedAt: '2026-11-18T10:00:00.000Z',
+};
+const activityBody: WorkoutUpsertRequest = {
+  kind: 'sport',
+  activity: 'football',
+  name: null,
+  minutes: 60,
+  inputMethod: 'activity',
+  localDate: '2026-11-17',
+  startedAt: '2026-11-17T19:00:00.000Z',
+  sessionRpe: 7,
+  recordedAt: '2026-11-18T10:00:00.000Z',
+  today: '2026-11-18',
+  locale: 'es',
+};
 const FOOD_ID = 'f1000000-0000-4000-8000-000000000001';
 const ITEM_ID = '50000000-0000-4000-8000-000000000001';
 const quickAdd: MealItemUpsertRequest = {
@@ -115,6 +143,8 @@ describe('createApiClient', () => {
             mealItems: [],
             favouriteFoods: [],
             customFoods: [],
+            workouts: [],
+            customExercises: [],
             consents: [],
             aiUsage: [],
           }),
@@ -226,6 +256,64 @@ describe('createApiClient', () => {
         method: 'DELETE',
         path: '/me',
         res: () => new Response(null, { status: 204 }),
+      },
+      // Spec 009: exercise catalog, custom exercises, workouts and stats.
+      {
+        run: (a: Api) => a.exerciseCatalog(),
+        method: 'GET',
+        path: '/exercises',
+        res: () => Response.json({ version: 'v1', exercises: [] }),
+      },
+      {
+        run: (a: Api) => a.saveCustomExercise(EXERCISE_ID, customExerciseBody),
+        method: 'PUT',
+        path: `/me/exercises/${EXERCISE_ID}`,
+        body: customExerciseBody,
+        res: () => Response.json({ exercise: null }),
+      },
+      {
+        run: (a: Api) =>
+          a.deleteCustomExercise(EXERCISE_ID, { recordedAt: '2026-11-18T10:00:00.000+01:00' }),
+        method: 'DELETE',
+        path: `/me/exercises/${EXERCISE_ID}?recordedAt=2026-11-18T10%3A00%3A00.000%2B01%3A00`,
+        res: () => Response.json({ exercise: null }),
+      },
+      {
+        run: (a: Api) => a.listWorkouts({ from: '2026-09-20', to: '2026-11-18' }),
+        method: 'GET',
+        path: '/me/workouts?from=2026-09-20&to=2026-11-18',
+        res: () => Response.json({ workouts: [] }),
+      },
+      {
+        run: (a: Api) => a.saveWorkout(WORKOUT_ID, activityBody),
+        method: 'PUT',
+        path: `/me/workouts/${WORKOUT_ID}`,
+        body: activityBody,
+        res: () => Response.json({ workout: null }),
+      },
+      {
+        run: (a: Api) => a.deleteWorkout(WORKOUT_ID, { recordedAt: '2026-11-18T10:00:00.000Z' }),
+        method: 'DELETE',
+        path: `/me/workouts/${WORKOUT_ID}?recordedAt=2026-11-18T10%3A00%3A00.000Z`,
+        res: () => Response.json({ workout: null }),
+      },
+      {
+        run: (a: Api) => a.exerciseStats(),
+        method: 'GET',
+        path: '/me/exercises/stats',
+        res: () => Response.json({ stats: [] }),
+      },
+      {
+        run: (a: Api) => a.exerciseHistory(EXERCISE_ID, 20),
+        method: 'GET',
+        path: `/me/exercises/${EXERCISE_ID}/history?limit=20`,
+        res: () => Response.json({ exerciseId: EXERCISE_ID, sessions: [], bests: NO_BESTS }),
+      },
+      {
+        run: (a: Api) => a.exerciseHistory(EXERCISE_ID),
+        method: 'GET',
+        path: `/me/exercises/${EXERCISE_ID}/history`,
+        res: () => Response.json({ exerciseId: EXERCISE_ID, sessions: [], bests: NO_BESTS }),
       },
     ];
 

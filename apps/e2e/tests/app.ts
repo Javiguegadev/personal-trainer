@@ -126,6 +126,7 @@ export async function confirmSummary(page: Page): Promise<Locator> {
 const TAB_SCREENS = {
   today: 'today-screen',
   food: 'food-screen',
+  training: 'training-screen',
   progress: 'progress-screen',
   profile: 'profile-tab-screen',
 } as const;
@@ -151,7 +152,7 @@ export async function localToday(page: Page): Promise<string> {
 export async function mockRecord<T>(page: Page): Promise<T | undefined> {
   return page.evaluate(() => {
     // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
-    const db = JSON.parse(localStorage.getItem('pt.mock-db.v6') ?? '{}') as Record<string, unknown>;
+    const db = JSON.parse(localStorage.getItem('pt.mock-db.v7') ?? '{}') as Record<string, unknown>;
     return Object.values(db)[0];
   }) as Promise<T | undefined>;
 }
