@@ -342,5 +342,28 @@ the app knows what I actually did, not only what I planned.
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
+  - The limits are `WORKOUT_LIMITS` (`TRAINING_LIMITS` already names the weekly plan of spec 002).
+  - `workouts.activity` is an enum (`activity_type`, the chips of AC16), not free text; the name of a
+    profile activity goes to `name`. `workout_sets` keeps a `tracking` snapshot next to the label.
+  - The export schema and `CONSENT_VERSION` change with the API step (export) and the UI step (consent
+    text), so every commit keeps `pnpm check` green.
+  - free-exercise-db is The Unlicense (checked 2026-11-18, `LICENSE.md`); the importer downloads
+    `dist/exercises.json` pinned to commit `f00c92c` (2026-09-27). Its muscles map to our 12 groups
+    (lats, middle and lower back, traps and neck → back; abductors → glutes; adductors → quads).
+  - The search fixture (AC4) lives next to the catalog in `@pt/db`
+    (`knowledge/catalog/exercise-search.fixture.json`, test `knowledge/exercises/search.test.ts`),
+    because `@pt/core` cannot read files; `@pt/db` has `@pt/core` as a dev dependency for it.
+    `searchExercises` reuses the ranking of the food search.
+- Done so far (2026-11-18), one commit per step: contracts (`4aac4c8`); tables, migration
+  `0009_workout_log` (additive: 8 enums, 3 tables with RLS) and the curated catalog of 192 exercises
+  with its importer (`5df9f7b`); core (`cbf6ce5`): `training/sets` (tracking, steppers, fields, weight
+  jump), `bests` (Epley, personal bests, exercise stats, 1RM series), `session` (reducer, rest timer,
+  records, summary, request, stale session, repeat, edit), `search`, `write` (write rules, workout from
+  request, activity chips, repeat shortcuts). Search fixture: 176 queries, 98.3 % first and 100 % in
+  the top 3 (misses: "curl biceps", "elevacion de piernas", "maquina de remo", all ambiguous).
+- Left for the human before the API integration tests: review the SQL of `0009_workout_log`, then
+  `pnpm db:migrate` and `pnpm --filter @pt/db import:exercises` on dev.
+- Next: API (routes, store, export, `COVERED_USER_TABLES` of the account deletion test), then client,
+  UI, E2E.
