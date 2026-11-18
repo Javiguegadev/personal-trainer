@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "test:integration": "node --env-file-if-exists=../../.env ../../node_modules/vitest/vitest.mjs run integration",
+    "eval:daily-feedback": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs evals/daily-feedback.ts",
     "eval:food-search": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs evals/food-search.ts",
     "eval:label-scan": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs evals/label-scan.ts",
     "eval:meal-text": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs evals/meal-draft.ts text",

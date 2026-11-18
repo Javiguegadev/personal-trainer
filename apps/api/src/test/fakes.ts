@@ -2,13 +2,16 @@ import {
   AiUnavailableError,
   type AiFeature,
   type AiUsage,
+  type FeedbackPromptInput,
   type MealInput,
   type ReadLabel,
   type ReadMeal,
+  type WordFeedback,
 } from '@pt/ai';
 import type {
   ConsentKind,
   CustomFoodUpsertRequest,
+  FeedbackReading,
   LabelReading,
   MealReading,
   MealItem,
@@ -502,6 +505,24 @@ export interface FakeMealModel {
   toolResults: string[];
 }
 
+/** The feedback model (spec 008): its answer, built from the input, and the inputs it received. */
+export interface FakeFeedbackModel {
+  answer: ((input: FeedbackPromptInput) => FeedbackReading) | AiUnavailableError | null;
+  calls: FeedbackPromptInput[];
+}
+
+export function feedbackUsage(status: AiUsage['status'] = 'ok'): AiUsage {
+  return {
+    feature: 'daily_feedback',
+    model: 'claude-haiku-5-5',
+    inputTokens: status === 'error' ? 0 : 1500,
+    outputTokens: status === 'error' ? 0 : 150,
+    costUsd: status === 'error' ? 0 : 0.000225,
+    latencyMs: 1200,
+    status,
+  };
+}
+
 export async function createTestApp() {
   const store = new FakeStore();
   const deleted: string[] = [];
@@ -538,6 +559,14 @@ export async function createTestApp() {
     const feature = input.kind === 'photo' ? 'meal_photo' : 'meal_text';
     return { reading: meal.answer(results), usage: mealUsage(feature) };
   };
+  /** The feedback model: what it answers next and the inputs it received (spec 008). */
+  const feedback: FakeFeedbackModel = { answer: null, calls: [] };
+  const wordFeedback: WordFeedback = async (input) => {
+    feedback.calls.push(input);
+    if (feedback.answer === null) throw new Error('no fake feedback answer set');
+    if (feedback.answer instanceof AiUnavailableError) throw feedback.answer;
+    return { reading: feedback.answer(input), usage: feedbackUsage() };
+  };
   const clock = { now: NOW };
   const deps: Deps = {
     verifyToken: tokens.verifyToken,
@@ -549,6 +578,7 @@ export async function createTestApp() {
     },
     readLabel,
     readMeal,
+    wordFeedback,
     now: () => clock.now,
   };
   const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test', deps });
@@ -565,7 +595,7 @@ export async function createTestApp() {
     });
   }
 
-  return { app, store, deleted, tokens, token, call, off, label, meal, clock };
+  return { app, store, deleted, tokens, token, call, off, label, meal, feedback, clock };
 }
 
 /** A valid adult profile (35-year-old woman, 165 cm, 70 kg, seated, no training, lose). */
