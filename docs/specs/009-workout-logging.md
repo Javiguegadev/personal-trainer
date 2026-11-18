@@ -337,12 +337,18 @@ the app knows what I actually did, not only what I planned.
   Training tab, and whether 16–17-year-olds should see the estimated 1RM.
 - The human: review a sample of 50 Spanish exercise names and the search fixture before closing the
   spec.
+- From the domain review of the UI (2026-11-19), for the professional reviewer: with `ed_soft_stop`,
+  should distance records (cardio) also be hidden, or every record? Compulsive exercise is mostly
+  endurance driven (Dalle Grave 2009); today only reps-only and time records are hidden, as written. A
+  first-ever weight has no history to compare with, so a typo (250 kg) is not asked about: should the
+  first entry be checked against body weight? Should `teen_limited` users see the estimated 1RM, and
+  should `medical_condition` get a note on the Training tab?
 - Whether to show exercise images from free-exercise-db (they are public domain, ≈2 images per
   exercise, hosted on GitHub) in a later spec, and where to host them (Supabase Storage).
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
 - Decisions taken during implementation:
   - The limits are `WORKOUT_LIMITS` (`TRAINING_LIMITS` already names the weekly plan of spec 002).
   - `workouts.activity` is an enum (`activity_type`, the chips of AC16), not free text; the name of a
@@ -388,4 +394,46 @@ the app knows what I actually did, not only what I planned.
   every way of tracking); `MOCK_DB_KEY` is now `v7`. Tests: route mapping, cache and optimistic
   writes, offline queue across a restart (AC22), later write wins and tombstone (AC23), rejection
   undo, mock routes (403, 404, 409, AC25 export and delete).
-- Next: UI (register `registerTrainingMutations` in `apps/app/src/lib/api.ts`), E2E.
+- UI (2026-11-19): the Training tab (fifth tab), the session screen (live, past and edit), the picker,
+  the activity sheet, the workout sheet, the library, the exercise page with the 1RM chart, the new
+  exercise form, the Today card, consent `2026-11-v7`. Decisions:
+  - The session lives in device storage in two slots per user (`lib/liveSession.ts`): `live` (the gym
+    session, one at a time) and `draft` (a past session of AC17 or a saved one edited for AC19), so an
+    edit never touches the session in progress. Sign-out deletes both.
+  - The set row fits one line at 360 px: ✓ is 48 × 48 and doubles as the set number; the steppers are
+    segmented groups with 44 × 48 px buttons (48 tall, 44 wide, the iOS minimum); the session screen has
+    8 px side margins. Weight and reps can also be typed. "Quitar serie" removes the last set.
+  - The rest bar lives in the footer (above the keyboard). At 0 it says "Descanso terminado" with a
+    haptic and a chime (`expo-haptics`, `expo-audio` with a 0.4 s WAV made for the app; no microphone or
+    background audio permissions); it closes on "Saltar", the next set, or 30 s later. A timer that
+    ended while the app was in the background closes without the chime.
+  - Keep-awake uses `activateKeepAwakeAsync` in an effect, not `useKeepAwake`, which throws on web when
+    it is released before the wake lock is granted.
+  - The "Récord" mark of a saved workout (AC20, AC21) is computed from the cached stats and the 60-day
+    log (`workoutRecordCount`): a set that holds an all-time best first reached that day, in an exercise
+    done before in the log. An exercise whose earlier sessions are all older than 60 days shows no mark.
+  - "Ver más" (AC20) extends the history from 30 to the 60 cached days; older weeks wait for the week
+    view of spec 010.
+  - "Registrar entreno" on Today opens the Training tab, which holds the choice (start or activity).
+  - `ed_soft_stop`: no records, bests or volume for reps-only and time exercises anywhere in training,
+    and no volume total in the summary (`showsRecordsFor` in core).
+  - A finished set counted as a record shows one badge per beaten best (heaviest weight, estimated 1RM).
+  - Domain review (2026-11-19), applied: the "Récord" mark counts each best once, in the first set that
+    reached it, and not on a tie with an earlier workout of the same day; a completed set edited to a
+    weight far above the heaviest goes back to unchecked, so ✓ asks "¿Seguro?" again; a workout with an
+    exercise that no longer exists (only if an exercise row is ever removed: custom exercises are
+    tombstoned today) cannot be edited and is deleted after a confirmation, because a `PUT` would erase
+    that exercise's sets (`canRewriteWorkout`); "Descanso terminado." without a push; the injury line
+    also on the session screen and naming "un profesional sanitario"; the badge reads "Nuevo récord:
+    62,5 kg".
+  - New in core (test-first): `training/view.ts` (`groupSets`, `weekStartOf`, `workoutHistoryWeeks`,
+    `recentExerciseIds`, `showsRecordsFor`, `workoutRecordCount`, `canRewriteWorkout`, `workoutToRequest`).
+- E2E (2026-11-19, `apps/e2e/tests/training.spec.ts`, 5 journeys on the mock backend): a live session
+  with two exercises (typed and stepped sets, rest timer, summary, Today, repeat with prefill and a
+  record); reload in the middle of a session; an activity for yesterday edited, deleted and undone; a
+  custom exercise created from the picker and used; a session saved offline that syncs once. Checked by
+  hand with the Playwright MCP at 360, 390 (light and dark) and 1280 px, no console errors.
+- Left for the human: the phone check in Expo Go (haptic and chime at the end of the rest, the screen
+  staying on, the keyboard over the set rows, the rest bar above the keyboard, the stopwatch), the
+  sample review of 50 Spanish exercise names and the search fixture, the professional review (Open
+  questions).

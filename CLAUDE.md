@@ -104,6 +104,10 @@ pnpm format
   `2026-11-v6`). The eval passed on 2026-11-18 (after a fix: notes of "en" days came in Spanish).
   Left: a human read of 20 notes of its report, the phone check, the professional review of the
   thresholds.
-- Next (ADR 003, ADR 006): E5 workout logging, daily context and the week view →
+- Spec 009 (E5 a: exercise catalog, Training tab, live session, activities, records): every step
+  implemented with E2E on 2026-11-19; migration `0009` applied and the catalog imported on dev. Left:
+  the phone check in Expo Go (rest haptic and chime, keep-awake, keyboard), the review of 50 exercise
+  names and the search fixture, the professional review (see its Open questions).
+- Next (ADR 003, ADR 006): E5 spec 010 (training profile, week view) and spec 011 (daily check-in) →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
   premium AI → E6 payments.
