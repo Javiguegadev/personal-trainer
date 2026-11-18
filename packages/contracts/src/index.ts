@@ -11,4 +11,5 @@ export * from './meal-draft';
 export * from './onboarding';
 export * from './privacy';
 export * from './profile';
+export * from './training';
 export * from './weight';
