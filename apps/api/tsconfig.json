@@ -1,13 +1,7 @@
 {
   "extends": "@pt/config/tsconfig.base.json",
   "compilerOptions": {
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "src",
-    "evals",
-    "*.ts"
-  ]
+  "include": ["src", "evals", "*.ts"]
 }
