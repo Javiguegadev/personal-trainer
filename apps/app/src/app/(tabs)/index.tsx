@@ -7,7 +7,9 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { SafetyNotices } from '@/components/SafetyNotices';
 import { Screen } from '@/components/Screen';
 import { TodayFoodCard } from '@/components/TodayFoodCard';
+import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
 import { TrainingLine } from '@/components/TrainingLine';
+import { TrainingRejectedNotice } from '@/components/TrainingRejectedNotice';
 import { WeightCard } from '@/components/WeightCard';
 import { TargetsChangeNotice, WeightRejectedNotice } from '@/components/WeightNotices';
 import { useI18n } from '@/hooks/useI18n';
@@ -16,7 +18,8 @@ import { useMe } from '@/lib/api';
 
 /**
  * "Today" (spec 003 AC3–AC5): the date, what was eaten against the daily targets (spec 005 AC17), the
- * weight and the planned training. Offline it shows the last data received. Workouts arrive with E5.
+ * weight, the workouts of the day (spec 009 AC21) and the planned training. Offline it shows the last
+ * data received.
  */
 export default function TodayScreen() {
   const { t, locale } = useI18n();
@@ -39,6 +42,7 @@ export default function TodayScreen() {
       <WeightRejectedNotice />
       <TargetsChangeNotice />
       <FoodRejectedNotice />
+      <TrainingRejectedNotice />
       <TodayFoodCard profile={profile} targets={targets} />
       <SafetyNotices
         notices={notices}
@@ -46,6 +50,7 @@ export default function TodayScreen() {
         floorKcal={targets?.clampedReason === 'calorie_floor' ? targets.kcal : undefined}
       />
       <WeightCard profile={profile} />
+      <TodayWorkoutCard profile={profile} />
       <TrainingLine activities={profile.plannedActivities} focus={profile.trainingFocus} />
     </Screen>
   );

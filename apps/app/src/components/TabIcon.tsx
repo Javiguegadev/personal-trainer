@@ -1,7 +1,7 @@
 import type { ColorValue } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type TabIconName = 'today' | 'food' | 'progress' | 'profile';
+export type TabIconName = 'today' | 'food' | 'training' | 'progress' | 'profile';
 
 /**
  * Tab icons drawn with react-native-svg (works on iOS, Android and web). The selected tab is filled, so
@@ -62,6 +62,50 @@ export function TabIcon({
             strokeLinecap="round"
             fill="none"
           />
+        </>
+      ) : name === 'training' ? (
+        <>
+          <Rect
+            x={2.5}
+            y={8.5}
+            width={3.5}
+            height={7}
+            rx={1}
+            stroke={color}
+            strokeWidth={2}
+            fill={fill}
+          />
+          <Rect
+            x={18}
+            y={8.5}
+            width={3.5}
+            height={7}
+            rx={1}
+            stroke={color}
+            strokeWidth={2}
+            fill={fill}
+          />
+          <Rect
+            x={6}
+            y={6}
+            width={3}
+            height={12}
+            rx={1}
+            stroke={color}
+            strokeWidth={2}
+            fill={fill}
+          />
+          <Rect
+            x={15}
+            y={6}
+            width={3}
+            height={12}
+            rx={1}
+            stroke={color}
+            strokeWidth={2}
+            fill={fill}
+          />
+          <Path d="M9 12h6" stroke={color} strokeWidth={2} strokeLinecap="round" />
         </>
       ) : name === 'progress' ? (
         <>

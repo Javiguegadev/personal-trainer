@@ -7,7 +7,7 @@ import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 
 /**
- * The tab shell (spec 003 AC1): Today, Food (spec 005), Progress and Profile. JS tabs from expo-router, which render the
+ * The tab shell (spec 003 AC1): Today, Food (spec 005), Training (spec 009), Progress and Profile. JS tabs from expo-router, which render the
  * same on iOS, Android and web; the selected tab is announced by the tab bar and shown with a filled
  * icon and a bold label, not by colour alone.
  */
@@ -52,6 +52,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={options('today', t.tabs.today)} />
       <Tabs.Screen name="food" options={options('food', t.tabs.food)} />
+      <Tabs.Screen name="training" options={options('training', t.tabs.training)} />
       <Tabs.Screen name="progress" options={options('progress', t.tabs.progress)} />
       <Tabs.Screen name="profile" options={options('profile', t.tabs.profile)} />
     </Tabs>

@@ -1,0 +1,162 @@
+import { saveWorkoutVariables } from '@pt/api-client';
+import type { ActivityKindForLog, ActivityType, Exercise, Workout } from '@pt/contracts';
+import {
+  canRewriteWorkout,
+  editWorkout,
+  exerciseName,
+  newLiveExercise,
+  repeatWorkout,
+  sessionToRequest,
+  startSession,
+  workoutToRequest,
+  type LiveSession,
+} from '@pt/core';
+import { useMemo } from 'react';
+import { useDeleteWorkout, useExerciseCatalog, useExerciseStats, useSaveWorkout } from '@/lib/api';
+import { newId } from '@/lib/id';
+import { dispatchSession, readSession, setSession, type SessionSlot } from '@/lib/liveSession';
+import { offerWorkoutUndo } from '@/lib/workoutUndo';
+import { useI18n } from './useI18n';
+import { useToday } from './useToday';
+
+/** The catalog and the stats, as lookups by id. Both are cached offline (spec 009 AC22). */
+export function useExerciseLookups() {
+  const catalog = useExerciseCatalog();
+  const stats = useExerciseStats();
+  const exercises = catalog.data?.exercises;
+  const statsList = stats.data;
+  const lookups = useMemo(
+    () => ({
+      exercises: exercises ?? [],
+      exerciseById: new Map((exercises ?? []).map((e) => [e.id, e])),
+      statsById: new Map((statsList ?? []).map((s) => [s.exerciseId, s])),
+      statsList: statsList ?? [],
+    }),
+    [exercises, statsList],
+  );
+  return { catalog, stats, ...lookups };
+}
+
+/**
+ * Every write of the workout log (spec 009): sessions live in device storage until they are saved, then
+ * one optimistic `PUT`, queued offline by `@pt/api-client` (AC22). Screens call these and move on.
+ */
+export function useTrainingActions() {
+  const { locale } = useI18n();
+  const today = useToday();
+  const save = useSaveWorkout();
+  const remove = useDeleteWorkout();
+  const { exercises, statsById } = useExerciseLookups();
+
+  const now = () => new Date().toISOString();
+  const placement = () => ({ recordedAt: now(), today, locale });
+
+  const write = (
+    id: string,
+    request: Parameters<typeof saveWorkoutVariables>[1],
+    editing: Workout | null,
+  ) => save.mutate(saveWorkoutVariables(id, request, exercises, editing));
+
+  return {
+    /** "Empezar entreno" (AC6). */
+    startLive(): LiveSession {
+      const session = startSession({
+        id: newId(),
+        localDate: today,
+        startedAt: now(),
+        mode: 'live',
+      });
+      setSession('live', session);
+      return session;
+    },
+    /** "Registrar entreno pasado" (AC17): the same screen without the rest timer. */
+    startManual(localDate: string, startedAt: string): LiveSession {
+      const session = startSession({ id: newId(), localDate, startedAt, mode: 'manual' });
+      setSession('draft', session);
+      return session;
+    },
+    /** "Repetir" (AC18): a live session with the exercises and sets of a past one. */
+    repeat(workout: Workout): LiveSession {
+      const session = repeatWorkout(workout, {
+        id: newId(),
+        localDate: today,
+        startedAt: now(),
+        stats: statsById,
+        newId,
+      });
+      setSession('live', session);
+      return session;
+    },
+    /** "Editar ejercicios y series" of a saved gym session (AC19). */
+    edit(workout: Workout): LiveSession {
+      const session = editWorkout(workout, { stats: statsById, newId });
+      setSession('draft', session);
+      return session;
+    },
+    /** The picker's choice (AC7): cards prefilled from last time. */
+    addExercises(slot: SessionSlot, picked: readonly Exercise[]) {
+      dispatchSession(slot, {
+        type: 'addExercises',
+        exercises: picked.map((exercise) =>
+          newLiveExercise({
+            exercise: {
+              id: exercise.id,
+              label: exerciseName(exercise, locale),
+              tracking: exercise.tracking,
+            },
+            stats: statsById.get(exercise.id) ?? null,
+            newId,
+          }),
+        ),
+      });
+    },
+    /**
+     * "Guardar" of the finish sheet (AC12): only the completed sets. Returns false when nothing was
+     * completed. `editing` is the saved workout an edit started from (AC19).
+     */
+    saveSession(
+      slot: SessionSlot,
+      finish: { minutes: number; sessionRpe: number | null; name: string | null },
+      editing: Workout | null,
+    ): boolean {
+      const session = readSession(slot);
+      if (!session) return false;
+      const request = sessionToRequest(session, { ...finish, ...placement() });
+      if (!request) return false;
+      write(session.id, request, editing);
+      setSession(slot, null);
+      return true;
+    },
+    discard(slot: SessionSlot) {
+      setSession(slot, null);
+    },
+    /** AC16: an activity with one tap. */
+    saveActivity(input: {
+      kind: ActivityKindForLog;
+      activity: ActivityType | null;
+      name: string | null;
+      localDate: string;
+      startedAt: string;
+      minutes: number;
+      sessionRpe: number | null;
+    }) {
+      write(newId(), { ...input, inputMethod: 'activity', ...placement() }, null);
+    },
+    /** AC19: the day, duration, effort or name of a saved workout. */
+    update(workout: Workout, changes: Parameters<typeof workoutToRequest>[2]) {
+      const request = workoutToRequest(workout, placement(), changes);
+      if (request) write(workout.id, request, workout);
+    },
+    /** AC19: deleted at once, with 5 seconds to undo instead of a confirmation. */
+    remove(workout: Workout) {
+      remove.mutate({ id: workout.id, recordedAt: now() });
+      // A workout that cannot be written again cannot come back: its sheet asks first instead.
+      if (canRewriteWorkout(workout)) offerWorkoutUndo(workout);
+    },
+    /** The undo writes the workout back with a later time, which wins over the delete (AC23). */
+    restore(workout: Workout) {
+      const request = workoutToRequest(workout, placement());
+      if (request) write(workout.id, request, workout);
+    },
+  };
+}

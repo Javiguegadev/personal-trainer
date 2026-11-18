@@ -35,4 +35,5 @@ export * from './training/bests';
 export * from './training/search';
 export * from './training/session';
 export * from './training/sets';
+export * from './training/view';
 export * from './training/write';

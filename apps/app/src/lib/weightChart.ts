@@ -72,9 +72,9 @@ export function weightChartModel(input: {
   };
 }
 
-/** The entry closest to a tap at `x`. */
-export function nearestPoint(points: readonly PlottedPoint[], x: number): PlottedPoint | null {
-  let best: PlottedPoint | null = null;
+/** The point closest to a tap at `x`. */
+export function nearestPoint<T extends { x: number }>(points: readonly T[], x: number): T | null {
+  let best: T | null = null;
   for (const point of points) {
     if (!best || Math.abs(point.x - x) < Math.abs(best.x - x)) best = point;
   }
