@@ -13,7 +13,8 @@
     "generate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs generate",
     "migrate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs migrate",
     "studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio",
-    "import:foods": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs src/knowledge/import-foods.ts"
+    "import:foods": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs src/knowledge/import-foods.ts",
+    "import:exercises": "node --env-file-if-exists=../../.env node_modules/tsx/dist/cli.mjs src/knowledge/import-exercises.ts"
   },
   "devDependencies": {
     "@pt/config": "workspace:*",

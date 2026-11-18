@@ -64,6 +64,13 @@
       "when": 1794915682781,
       "tag": "0008_meal_draft_input_methods",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795021987366,
+      "tag": "0009_workout_log",
+      "breakpoints": true
     }
   ]
 }
