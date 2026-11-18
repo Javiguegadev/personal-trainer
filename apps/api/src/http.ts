@@ -25,6 +25,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   ai_cap_reached: 'Daily limit of label photos reached, fill in the form instead',
   image_too_large: 'The image is too large',
   food_limit_reached: 'Too many foods of your own',
+  feedback_unavailable: 'The daily feedback is not available for this profile',
 };
 
 export function errorBody(code: ApiErrorCode, fields?: Record<string, string>): ApiErrorBody {

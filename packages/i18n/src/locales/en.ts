@@ -62,7 +62,7 @@ export const en: DeepStringRecord<typeof es> = {
     points: {
       what: 'We store your profile (sex, date of birth, height, weight, goal, diet, allergies and injuries), what your job is like, your weekly training, your weight log, what you eat (your food log and the foods you create) and, if you fill them in, your sleep and stress check-ins.',
       where: 'It is stored on servers in the European Union and only you can see it.',
-      use: 'We use it to calculate your targets and adapt your recommendations. If you take a photo of a product label or of your plate, or describe a meal in a sentence, an AI provider (Anthropic) reads it: the photo and the sentence are not stored and travel without your profile or your targets. No AI provider processes the rest of your data; if that changes, we will ask for your consent again.',
+      use: 'We use it to calculate your targets and adapt your recommendations. If you take a photo of a product label or of your plate, or describe a meal in a sentence, an AI provider (Anthropic) reads it: the photo and the sentence are not stored and travel without your profile or your targets. If you ask for the notes on your day, the same provider receives a summary of that day (what is missing or above your targets), the names of the foods you usually eat, your diet type, your allergies and your dislikes, to word them; it does not receive your name, age, weight or goal, and nothing is stored. No AI provider processes the rest of your data; if that changes, we will ask for your consent again.',
       control: 'You can download or delete all your data at any time in Settings → Privacy.',
       advice: 'Recommendations are for guidance only and do not replace a healthcare professional.',
     },
@@ -753,6 +753,7 @@ export const en: DeepStringRecord<typeof es> = {
     image_too_large: 'The image is too large.',
     food_limit_reached:
       "You've reached the maximum number of your own foods. Delete one to create another.",
+    feedback_unavailable: 'Notes on your day are not available for your profile.',
     internal_error: 'Something went wrong on the server. Please try again.',
     network: 'No connection to the server. Check your network.',
     unknown: 'Something went wrong. Please try again.',

@@ -59,7 +59,7 @@ export const es = {
     points: {
       what: 'Guardamos tu perfil (sexo, fecha de nacimiento, altura, peso, objetivo, dieta, alergias y lesiones), cómo es tu trabajo, tu entrenamiento semanal, tu registro de peso, lo que comes (tu registro de comidas y los alimentos que creas) y, si los rellenas, tus registros de sueño y estrés.',
       where: 'Se guardan en servidores de la Unión Europea y solo tú puedes verlos.',
-      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Si haces una foto a la etiqueta de un producto o a tu plato, o describes una comida con una frase, la lee un proveedor de IA (Anthropic): la foto y la frase no se guardan y viajan sin tu perfil ni tus objetivos. Ningún proveedor de IA procesa el resto de tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
+      use: 'Los usamos para calcular tus objetivos y adaptar tus recomendaciones. Si haces una foto a la etiqueta de un producto o a tu plato, o describes una comida con una frase, la lee un proveedor de IA (Anthropic): la foto y la frase no se guardan y viajan sin tu perfil ni tus objetivos. Si pides las notas de tu día, el mismo proveedor recibe un resumen de ese día (lo que te falta o te sobra frente a tus objetivos), los nombres de los alimentos que sueles comer, tu tipo de dieta, tus alergias y lo que no te gusta, para redactarlas; no recibe tu nombre, edad, peso ni objetivo, y no se guarda nada. Ningún proveedor de IA procesa el resto de tus datos; si eso cambia, te pediremos de nuevo el consentimiento.',
       control: 'Puedes descargar o borrar todos tus datos cuando quieras en Ajustes → Privacidad.',
       advice:
         'Las recomendaciones son orientativas y no sustituyen el consejo de un profesional sanitario.',
@@ -759,6 +759,7 @@ export const es = {
       'Has llegado al límite de fotos de etiqueta por hoy. Puedes rellenar el formulario a mano.',
     image_too_large: 'La imagen es demasiado grande.',
     food_limit_reached: 'Has llegado al máximo de alimentos propios. Borra alguno para crear otro.',
+    feedback_unavailable: 'Las notas del día no están disponibles para tu perfil.',
     internal_error: 'Algo ha fallado en el servidor. Vuelve a intentarlo.',
     network: 'No hay conexión con el servidor. Comprueba tu red.',
     unknown: 'Algo ha fallado. Vuelve a intentarlo.',
