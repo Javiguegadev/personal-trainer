@@ -4,6 +4,7 @@
  * `{ code, fields }` body. TanStack Query hooks live in `./hooks`.
  */
 export * from './client';
+export * from './feedback';
 export * from './foods';
 export * from './hooks';
 export * from './weights';

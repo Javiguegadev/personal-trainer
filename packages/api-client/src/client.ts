@@ -1,6 +1,7 @@
 import {
   ApiErrorSchema,
   CustomFoodsResponseSchema,
+  DailyFeedbackResponseSchema,
   ExportResponseSchema,
   FavouriteFoodsResponseSchema,
   FoodLogResponseSchema,
@@ -20,6 +21,8 @@ import {
   type ConsentRequest,
   type CustomFoodUpsertRequest,
   type CustomFoodsResponse,
+  type DailyFeedbackRequest,
+  type DailyFeedbackResponse,
   type ExportResponse,
   type FavouriteFoodsResponse,
   type Food,
@@ -257,6 +260,13 @@ export function createApiClient({
      */
     draftFromPhoto: (body: MealPhotoDraftRequest): Promise<MealDraftResponse> =>
       request('/me/food-log/drafts/photo', MealDraftResponseSchema, { method: 'POST', json: body }),
+
+    /**
+     * `POST /me/food-log/feedback`: a few notes on one day (spec 008). Needs a connection (never
+     * queued). 422 `feedback_unavailable` with `ed_soft_stop` or without numeric targets (AC2).
+     */
+    dailyFeedback: (body: DailyFeedbackRequest): Promise<DailyFeedbackResponse> =>
+      request('/me/food-log/feedback', DailyFeedbackResponseSchema, { method: 'POST', json: body }),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */
     exportData: (): Promise<ExportResponse> => request('/me/export', ExportResponseSchema),

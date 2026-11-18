@@ -4,6 +4,8 @@
  */
 import type {
   ConsentRequest,
+  DailyFeedbackRequest,
+  DailyFeedbackResponse,
   Food,
   LabelScanRequest,
   MealPhotoDraftRequest,
@@ -26,6 +28,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
+import { feedbackKeys, writeTouchesDay } from './feedback';
 import {
   cachedFoodByBarcode,
   customFoodsQueryOptions,
@@ -269,6 +272,40 @@ export function createApiHooks(api: ApiClient) {
           return variables.id ?? variables.food?.id ?? '';
         },
       }),
+
+    /**
+     * The daily feedback of `localDate` (spec 008): the last one asked for, kept in the query cache,
+     * and how to ask for it (again). Needs a connection: it is never queued.
+     */
+    useDailyFeedback: (localDate: string) => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<DailyFeedbackResponse | null>({
+        queryKey: feedbackKeys.day(localDate),
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+        gcTime: 24 * 60 * 60 * 1000,
+      });
+      const ask = useMutation({
+        mutationFn: (body: DailyFeedbackRequest) => api.dailyFeedback(body),
+        // Never paused and replayed later: offline the button is disabled.
+        networkMode: 'always',
+        retry: false,
+        onSuccess: (feedback) =>
+          queryClient.setQueryData(feedbackKeys.day(feedback.localDate), feedback),
+      });
+      return { feedback: data, ask };
+    },
+
+    /** A food-log write of `localDate` has not reached the server yet (spec 008 AC3). */
+    useFoodLogSyncing: (localDate: string): boolean =>
+      useMutationState({
+        filters: {
+          mutationKey: foodKeys.mutations,
+          status: 'pending',
+          predicate: (mutation) => writeTouchesDay(mutation, localDate),
+        },
+      }).length > 0,
 
     /** The last food-log write the API rejected, and how to dismiss it (AC21). */
     useRejectedFoodWrite: () => {

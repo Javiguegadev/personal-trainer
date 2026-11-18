@@ -10,6 +10,8 @@ import {
   CUSTOM_FOOD_LIMITS,
   ConsentRequestSchema,
   CustomFoodUpsertRequestSchema,
+  DailyFeedbackRequestSchema,
+  FEEDBACK_LIMITS,
   FOOD_LOG_LIMITS,
   FoodIdParamSchema,
   FoodLocaleQuerySchema,
@@ -31,6 +33,7 @@ import {
   WeightUpsertRequestSchema,
   type ApiErrorCode,
   type DietaryPrefs,
+  type FeedbackNote,
   type ExportResponse,
   type Food,
   type LabelReading,
@@ -39,12 +42,25 @@ import {
   type MeResponse,
   type Portion,
   type Profile,
+  type RecentFood,
   type WeightEntry,
   type WeightSaveResponse,
 } from '@pt/contracts';
 import {
   addDays,
   applyLatestWeight,
+  dailyObservations,
+  feedbackAvailable,
+  feedbackCandidates,
+  feedbackCitations,
+  feedbackFingerprint,
+  isPlausibleClientDate,
+  minuteOfDay,
+  referenceWeightKg,
+  sportCarbsMinimum,
+  templateNotes,
+  trainingMinutesPerWeek,
+  validateFeedback,
   buildFoodSearchIndex,
   checkCustomFood,
   checkFoodLogRange,
@@ -67,6 +83,7 @@ import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
 import { MOCK_CATALOG, MOCK_SOURCE, toMockFood } from './foods';
 import { mockPhotoReading, mockTextReading } from './drafts';
+import { mockFeedbackReading } from './feedback';
 import { mockProduct, mockProductById } from './products';
 import { parseMockToken, type MockUser } from './identity';
 
@@ -128,6 +145,9 @@ const MOCK_LABEL_READING: LabelReading = {
 
 /** An image this small (a few pixels, in base64 characters) is "not a label" for the mock (AC17). */
 const MOCK_UNREADABLE_BELOW = 2000;
+
+/** Recently logged foods the feedback candidates come from (spec 008 AC12). */
+const FEEDBACK_RECENTS_MAX = 60;
 
 const catalogById = new Map(MOCK_CATALOG.map((f) => [f.id, f]));
 const searchIndex = buildFoodSearchIndex(MOCK_CATALOG);
@@ -285,6 +305,35 @@ export function createMockApiClient({
   /** The user's own foods, searched with the catalog (spec 006 AC11). */
   const customIndex = (record: UserRecord) =>
     buildFoodSearchIndex(record.customFoods.map(searchableBrandedFood));
+
+  /** The latest item of each food logged in the last 60 days, with its portion (spec 005 AC7). */
+  function recentsOf(record: UserRecord, locale: Locale, max: number): RecentFood[] {
+    const since = addDays(now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
+    const latest = new Map<string, MealItem>();
+    for (const item of live(record)) {
+      if (item.foodId === null || item.localDate < since) continue;
+      const seen = latest.get(item.foodId);
+      if (!seen || seen.recordedAt < item.recordedAt) latest.set(item.foodId, item);
+    }
+    return [...latest.values()]
+      .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+      .slice(0, max)
+      .flatMap((item) => {
+        const food = item.foodId ? findFood(record, item.foodId, locale) : null;
+        const portion = food ? lastPortion(item, food) : null;
+        return food && portion ? [{ food, lastPortion: portion }] : [];
+      });
+  }
+
+  /** Starred foods, most recently starred first (spec 005 AC14). */
+  function favouritesOf(record: UserRecord, locale: Locale): Food[] {
+    return [...record.favourites]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .flatMap((f) => {
+        const food = findFood(record, f.foodId, locale);
+        return food ? [food] : [];
+      });
+  }
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -608,33 +657,82 @@ export function createMockApiClient({
 
     recentFoods: async (locale) => {
       const { record } = await authenticateWithConsent();
-      const since = addDays(now().toISOString().slice(0, 10), -FOOD_LOG_LIMITS.recentsDays);
-      const latest = new Map<string, MealItem>();
-      for (const item of live(record)) {
-        if (item.foodId === null || item.localDate < since) continue;
-        const seen = latest.get(item.foodId);
-        if (!seen || seen.recordedAt < item.recordedAt) latest.set(item.foodId, item);
-      }
-      const recents = [...latest.values()]
-        .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
-        .slice(0, FOOD_LOG_LIMITS.recentsMax)
-        .flatMap((item) => {
-          const food = item.foodId ? findFood(record, item.foodId, locale) : null;
-          const portion = food ? lastPortion(item, food) : null;
-          return food && portion ? [{ food, lastPortion: portion }] : [];
-        });
-      return { recents };
+      return { recents: recentsOf(record, locale, FOOD_LOG_LIMITS.recentsMax) };
     },
 
     favouriteFoods: async (locale) => {
       const { record } = await authenticateWithConsent();
-      const foods = [...record.favourites]
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .flatMap((f) => {
-          const food = findFood(record, f.foodId, locale);
-          return food ? [food] : [];
+      return { foods: favouritesOf(record, locale) };
+    },
+
+    dailyFeedback: async (body) => {
+      const { record } = await authenticateWithConsent();
+      const request = parse(DailyFeedbackRequestSchema, body);
+      if (!isPlausibleClientDate(request.today, now().toISOString())) {
+        throw fail('validation_error', { today: 'implausible' });
+      }
+      const back = daysBetween(request.localDate, request.today);
+      if (back < 0) throw fail('validation_error', { localDate: 'in_future' });
+      if (back > FEEDBACK_LIMITS.daysBack) throw fail('validation_error', { localDate: 'too_old' });
+      const { profile } = record;
+      const targets = record.targets.find((t) => t.validTo === null);
+      if (!profile || !targets || !feedbackAvailable(profile.safetyFlags, true)) {
+        throw fail('feedback_unavailable');
+      }
+      const items = live(record).filter((i) => i.localDate === request.localDate);
+      const focus = profile.trainingFocus ?? 'general_fitness';
+      const reference = referenceWeightKg(profile.heightCm, profile.weightKg);
+      const carbsMin = sportCarbsMinimum(
+        focus,
+        trainingMinutesPerWeek(profile.plannedActivities),
+        reference,
+      );
+      const { state, observations } = dailyObservations(
+        { localDate: request.localDate, items, trainingDay: request.trainingDay },
+        targets,
+        {
+          referenceWeightKg: reference,
+          trainingFocus: focus,
+          carbsMinGPerKg: carbsMin?.gPerKg ?? null,
+        },
+        { safetyFlags: profile.safetyFlags },
+        { today: request.today, minuteOfDay: minuteOfDay(request.localTime) },
+      );
+      const candidates = feedbackCandidates(
+        observations,
+        {
+          recents: recentsOf(record, request.locale, FEEDBACK_RECENTS_MAX),
+          favourites: favouritesOf(record, request.locale),
+        },
+        targets.kcal,
+      );
+      // The daily cap of the AI wording (AC15): past it, every note in fixed wording.
+      const today = now().toISOString().slice(0, 10);
+      const used = record.aiUsage.filter(
+        (u) => u.feature === 'daily_feedback' && u.createdAt.slice(0, 10) === today,
+      ).length;
+      let notes: FeedbackNote[];
+      if (used < FEEDBACK_LIMITS.aiPerDay) {
+        record.aiUsage.push({
+          feature: 'daily_feedback',
+          model: 'claude-haiku-5-5',
+          inputTokens: 1500,
+          outputTokens: 150,
+          createdAt: now().toISOString(),
         });
-      return { foods };
+        persist();
+        const reading = mockFeedbackReading(observations, candidates, request.locale);
+        notes = validateFeedback(reading, observations, candidates);
+      } else {
+        notes = templateNotes(observations, candidates);
+      }
+      return {
+        localDate: request.localDate,
+        state,
+        notes,
+        citations: feedbackCitations(notes),
+        fingerprint: feedbackFingerprint(items),
+      };
     },
 
     setFavouriteFood: async (id, favourite) => {
