@@ -3,6 +3,7 @@ import { SafetyFlagSchema } from '@pt/contracts';
 import { and, asc, count, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
 import { createFoodStore, exportFoodLog } from './food-store';
+import { createTrainingStore, exportTrainingLog } from './training-store';
 
 const {
   aiUsage,
@@ -121,6 +122,7 @@ export function createDrizzleStore(db: Db): Store {
 
   return {
     ...createFoodStore(db),
+    ...createTrainingStore(db),
 
     async getMe(userId) {
       const [[consent], [profile], [lifestyle], [training], activities, [prefs], [targets]] =
@@ -440,6 +442,7 @@ export function createDrizzleStore(db: Db): Store {
         })),
         weights: weights.map(toWeight),
         ...(await exportFoodLog(db, userId)),
+        ...(await exportTrainingLog(db, userId)),
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

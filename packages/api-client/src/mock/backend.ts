@@ -189,6 +189,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   image_too_large: 'The image is too large',
   food_limit_reached: 'Too many foods of your own',
   feedback_unavailable: 'The daily feedback is not available for this profile',
+  exercise_limit_reached: 'Too many exercises of your own',
+  id_taken: 'This id is already used',
 };
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -207,6 +209,8 @@ const STATUS: Record<ApiErrorCode, number> = {
   image_too_large: 413,
   food_limit_reached: 400,
   feedback_unavailable: 422,
+  exercise_limit_reached: 400,
+  id_taken: 409,
 };
 
 const fail = (code: ApiErrorCode, fields?: Record<string, string>) =>
@@ -895,6 +899,9 @@ export function createMockApiClient({
         weights: record.weights,
         mealItems: live(record),
         customFoods: record.customFoods,
+        // The training routes join the mock backend with the client step of spec 009.
+        workouts: [],
+        customExercises: [],
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

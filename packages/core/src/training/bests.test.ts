@@ -4,6 +4,7 @@ import {
   NO_BESTS,
   addToBests,
   buildExerciseStats,
+  exerciseHistory,
   estimatedOneRepMax,
   lastRest,
   newBests,
@@ -159,5 +160,44 @@ describe('oneRepMaxSeries (AC15)', () => {
       { localDate: '2026-11-01', value: 69.5 },
       { localDate: '2026-11-08', value: 76 },
     ]);
+  });
+});
+
+describe('exerciseHistory (AC15)', () => {
+  const row = (workoutId: string, day: string, s: WorkoutSet) => ({
+    workoutId,
+    localDate: day,
+    startedAt: `${day}T18:00:00.000Z`,
+    exerciseId: 'bench',
+    tracking: 'weight_reps' as const,
+    set: s,
+  });
+  const rows = [
+    row('w1', '2026-11-01', set({ weightKg: 70, reps: 5 }, 1)),
+    row('w2', '2026-11-08', set({ weightKg: 60, reps: 8 }, 2)),
+    row('w2', '2026-11-08', set({ weightKg: 60, reps: 8 }, 1)),
+    row('w3', '2026-11-15', set({ weightKg: 62.5, reps: 8 }, 1)),
+  ];
+
+  it('lists sessions newest first with their sets in order, at most `limit`', () => {
+    const history = exerciseHistory('bench', rows, 2);
+    expect(history.exerciseId).toBe('bench');
+    expect(history.sessions.map((s) => s.workoutId)).toEqual(['w3', 'w2']);
+    expect(history.sessions[1]!.sets.map((s) => s.setNumber)).toEqual([1, 2]);
+  });
+
+  it('computes the bests over the whole history, not only the sessions returned', () => {
+    expect(exerciseHistory('bench', rows, 1).bests.heaviestKg).toEqual({
+      value: 70,
+      localDate: '2026-11-01',
+    });
+  });
+
+  it('is empty for an exercise never done', () => {
+    expect(exerciseHistory('bench', [], 10)).toEqual({
+      exerciseId: 'bench',
+      sessions: [],
+      bests: NO_BESTS,
+    });
   });
 });

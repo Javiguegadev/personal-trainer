@@ -1,6 +1,7 @@
 import {
   WORKOUT_LIMITS,
   type DatedValue,
+  type ExerciseHistoryResponse,
   type ExerciseSession,
   type ExerciseStats,
   type ExerciseTracking,
@@ -115,45 +116,68 @@ export interface ExerciseSetRow {
   set: WorkoutSet;
 }
 
+/** Sessions of one exercise, newest first, each with its sets in order. */
+function sessionsOf(
+  rows: readonly ExerciseSetRow[],
+): { session: ExerciseSession; startedAt: string }[] {
+  const byWorkout = new Map<string, { session: ExerciseSession; startedAt: string }>();
+  for (const row of rows) {
+    const entry = byWorkout.get(row.workoutId) ?? {
+      session: { workoutId: row.workoutId, localDate: row.localDate, sets: [] },
+      startedAt: row.startedAt,
+    };
+    entry.session.sets.push(row.set);
+    byWorkout.set(row.workoutId, entry);
+  }
+  const all = [...byWorkout.values()];
+  for (const { session } of all) session.sets.sort((a, b) => a.setNumber - b.setNumber);
+  return all.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+}
+
 /**
  * `GET /me/exercises/stats` (AC7, AC9, AC10, AC14): for every exercise done, the last session's sets,
  * the bests over the whole history and when it was last done; most recently done first.
  */
 export function buildExerciseStats(rows: readonly ExerciseSetRow[]): ExerciseStats[] {
-  const byExercise = new Map<
-    string,
-    Map<string, { session: ExerciseSession; startedAt: string }>
-  >();
-  const tracking = new Map<string, ExerciseTracking>();
+  const byExercise = new Map<string, ExerciseSetRow[]>();
   for (const row of rows) {
-    tracking.set(row.exerciseId, row.tracking);
-    const sessions = byExercise.get(row.exerciseId) ?? new Map();
-    const entry = sessions.get(row.workoutId) ?? {
-      session: { workoutId: row.workoutId, localDate: row.localDate, sets: [] },
-      startedAt: row.startedAt,
-    };
-    entry.session.sets.push(row.set);
-    sessions.set(row.workoutId, entry);
-    byExercise.set(row.exerciseId, sessions);
+    const list = byExercise.get(row.exerciseId) ?? [];
+    list.push(row);
+    byExercise.set(row.exerciseId, list);
   }
   const stats: ExerciseStats[] = [];
-  for (const [exerciseId, sessions] of byExercise) {
-    const all = [...sessions.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  for (const [exerciseId, exerciseRows] of byExercise) {
+    const all = sessionsOf(exerciseRows);
     const last = all[0]!;
     stats.push({
       exerciseId,
-      last: {
-        ...last.session,
-        sets: [...last.session.sets].sort((a, b) => a.setNumber - b.setNumber),
-      },
+      last: last.session,
       bests: personalBests(
         all.map((s) => s.session),
-        tracking.get(exerciseId)!,
+        exerciseRows.at(-1)!.tracking,
       ),
       lastDoneAt: last.startedAt,
     });
   }
   return stats.sort((a, b) => b.lastDoneAt.localeCompare(a.lastDoneAt));
+}
+
+/**
+ * `GET /me/exercises/:id/history` (AC15): the last `limit` sessions of one exercise, newest first, and
+ * its bests over the whole history.
+ */
+export function exerciseHistory(
+  exerciseId: string,
+  rows: readonly ExerciseSetRow[],
+  limit: number,
+): ExerciseHistoryResponse {
+  const own = rows.filter((r) => r.exerciseId === exerciseId);
+  const all = sessionsOf(own).map((s) => s.session);
+  return {
+    exerciseId,
+    sessions: all.slice(0, limit),
+    bests: own.length ? personalBests(all, own.at(-1)!.tracking) : NO_BESTS,
+  };
 }
 
 /** The last rest used for an exercise (AC9): the last set of the last session with a rest. */

@@ -26,6 +26,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   image_too_large: 'The image is too large',
   food_limit_reached: 'Too many foods of your own',
   feedback_unavailable: 'The daily feedback is not available for this profile',
+  exercise_limit_reached: 'Too many exercises of your own',
+  id_taken: 'This id is already used',
 };
 
 export function errorBody(code: ApiErrorCode, fields?: Record<string, string>): ApiErrorBody {

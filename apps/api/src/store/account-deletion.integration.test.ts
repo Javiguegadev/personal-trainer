@@ -33,6 +33,10 @@ const COVERED_USER_TABLES = [
   'favourite_foods',
   // Spec 006: the user's own foods (`owner_id`); catalog foods and products have no owner.
   'foods',
+  // Spec 009: the training log and the user's own exercises (`owner_id`).
+  'exercises',
+  'workouts',
+  'workout_sets',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -360,6 +364,94 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     } finally {
       await db.delete(schema.foods).where(eq(schema.foods.id, product.id));
     }
+
+    // Spec 009: custom exercises and the workout log, with the write rules of AC23.
+    const exerciseId = crypto.randomUUID();
+    const iso = (ms: number) => new Date(now.getTime() + ms).toISOString();
+    const press = await store.upsertCustomExercise(id, exerciseId, {
+      name: 'Press AC25',
+      tracking: 'weight_reps',
+      primaryMuscle: 'chest',
+      recordedAt: iso(0),
+    });
+    expect(press).toMatchObject({ id: exerciseId, origin: 'user', category: 'strength' });
+    expect((await store.listCustomExercises(id)).map((e) => e.id)).toEqual([exerciseId]);
+    const workoutId = crypto.randomUUID();
+    const set = (setNumber: number, weightKg: number) => ({
+      reps: 8,
+      weightKg,
+      durationS: null,
+      distanceM: null,
+      restS: 90,
+      setNumber,
+    });
+    const session = {
+      id: workoutId,
+      localDate: TODAY,
+      kind: 'gym' as const,
+      activity: null,
+      name: 'Pecho',
+      startedAt: iso(-3_600_000),
+      minutes: 55,
+      sessionRpe: 7,
+      inputMethod: 'live' as const,
+      exercises: [
+        {
+          exerciseId,
+          label: 'Press AC25',
+          tracking: 'weight_reps' as const,
+          sets: [set(1, 60), set(2, 62.5)],
+        },
+      ],
+      recordedAt: iso(1000),
+    };
+    expect(await store.upsertWorkout(id, session)).toMatchObject({
+      id: workoutId,
+      exercises: [{ sets: [{ weightKg: 60 }, { weightKg: 62.5 }] }],
+    });
+    // A `PUT` replaces the sets; an older one changes nothing.
+    const edited = { ...session, recordedAt: iso(2000) };
+    edited.exercises = [{ ...session.exercises[0]!, sets: [set(1, 70)] }];
+    expect((await store.upsertWorkout(id, edited))?.exercises[0]?.sets).toEqual([set(1, 70)]);
+    expect((await store.upsertWorkout(id, session))?.exercises[0]?.sets).toEqual([set(1, 70)]);
+    expect(await store.listWorkoutIdsOfDay(id, TODAY)).toEqual([workoutId]);
+    const rows = await store.listExerciseSetRows(id, exerciseId);
+    expect(rows.map((r) => r.set.weightKg)).toEqual([70]);
+    // A deleted custom exercise stays loggable and keeps the sets pointing at it.
+    await store.deleteCustomExercise(id, exerciseId, iso(3000));
+    expect(await store.listCustomExercises(id)).toEqual([]);
+    expect((await store.getLoggableExercises(id, [exerciseId])).map((e) => e.id)).toEqual([
+      exerciseId,
+    ]);
+    const exportedTraining = await store.exportUser(id);
+    expect(exportedTraining.workouts.map((w) => w.id)).toEqual([workoutId]);
+    expect(exportedTraining.customExercises[0]?.deletedAt).not.toBeNull();
+    // A tombstone: an earlier write does not bring the workout back.
+    await store.deleteWorkout(id, workoutId, iso(4000));
+    expect(await store.upsertWorkout(id, { ...edited, recordedAt: iso(3500) })).toBeNull();
+    expect(await store.listWorkouts(id, TODAY, TODAY)).toEqual([]);
+    expect(await store.listExerciseSetRows(id)).toEqual([]);
+    // A later write brings the custom exercise back; another user can never write that id.
+    const revived = {
+      name: 'Press AC25 bis',
+      tracking: 'weight_reps' as const,
+      primaryMuscle: null,
+      recordedAt: iso(5000),
+    };
+    expect(await store.upsertCustomExercise(id, exerciseId, revived)).toMatchObject({
+      nameEs: 'Press AC25 bis',
+    });
+    expect(await store.upsertCustomExercise(crypto.randomUUID(), exerciseId, revived)).toBe(
+      'id_taken',
+    );
+    // Another user's write to this workout id changes nothing.
+    const otherWorkout = await store.upsertWorkout(crypto.randomUUID(), {
+      ...edited,
+      recordedAt: iso(9000),
+    });
+    expect(otherWorkout).toBeNull();
+    // Re-add rows so the cascade below covers every training table.
+    expect(await store.upsertWorkout(id, { ...edited, recordedAt: iso(6000) })).not.toBeNull();
 
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.

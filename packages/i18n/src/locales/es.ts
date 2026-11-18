@@ -826,6 +826,9 @@ export const es = {
     image_too_large: 'La imagen es demasiado grande.',
     food_limit_reached: 'Has llegado al máximo de alimentos propios. Borra alguno para crear otro.',
     feedback_unavailable: 'Las notas del día no están disponibles para tu perfil.',
+    exercise_limit_reached:
+      'Has llegado al máximo de ejercicios propios. Borra alguno para crear otro.',
+    id_taken: 'No hemos podido guardarlo. Vuelve a intentarlo.',
     internal_error: 'Algo ha fallado en el servidor. Vuelve a intentarlo.',
     network: 'No hay conexión con el servidor. Comprueba tu red.',
     unknown: 'Algo ha fallado. Vuelve a intentarlo.',

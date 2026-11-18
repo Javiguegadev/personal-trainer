@@ -15,7 +15,11 @@ import type {
   CustomFoodUpsertRequest,
   FoodOrigin,
   QuantityUnit,
+  CustomExerciseUpsertRequest,
+  Exercise,
+  Workout,
 } from '@pt/contracts';
+import type { ExerciseSetRow, LoggableExercise } from '@pt/core';
 import type { LookupProduct } from './off/client';
 
 /** The signed-in user, taken from a verified Supabase access token. */
@@ -228,6 +232,43 @@ export interface Store {
   listLoggedProducts(userId: string, limit: number): Promise<CatalogFood[]>;
   /** Calls of a feature by the user from `since` on, whatever their outcome (AC18). */
   countAiUsage(userId: string, feature: AiFeature, since: Date): Promise<number>;
+
+  // Exercise catalog and workout log (spec 009)
+  /** The curated catalog (about 200 rows) and its version, which changes with every import (AC1). */
+  listExerciseCatalog(): Promise<{ exercises: Exercise[]; version: string }>;
+  /** The user's live custom exercises, most recently changed first. */
+  listCustomExercises(userId: string): Promise<Exercise[]>;
+  /**
+   * The exercises with these ids the user may log: the catalog and their own, deleted ones included (a
+   * session edited after its custom exercise was deleted keeps it).
+   */
+  getLoggableExercises(userId: string, ids: readonly string[]): Promise<LoggableExercise[]>;
+  /**
+   * Stores a custom exercise under a client id unless the stored row (live or deleted) was recorded
+   * later. Returns the live exercise after the write, null when a later delete won, or `id_taken` when
+   * the id is a catalog exercise or another user's.
+   */
+  upsertCustomExercise(
+    userId: string,
+    id: string,
+    exercise: CustomExerciseUpsertRequest,
+  ): Promise<Exercise | null | 'id_taken'>;
+  /** Marks the user's custom exercise deleted unless it was recorded after `recordedAt`. */
+  deleteCustomExercise(userId: string, id: string, recordedAt: string): Promise<void>;
+  /** Live workouts dated from `from` to `to` (inclusive), newest first. */
+  listWorkouts(userId: string, from: string, to: string): Promise<Workout[]>;
+  /** Ids of the live workouts of one day (the 10-workouts guard). */
+  listWorkoutIdsOfDay(userId: string, localDate: string): Promise<string[]>;
+  /**
+   * Replaces the workout and its sets unless the stored row of that id (live or deleted) was recorded
+   * later (AC23). Returns the live workout after the write, or null when that id is deleted or belongs to
+   * another user.
+   */
+  upsertWorkout(userId: string, workout: Workout): Promise<Workout | null>;
+  /** Marks the workout deleted (a tombstone) unless it was recorded after `recordedAt` (AC23). */
+  deleteWorkout(userId: string, id: string, recordedAt: string): Promise<void>;
+  /** Every set of the user's live workouts that points to an exercise, or only of one (AC14, AC15). */
+  listExerciseSetRows(userId: string, exerciseId?: string): Promise<ExerciseSetRow[]>;
 }
 
 /** Supabase Auth admin (service key, server only). Deleting the auth user cascades to every user row. */

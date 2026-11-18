@@ -19,6 +19,9 @@ export const ApiErrorCodeSchema = z.enum([
   'food_limit_reached',
   // Daily feedback (spec 008)
   'feedback_unavailable',
+  // Custom exercises (spec 009)
+  'exercise_limit_reached',
+  'id_taken',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;
 

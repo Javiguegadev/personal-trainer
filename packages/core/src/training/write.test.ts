@@ -5,6 +5,7 @@ import {
   activityChoices,
   checkWorkoutRange,
   checkWorkoutWrite,
+  customExercise,
   repeatShortcuts,
   workoutFromRequest,
   workoutSetCount,
@@ -209,5 +210,46 @@ describe('history helpers (AC18, AC20, AC21)', () => {
   it('gives the workouts of a day in order and counts sets', () => {
     expect(workoutsOfDay(log, '2026-11-15').map((w) => w.id)).toEqual(['d']);
     expect(workoutSetCount(log[0]!)).toBe(2);
+  });
+});
+
+describe('customExercise', () => {
+  const id = '7e000000-0000-4000-8000-000000000001';
+
+  it('keeps the name in both locales, private to the user, with no source', () => {
+    expect(
+      customExercise(id, {
+        name: 'Press en máquina Hammer',
+        tracking: 'weight_reps',
+        primaryMuscle: 'chest',
+        recordedAt: '2026-11-18T12:00:00Z',
+      }),
+    ).toEqual({
+      id,
+      key: null,
+      origin: 'user',
+      nameEs: 'Press en máquina Hammer',
+      nameEn: 'Press en máquina Hammer',
+      synonymsEs: [],
+      synonymsEn: [],
+      tracking: 'weight_reps',
+      category: 'strength',
+      primaryMuscles: ['chest'],
+      secondaryMuscles: [],
+      equipment: [],
+      popularity: 0,
+      source: null,
+    });
+  });
+
+  it('files distance exercises as cardio and has no muscle when none was chosen', () => {
+    const rowing = customExercise(id, {
+      name: 'Remo en el río',
+      tracking: 'distance_duration',
+      primaryMuscle: null,
+      recordedAt: '2026-11-18T12:00:00Z',
+    });
+    expect(rowing.category).toBe('cardio');
+    expect(rowing.primaryMuscles).toEqual([]);
   });
 });

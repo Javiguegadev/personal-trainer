@@ -342,7 +342,7 @@ the app knows what I actually did, not only what I planned.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - The limits are `WORKOUT_LIMITS` (`TRAINING_LIMITS` already names the weekly plan of spec 002).
   - `workouts.activity` is an enum (`activity_type`, the chips of AC16), not free text; the name of a
@@ -356,6 +356,13 @@ the app knows what I actually did, not only what I planned.
     (`knowledge/catalog/exercise-search.fixture.json`, test `knowledge/exercises/search.test.ts`),
     because `@pt/core` cannot read files; `@pt/db` has `@pt/core` as a dev dependency for it.
     `searchExercises` reuses the ranking of the food search.
+  - API step: the export has `workouts` with their sets nested (no separate `workoutSets` list) and
+    `customExercises`, deleted ones included with `deletedAt` (the row is a tombstone, so it is still
+    data we hold). New error codes `exercise_limit_reached` (400) and `id_taken` (409, a catalog id or
+    another user's id). A deleted custom exercise stays loggable for its owner, so editing an old
+    session that used it does not fail with 404. `@pt/core` gained `customExercise` (the API and the
+    optimistic client build the same row) and `exerciseHistory`. AC2 needs no new route: the
+    free-exercise-db row is listed by `GET /foods/sources` once the importer has run.
 - Done so far (2026-11-18), one commit per step: contracts (`4aac4c8`); tables, migration
   `0009_workout_log` (additive: 8 enums, 3 tables with RLS) and the curated catalog of 192 exercises
   with its importer (`5df9f7b`); core (`cbf6ce5`): `training/sets` (tracking, steppers, fields, weight
@@ -363,7 +370,11 @@ the app knows what I actually did, not only what I planned.
   records, summary, request, stale session, repeat, edit), `search`, `write` (write rules, workout from
   request, activity chips, repeat shortcuts). Search fixture: 176 queries, 98.3 % first and 100 % in
   the top 3 (misses: "curl biceps", "elevacion de piernas", "maquina de remo", all ambiguous).
-- Left for the human before the API integration tests: review the SQL of `0009_workout_log`, then
-  `pnpm db:migrate` and `pnpm --filter @pt/db import:exercises` on dev.
-- Next: API (routes, store, export, `COVERED_USER_TABLES` of the account deletion test), then client,
-  UI, E2E.
+- API (2026-11-18): 8 routes in `routes/training`, Drizzle store `store/training-store.ts`, 38 route
+  tests (401/403 on every route, AC12, AC14–AC16, AC23, AC25). The account deletion integration test
+  now writes custom exercises and workouts through the Drizzle store (AC23 rules, AC25 cascade) and
+  lists `exercises`, `workouts`, `workout_sets`; it has not run yet because `0009` is not applied on
+  dev (checked 2026-11-18).
+- Left for the human: review the SQL of `0009_workout_log`, then `pnpm db:migrate` and
+  `pnpm --filter @pt/db import:exercises` on dev, then `pnpm --filter @pt/api test:integration`.
+- Next: client (methods, query options, offline mutations, mock backend with ~40 exercises), UI, E2E.

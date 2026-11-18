@@ -4,6 +4,8 @@ import {
   WORKOUT_LIMITS,
   type ActivityKindForLog,
   type ActivityType,
+  type CustomExerciseUpsertRequest,
+  type Exercise,
   type ExerciseTracking,
   type Locale,
   type PlannedActivity,
@@ -104,6 +106,29 @@ export function workoutFromRequest(
 
 const labelFor = (exercise: LoggableExercise, locale: Locale) =>
   locale === 'en' ? exercise.nameEn : exercise.nameEs;
+
+/**
+ * A custom exercise as the catalog lists it (spec 009 Assumptions): the same name in both locales, no
+ * synonyms, private to its owner. Distance exercises are cardio; the rest are strength.
+ */
+export function customExercise(id: string, request: CustomExerciseUpsertRequest): Exercise {
+  return {
+    id,
+    key: null,
+    origin: 'user',
+    nameEs: request.name,
+    nameEn: request.name,
+    synonymsEs: [],
+    synonymsEn: [],
+    tracking: request.tracking,
+    category: request.tracking === 'distance_duration' ? 'cardio' : 'strength',
+    primaryMuscles: request.primaryMuscle ? [request.primaryMuscle] : [],
+    secondaryMuscles: [],
+    equipment: [],
+    popularity: 0,
+    source: null,
+  };
+}
 
 /** One chip of the activity sheet (AC16). */
 export interface ActivityChoice {

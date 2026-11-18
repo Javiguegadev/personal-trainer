@@ -820,6 +820,9 @@ export const en: DeepStringRecord<typeof es> = {
     food_limit_reached:
       "You've reached the maximum number of your own foods. Delete one to create another.",
     feedback_unavailable: 'Notes on your day are not available for your profile.',
+    exercise_limit_reached:
+      "You've reached the maximum number of your own exercises. Delete one to create another.",
+    id_taken: "We couldn't save it. Please try again.",
     internal_error: 'Something went wrong on the server. Please try again.',
     network: 'No connection to the server. Check your network.',
     unknown: 'Something went wrong. Please try again.',
