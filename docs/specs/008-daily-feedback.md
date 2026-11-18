@@ -245,7 +245,7 @@ Fixed in core, shown per observation (AC18). To confirm with the professional re
   judgement; `kcal_above` for minors; the citations table; the compensation term list.
 - **Training chip vs. asking nothing.** If the chip feels like noise, the carbohydrate notes could wait
   for the week grid of E5. Decide after the phone check.
-- **For the human:** the go-ahead to run the eval (well under 0.10 USD) and the human read of 20 notes.
+- **For the human:** the human read of 20 notes of the eval report (the eval passed on 2026-11-18).
 
 ## Progress
 
@@ -254,9 +254,18 @@ Fixed in core, shown per observation (AC18). To confirm with the professional re
 - AC → tests: AC4–AC12, AC14, AC17 `core/food/feedback.test.ts`; AC2, AC13–AC15, AC20
   `apps/api/src/routes/me/feedback.test.ts` and `packages/ai/src/prompts/feedback/feedback.test.ts`;
   AC3, AC17 `packages/api-client/src/feedback.test.ts`; AC1, AC2, AC10, AC16–AC18 E2E. AC19 is the
-  eval (not run). AC21: consent text + `CONSENT_VERSION` `2026-11-v6`.
-- Left for the human: run the eval and read 20 notes of its report (AC19, needs
-  `ANTHROPIC_API_KEY`); the phone check in Expo Go (the card on Food and Today, a suggestion opening
+  eval (PASS 2026-11-18, see below). AC21: consent text + `CONSENT_VERSION` `2026-11-v6`.
+- Eval (AC19), 2026-11-18: the first run passed its criteria but 9 of the ~40 notes of the "en" days
+  were in Spanish (the locale was only a JSON field and the prompt's examples were Spanish). Fixed:
+  the user turn names the language ("every note in English"), the prompt gives its examples in both
+  languages, and the eval now fails on any note in the other language
+  (`evals/daily-feedback/language.ts`). Second run: 60 days, 80 notes, 0 failed calls, 1 fixed
+  wording (1.3 %, the model wrote "150 g"), 0 suggestions outside the candidates, 0 notes in the wrong
+  language, 0.00029 USD per call, p50 1.5 s, p90 1.9 s. No food against an allergy, diet or dislike.
+  `protein-uneven` gives `on_track` for the general and sport focuses and `kcal-above` gives `on_track`
+  for the teen: both on purpose (AC9, `teen_limited`).
+- Left for the human: read 20 notes of the eval report (AC19,
+  `apps/api/evals/daily-feedback/reports/2026-11-18.md`); the phone check in Expo Go (the card on Food and Today, a suggestion opening
   the portion sheet, the source links opening the browser, dark mode); the professional review of the
   open questions above.
 - Domain review (2026-11-18, agent): no blocker; DOIs and thresholds consistent with the cited
@@ -289,4 +298,4 @@ Fixed in core, shown per observation (AC18). To confirm with the professional re
   - The mock backend scripts an "AI" note for the kinds food can fix (protein, fiber, carbohydrates)
     and leaves the rest to the fixed wording, so both paths show in the E2E.
   - Eval: `pnpm --filter @pt/api eval:daily-feedback` (60 days: 12 scenarios × 5 profiles, es/en
-    alternating); report in `apps/api/evals/daily-feedback/reports/`. Not run yet.
+    alternating); report in `apps/api/evals/daily-feedback/reports/` (not committed).

@@ -9,7 +9,10 @@
  * the API does, the model words them, and `validateFeedback` checks them.
  *
  * Passes when 100 % of the calls give a valid answer, at most 10 % of the notes fall back to the fixed
- * wording, and no suggestion is outside its observation's candidates. It writes every note to
+ * wording, no suggestion is outside its observation's candidates and no note is in the other language
+ * (`daily-feedback/language.ts`). Some scenarios give `on_track` for some profiles on purpose:
+ * `protein_uneven` is only for the hypertrophy and strength focuses, `kcal_above` never for a teen. It
+ * writes every note to
  * `daily-feedback/reports/<date>.md` for a human read of 20 of them (tone, no judgement, no advice to
  * restrict). Run it before shipping and on every change of the prompt, the model or the observation
  * rules.
@@ -28,6 +31,7 @@ import {
 } from '@pt/core';
 import { promptCandidates } from '../src/services/feedback';
 import { PROFILES, SCENARIOS, userFoods } from './daily-feedback/fixtures';
+import { wrongLanguage } from './daily-feedback/language';
 
 const MIN_CASES = 40;
 const TEMPLATE_RATE_MAX = 0.1;
@@ -48,6 +52,7 @@ async function main() {
   let notes = 0;
   let templates = 0;
   let foreignSuggestions = 0;
+  let wrongLanguageNotes = 0;
   let cost = 0;
   const latencies: number[] = [];
   const kinds = new Map<string, number>();
@@ -94,7 +99,10 @@ async function main() {
         const raw = reading.notes.find((n) => n.observation === note.observation.kind);
         const shown = note.text ?? `[fixed wording] (model said: ${raw?.text ?? 'nothing'})`;
         const foods = note.suggestions.map((s) => s.food.name).join(', ') || '—';
-        lines.push(`- **${note.observation.kind}**: ${shown}  \n  Suggestions: ${foods}`);
+        const wrong = note.text !== null && wrongLanguage(note.text, locale);
+        if (wrong) wrongLanguageNotes++;
+        const flag = wrong ? ' **[WRONG LANGUAGE]**' : '';
+        lines.push(`- **${note.observation.kind}**${flag}: ${shown}  \n  Suggestions: ${foods}`);
       }
     } catch (error) {
       failedCalls++;
@@ -116,11 +124,16 @@ async function main() {
     `Days: ${cases.length} · notes: ${notes} · failed calls: ${failedCalls}`,
     `Fixed wording: ${templates} (${(templateRate * 100).toFixed(1)} %, max ${TEMPLATE_RATE_MAX * 100} %)`,
     `Suggestions outside the candidates: ${foreignSuggestions}`,
+    `Notes in the wrong language: ${wrongLanguageNotes}`,
     `Notes per kind: ${[...kinds].map(([k, n]) => `${k} ${n}`).join(', ')}`,
     `Cost: ${cost.toFixed(5)} USD in total, ${(cost / cases.length).toFixed(6)} USD per call`,
     `Latency: p50 ${p(0.5) ?? 0} ms, p90 ${p(0.9) ?? 0} ms`,
   ];
-  const passed = failedCalls === 0 && templateRate <= TEMPLATE_RATE_MAX && foreignSuggestions === 0;
+  const passed =
+    failedCalls === 0 &&
+    templateRate <= TEMPLATE_RATE_MAX &&
+    foreignSuggestions === 0 &&
+    wrongLanguageNotes === 0;
   lines.splice(2, 0, ...summary, '', passed ? '**PASS**' : '**FAIL**', '');
 
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), 'daily-feedback', 'reports');

@@ -136,6 +136,13 @@ describe('createFeedbackWriter (spec 008 AC13, AC15, AC20)', () => {
     ]);
   });
 
+  it('names the language of the notes in the user turn, not only in the JSON', () => {
+    expect(feedbackUserText(input)).toMatch(/^Write the notes for this day, every note in Spanish/);
+    expect(feedbackUserText({ ...input, locale: 'en' })).toMatch(
+      /^Write the notes for this day, every note in English\./,
+    );
+  });
+
   it('fails as a refusal, a cut answer or an invalid output', async () => {
     for (const stop of ['refusal', 'max_tokens'] as const) {
       const { write } = setup(message({ stop_reason: stop, content: [text('{')] }));
