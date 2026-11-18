@@ -19,6 +19,7 @@ export * from './weight/form';
 export * from './weight/trend';
 export * from './food/barcode';
 export * from './food/custom-food';
+export * from './food/feedback';
 export * from './food/item-request';
 export * from './food/label';
 export * from './food/meal-draft';
