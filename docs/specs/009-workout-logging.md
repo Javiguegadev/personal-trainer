@@ -373,8 +373,7 @@ the app knows what I actually did, not only what I planned.
 - API (2026-11-18): 8 routes in `routes/training`, Drizzle store `store/training-store.ts`, 38 route
   tests (401/403 on every route, AC12, AC14–AC16, AC23, AC25). The account deletion integration test
   now writes custom exercises and workouts through the Drizzle store (AC23 rules, AC25 cascade) and
-  lists `exercises`, `workouts`, `workout_sets`; it has not run yet because `0009` is not applied on
-  dev (checked 2026-11-18).
-- Left for the human: review the SQL of `0009_workout_log`, then `pnpm db:migrate` and
-  `pnpm --filter @pt/db import:exercises` on dev, then `pnpm --filter @pt/api test:integration`.
+  lists `exercises`, `workouts`, `workout_sets`.
+- Human (2026-11-18): reviewed the SQL of `0009_workout_log`, applied it to dev, imported the exercise
+  catalog and ran `pnpm --filter @pt/api test:integration`.
 - Next: client (methods, query options, offline mutations, mock backend with ~40 exercises), UI, E2E.
