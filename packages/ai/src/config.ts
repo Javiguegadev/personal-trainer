@@ -38,6 +38,12 @@ export const FEATURES = {
    */
   meal_text: { model: MODELS.haiku, effort: 'low', maxTokens: 4096, maxToolRounds: 2 },
   meal_photo: { model: MODELS.haiku, effort: 'low', maxTokens: 4096, maxToolRounds: 2 },
+  /**
+   * Words the daily feedback (spec 008): one call, no tools. Core found the observations and computed
+   * every number; the model writes 1–3 short notes and picks foods among core's candidates. Low effort:
+   * short wording. Provisional until the feedback eval runs.
+   */
+  daily_feedback: { model: MODELS.haiku, effort: 'low', maxTokens: 1024, maxToolRounds: 0 },
 } as const satisfies Record<string, FeatureConfig>;
 /** The name stored in `ai_usage.feature`. */
 export type AiFeature = keyof typeof FEATURES;
