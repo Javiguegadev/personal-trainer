@@ -1,0 +1,163 @@
+import type { WorkoutSet } from '@pt/contracts';
+import { describe, expect, it } from 'vitest';
+import {
+  NO_BESTS,
+  addToBests,
+  buildExerciseStats,
+  estimatedOneRepMax,
+  lastRest,
+  newBests,
+  oneRepMaxSeries,
+  personalBests,
+} from './bests';
+
+const set = (values: Partial<WorkoutSet>, setNumber = 1): WorkoutSet => ({
+  reps: null,
+  weightKg: null,
+  durationS: null,
+  distanceM: null,
+  restS: null,
+  setNumber,
+  ...values,
+});
+
+describe('estimatedOneRepMax (AC14)', () => {
+  it('uses Epley for 1–12 reps, rounded to 0.5 kg', () => {
+    expect(estimatedOneRepMax(100, 1)).toBe(100);
+    expect(estimatedOneRepMax(60, 8)).toBe(76);
+    expect(estimatedOneRepMax(62.5, 5)).toBe(73);
+    expect(estimatedOneRepMax(100, 12)).toBe(140);
+  });
+
+  it('is null above 12 reps, below 1 or without weight', () => {
+    expect(estimatedOneRepMax(60, 13)).toBeNull();
+    expect(estimatedOneRepMax(60, 0)).toBeNull();
+    expect(estimatedOneRepMax(0, 5)).toBeNull();
+  });
+});
+
+describe('personalBests (AC14)', () => {
+  it('keeps the heaviest weight and the best 1RM with the date they were first reached', () => {
+    const bests = personalBests(
+      [
+        {
+          localDate: '2026-11-10',
+          sets: [set({ weightKg: 60, reps: 8 }), set({ weightKg: 65, reps: 3 })],
+        },
+        { localDate: '2026-11-03', sets: [set({ weightKg: 65, reps: 5 })] },
+        { localDate: '2026-11-12', sets: [set({ weightKg: 50, reps: 20 })] },
+      ],
+      'weight_reps',
+    );
+    expect(bests.heaviestKg).toEqual({ value: 65, localDate: '2026-11-03' });
+    expect(bests.oneRepMaxKg).toEqual({ value: 76, localDate: '2026-11-03' });
+    expect(bests.mostReps).toBeNull();
+  });
+
+  it('tracks reps, time and distance by tracking', () => {
+    expect(
+      personalBests(
+        [{ localDate: '2026-11-01', sets: [set({ reps: 12 }), set({ reps: 15 })] }],
+        'reps',
+      ).mostReps,
+    ).toEqual({ value: 15, localDate: '2026-11-01' });
+    expect(
+      personalBests([{ localDate: '2026-11-01', sets: [set({ durationS: 90 })] }], 'duration')
+        .longestS?.value,
+    ).toBe(90);
+    expect(
+      personalBests(
+        [{ localDate: '2026-11-01', sets: [set({ distanceM: 5000, durationS: 1500 })] }],
+        'distance_duration',
+      ),
+    ).toEqual({ ...NO_BESTS, longestM: { value: 5000, localDate: '2026-11-01' } });
+  });
+});
+
+describe('newBests (AC10, AC14)', () => {
+  const bests = addToBests(NO_BESTS, set({ weightKg: 60, reps: 8 }), 'weight_reps', '2026-11-01');
+
+  it('reports what a set strictly beats', () => {
+    expect(newBests(set({ weightKg: 62.5, reps: 8 }), 'weight_reps', bests)).toEqual([
+      { kind: 'heaviestKg', value: 62.5 },
+      { kind: 'oneRepMaxKg', value: 79 },
+    ]);
+    expect(newBests(set({ weightKg: 55, reps: 12 }), 'weight_reps', bests)).toEqual([
+      { kind: 'oneRepMaxKg', value: 77 },
+    ]);
+  });
+
+  it('does not report an equal value after rounding', () => {
+    expect(newBests(set({ weightKg: 60, reps: 8 }), 'weight_reps', bests)).toEqual([]);
+    expect(newBests(set({ weightKg: 60.1, reps: 8 }), 'weight_reps', bests)).toEqual([
+      { kind: 'heaviestKg', value: 60.1 },
+    ]);
+  });
+
+  it('gives no badge without a previous best', () => {
+    expect(newBests(set({ weightKg: 100, reps: 5 }), 'weight_reps', NO_BESTS)).toEqual([]);
+  });
+});
+
+describe('buildExerciseStats (AC7, AC14)', () => {
+  const row = (workoutId: string, localDate: string, startedAt: string, s: WorkoutSet) => ({
+    workoutId,
+    localDate,
+    startedAt,
+    exerciseId: 'bench',
+    tracking: 'weight_reps' as const,
+    set: s,
+  });
+  const stats = buildExerciseStats([
+    row('w1', '2026-11-01', '2026-11-01T18:00:00Z', set({ weightKg: 60, reps: 8, restS: 90 }, 1)),
+    row(
+      'w2',
+      '2026-11-08',
+      '2026-11-08T18:00:00Z',
+      set({ weightKg: 62.5, reps: 6, restS: 120 }, 2),
+    ),
+    row(
+      'w2',
+      '2026-11-08',
+      '2026-11-08T18:00:00Z',
+      set({ weightKg: 62.5, reps: 8, restS: null }, 1),
+    ),
+    {
+      ...row('w2', '2026-11-08', '2026-11-08T18:00:00Z', set({ reps: 10 }, 1)),
+      exerciseId: 'dips',
+      tracking: 'reps' as const,
+    },
+  ]);
+
+  it('gives the last session in set order, the bests and the last time done', () => {
+    const bench = stats.find((s) => s.exerciseId === 'bench')!;
+    expect(bench.last.workoutId).toBe('w2');
+    expect(bench.last.sets.map((s) => s.setNumber)).toEqual([1, 2]);
+    expect(bench.bests.heaviestKg).toEqual({ value: 62.5, localDate: '2026-11-08' });
+    expect(bench.lastDoneAt).toBe('2026-11-08T18:00:00Z');
+    expect(lastRest(bench)).toBe(120);
+    expect(lastRest(null)).toBeNull();
+  });
+
+  it('lists every exercise once', () => {
+    expect(stats.map((s) => s.exerciseId).sort()).toEqual(['bench', 'dips']);
+  });
+});
+
+describe('oneRepMaxSeries (AC15)', () => {
+  it('gives the best estimate of each session, oldest first', () => {
+    expect(
+      oneRepMaxSeries([
+        {
+          localDate: '2026-11-08',
+          sets: [set({ weightKg: 60, reps: 8 }), set({ weightKg: 70, reps: 1 })],
+        },
+        { localDate: '2026-11-01', sets: [set({ weightKg: 55, reps: 8 })] },
+        { localDate: '2026-11-05', sets: [set({ weightKg: 20, reps: 20 })] },
+      ]),
+    ).toEqual([
+      { localDate: '2026-11-01', value: 69.5 },
+      { localDate: '2026-11-08', value: 76 },
+    ]);
+  });
+});

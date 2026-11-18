@@ -469,6 +469,9 @@ importers:
       '@pt/config':
         specifier: workspace:*
         version: link:../config
+      '@pt/core':
+        specifier: workspace:*
+        version: link:../core
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6

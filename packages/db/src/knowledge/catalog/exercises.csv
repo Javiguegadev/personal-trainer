@@ -1,7 +1,7 @@
 key,source_id,popularity,tracking,name_es,synonyms_es,name_en,synonyms_en
 press-banca,Barbell_Bench_Press_-_Medium_Grip,10,weight_reps,Press de banca,press banca | banca plana | press plano con barra | bench press,Bench press,barbell bench press | flat bench
-press-banca-inclinado,Barbell_Incline_Bench_Press_-_Medium_Grip,9,weight_reps,Press de banca inclinado,press inclinado con barra | banca inclinada | press inclinado barra,Incline bench press,incline barbell press
-press-banca-declinado,Decline_Barbell_Bench_Press,6,weight_reps,Press de banca declinado,press declinado | banca declinada,Decline bench press,decline barbell press
+press-banca-inclinado,Barbell_Incline_Bench_Press_-_Medium_Grip,9,weight_reps,Press inclinado con barra,press de banca inclinado | banca inclinada | press inclinado barra,Incline bench press,incline barbell press
+press-banca-declinado,Decline_Barbell_Bench_Press,6,weight_reps,Press declinado con barra,press de banca declinado | banca declinada,Decline bench press,decline barbell press
 press-banca-mancuernas,Dumbbell_Bench_Press,9,weight_reps,Press de banca con mancuernas,press plano con mancuernas | press mancuernas | press con mancuernas,Dumbbell bench press,flat dumbbell press
 press-inclinado-mancuernas,Incline_Dumbbell_Press,9,weight_reps,Press inclinado con mancuernas,press inclinado mancuernas | banca inclinada mancuernas,Incline dumbbell press,
 press-declinado-mancuernas,Decline_Dumbbell_Bench_Press,4,weight_reps,Press declinado con mancuernas,banca declinada mancuernas,Decline dumbbell press,
@@ -68,7 +68,7 @@ press-hombros-multipower,Smith_Machine_Overhead_Shoulder_Press,5,weight_reps,Pre
 push-press,Push_Press,4,weight_reps,Push press,press con impulso,Push press,
 elevaciones-laterales,Side_Lateral_Raise,9,weight_reps,Elevaciones laterales,laterales | elevaciones laterales con mancuernas | elevación lateral | vuelos laterales,Lateral raise,side lateral raise
 elevaciones-laterales-polea,Standing_Low-Pulley_Deltoid_Raise,6,weight_reps,Elevaciones laterales en polea,laterales en polea | elevación lateral polea,Cable lateral raise,
-elevaciones-frontales,Front_Dumbbell_Raise,7,weight_reps,Elevaciones frontales,frontales | elevación frontal con mancuernas,Front raise,dumbbell front raise
+elevaciones-frontales,Front_Dumbbell_Raise,8,weight_reps,Elevaciones frontales,frontales | elevación frontal con mancuernas,Front raise,dumbbell front raise
 elevacion-frontal-disco,Front_Plate_Raise,4,weight_reps,Elevación frontal con disco,frontal con disco,Plate front raise,
 pajaros,Seated_Bent-Over_Rear_Delt_Raise,7,weight_reps,Pájaros,pájaro | elevaciones posteriores | deltoides posterior | vuelos posteriores | rear delt fly,Rear delt raise,bent-over rear delt fly
 contractor-inverso,Reverse_Machine_Flyes,7,weight_reps,Contractor inverso,pec deck inverso | aperturas inversas en máquina | deltoides posterior en máquina,Reverse pec deck,reverse machine fly
@@ -84,7 +84,7 @@ curl-alterno,Dumbbell_Alternate_Bicep_Curl,8,weight_reps,Curl alterno con mancue
 curl-martillo,Hammer_Curls,9,weight_reps,Curl martillo,martillo | curl agarre neutro | hammer curl | curl de martillo,Hammer curl,
 curl-martillo-cuerda,Cable_Hammer_Curls_-_Rope_Attachment,5,weight_reps,Curl martillo en polea con cuerda,martillo en polea | curl cuerda,Rope hammer curl,cable hammer curl
 curl-concentrado,Concentration_Curls,7,weight_reps,Curl concentrado,concentrado | curl concentración,Concentration curl,
-curl-predicador,Preacher_Curl,8,weight_reps,Curl en banco Scott,curl scott | banco scott | curl predicador,Preacher curl,
+curl-predicador,Preacher_Curl,8,weight_reps,Curl Scott,curl en banco scott | banco scott | curl predicador,Preacher curl,
 curl-predicador-maquina,Machine_Preacher_Curls,5,weight_reps,Curl Scott en máquina,curl predicador en máquina,Machine preacher curl,
 curl-polea,Standing_Biceps_Cable_Curl,7,weight_reps,Curl de bíceps en polea baja,curl en polea | curl polea baja | bíceps en polea,Cable curl,
 curl-polea-alta,High_Cable_Curls,4,weight_reps,Curl en polea alta,curl doble bíceps en polea | bíceps polea alta,High cable curl,
@@ -106,7 +106,7 @@ press-frances-mancuernas,Lying_Dumbbell_Tricep_Extension,5,weight_reps,Press fra
 triceps-tras-nuca,Standing_Dumbbell_Triceps_Extension,7,weight_reps,Extensión de tríceps tras nuca con mancuerna,tríceps tras nuca | extensión trasnuca | copa | tríceps copa,Overhead dumbbell triceps extension,
 triceps-tras-nuca-cuerda,Triceps_Overhead_Extension_with_Rope,6,weight_reps,Extensión de tríceps tras nuca en polea,tríceps tras nuca con cuerda | extensión sobre la cabeza en polea,Overhead rope triceps extension,
 patada-triceps,Tricep_Dumbbell_Kickback,7,weight_reps,Patada de tríceps,kickback | patadas de tríceps | patada tríceps mancuerna,Triceps kickback,
-fondos-triceps,Dips_-_Triceps_Version,7,reps,Fondos en paralelas,fondos | dips | fondos tríceps | paralelas,Triceps dips,dips
+fondos-triceps,Dips_-_Triceps_Version,8,reps,Fondos en paralelas,fondos | dips | fondos tríceps | paralelas,Triceps dips,dips
 fondos-banco,Bench_Dips,7,reps,Fondos en banco,fondos entre bancos | fondos de tríceps en banco,Bench dips,
 fondos-maquina,Dip_Machine,4,weight_reps,Fondos en máquina,máquina de fondos,Dip machine,
 triceps-maquina,Machine_Triceps_Extension,4,weight_reps,Extensión de tríceps en máquina,tríceps en máquina,Machine triceps extension,
@@ -158,19 +158,19 @@ crunch-polea,Cable_Crunch,7,weight_reps,Crunch en polea alta,abdominales en pole
 crunch-maquina,Ab_Crunch_Machine,6,weight_reps,Crunch en máquina,abdominales en máquina | máquina de abdominales,Ab crunch machine,
 crunch-inverso,Reverse_Crunch,6,reps,Crunch inverso,abdominales inversos | crunch invertido,Reverse crunch,
 crunch-oblicuo,Oblique_Crunches_-_On_The_Floor,5,reps,Crunch oblicuo,oblicuos | abdominales oblicuos,Oblique crunch,
-crunch-bicicleta,Air_Bike,6,reps,Abdominales bicicleta,bicicleta abdominal | crunch bicicleta,Bicycle crunch,air bike crunch
+crunch-bicicleta,Air_Bike,6,reps,Crunch bicicleta,abdominales bicicleta | bicicleta abdominal,Bicycle crunch,air bike crunch
 elevacion-piernas-colgado,Hanging_Leg_Raise,8,reps,Elevación de piernas colgado,elevaciones de piernas en barra | piernas colgado | hanging leg raise,Hanging leg raise,
 elevacion-rodillas-paralelas,Knee_Hip_Raise_On_Parallel_Bars,6,reps,Elevación de rodillas en paralelas,silla romana | elevación de rodillas | abdominales en paralelas,Captain's chair knee raise,knee raise
 elevacion-piernas-tumbado,Flat_Bench_Lying_Leg_Raise,6,reps,Elevación de piernas tumbado,elevaciones de piernas | piernas tumbado | leg raise,Lying leg raise,
 rueda-abdominal,Ab_Roller,7,reps,Rueda abdominal,rueda | ab wheel | rodillo abdominal,Ab wheel rollout,ab roller
 giros-rusos,Russian_Twist,6,reps,Giros rusos,russian twist | giros con disco | twist ruso,Russian twist,
-sit-up,Sit-Up,6,reps,Abdominales completos,sit up | sit-ups | abdominales subiendo el tronco,Sit-up,
+sit-up,Sit-Up,6,reps,Sit-up,abdominales completos | sit up | sit-ups,Sit-up,
 bicho-muerto,Dead_Bug,5,reps,Bicho muerto,dead bug,Dead bug,
 escaladores,Mountain_Climbers,7,reps,Escaladores,mountain climbers | escalador | rodillas al pecho,Mountain climbers,
 press-pallof,Pallof_Press,5,weight_reps,Press Pallof,pallof | antirrotación en polea,Pallof press,
 lenador-polea,Standing_Cable_Wood_Chop,5,weight_reps,Leñador en polea,leñadores | woodchopper | leñador,Cable wood chop,woodchopper
 patadas-tijera,Flutter_Kicks,4,reps,Patadas de tijera,tijeras abdominales | flutter kicks,Flutter kicks,
-abdominales-navaja,Jackknife_Sit-Up,5,reps,Abdominales en V,navaja | v-ups | abdominales navaja,Jackknife sit-up,V-up
+abdominales-navaja,Jackknife_Sit-Up,5,reps,Navaja abdominal,abdominales en V | v-ups | navaja,Jackknife sit-up,V-up
 crunch-con-peso,Weighted_Crunches,4,weight_reps,Crunch con peso,abdominales con disco | crunch con disco,Weighted crunch,
 flexion-lateral-mancuerna,Dumbbell_Side_Bend,4,weight_reps,Flexión lateral con mancuerna,oblicuos con mancuerna | inclinaciones laterales,Dumbbell side bend,
 swing-kettlebell,One-Arm_Kettlebell_Swings,7,weight_reps,Swing con kettlebell,swing | balanceo con pesa rusa | kettlebell swing | pesa rusa,Kettlebell swing,

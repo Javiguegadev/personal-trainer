@@ -31,3 +31,8 @@ export * from './food/quick-add';
 export * from './food/repeat';
 export * from './food/search';
 export * from './food/write';
+export * from './training/bests';
+export * from './training/search';
+export * from './training/session';
+export * from './training/sets';
+export * from './training/write';
