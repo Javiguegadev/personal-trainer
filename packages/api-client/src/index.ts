@@ -7,4 +7,5 @@ export * from './client';
 export * from './feedback';
 export * from './foods';
 export * from './hooks';
+export * from './training';
 export * from './weights';

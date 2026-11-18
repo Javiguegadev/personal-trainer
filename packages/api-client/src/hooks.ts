@@ -4,6 +4,8 @@
  */
 import type {
   ConsentRequest,
+  CustomExerciseSaveResponse,
+  WorkoutSaveResponse,
   DailyFeedbackRequest,
   DailyFeedbackResponse,
   Food,
@@ -48,6 +50,19 @@ import {
   type SaveCustomFoodVariables,
   type SaveMealItemVariables,
 } from './foods';
+import {
+  dismissRejectedTrainingWrite,
+  exerciseCatalogQueryOptions,
+  exerciseHistoryQueryOptions,
+  exerciseStatsQueryOptions,
+  trainingKeys,
+  workoutsQueryOptions,
+  type DeleteCustomExerciseVariables,
+  type DeleteWorkoutVariables,
+  type RejectedTrainingWrite,
+  type SaveCustomExerciseVariables,
+  type SaveWorkoutVariables,
+} from './training';
 import {
   dismissWeightNotice,
   weightKeys,
@@ -317,6 +332,65 @@ export function createApiHooks(api: ApiClient) {
         initialData: null,
       });
       return { rejected: data, dismiss: () => dismissRejectedFoodWrite(queryClient) };
+    },
+
+    /** The exercise catalog and the user's own exercises, kept offline (spec 009 AC3, AC22). */
+    useExerciseCatalog: (options: { enabled?: boolean } = {}) =>
+      useQuery({ ...exerciseCatalogQueryOptions(api), enabled: options.enabled ?? true }),
+
+    /** The workouts of the last 60 days, newest first (spec 009 AC20, AC22). */
+    useWorkouts: (today: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...workoutsQueryOptions(api, today), enabled: options.enabled ?? true }),
+
+    /** Last session, bests and last rest of every exercise done, kept offline (AC7, AC9, AC10). */
+    useExerciseStats: (options: { enabled?: boolean } = {}) =>
+      useQuery({ ...exerciseStatsQueryOptions(api), enabled: options.enabled ?? true }),
+
+    /** Pass `null` while no exercise is open (AC15). */
+    useExerciseHistory: (exerciseId: string | null, limit?: number) =>
+      useQuery(exerciseHistoryQueryOptions(api, exerciseId, limit)),
+
+    /**
+     * Optimistic and offline-safe: the functions come from the defaults registered with
+     * `registerTrainingMutations`, found by key (AC22). Build the variables with `saveWorkoutVariables`.
+     */
+    useSaveWorkout: () =>
+      useMutation<WorkoutSaveResponse, unknown, SaveWorkoutVariables>({
+        mutationKey: trainingKeys.saveWorkout,
+      }),
+
+    useDeleteWorkout: () =>
+      useMutation<WorkoutSaveResponse, unknown, DeleteWorkoutVariables>({
+        mutationKey: trainingKeys.deleteWorkout,
+      }),
+
+    useSaveCustomExercise: () =>
+      useMutation<CustomExerciseSaveResponse, unknown, SaveCustomExerciseVariables>({
+        mutationKey: trainingKeys.saveExercise,
+      }),
+
+    useDeleteCustomExercise: () =>
+      useMutation<CustomExerciseSaveResponse, unknown, DeleteCustomExerciseVariables>({
+        mutationKey: trainingKeys.deleteExercise,
+      }),
+
+    /** Workouts and exercises with a write that has not reached the server yet (AC22). */
+    usePendingTrainingIds: (): string[] =>
+      useMutationState({
+        filters: { mutationKey: trainingKeys.mutations, status: 'pending' },
+        select: (mutation) => (mutation.state.variables as { id: string }).id,
+      }),
+
+    /** The last training write the API rejected, and how to dismiss it (AC23). */
+    useRejectedTrainingWrite: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<RejectedTrainingWrite | null>({
+        queryKey: trainingKeys.rejected,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return { rejected: data, dismiss: () => dismissRejectedTrainingWrite(queryClient) };
     },
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),

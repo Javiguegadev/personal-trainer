@@ -27,12 +27,23 @@ import {
   MealItemUpsertRequestSchema,
   ProfileInputSchema,
   WEIGHT_LIMITS,
+  WORKOUT_LIMITS,
+  CustomExerciseDeleteQuerySchema,
+  CustomExerciseUpsertRequestSchema,
+  ExerciseHistoryQuerySchema,
+  ExerciseIdParamSchema,
   WeightDateParamSchema,
   WeightDeleteQuerySchema,
   WeightListQuerySchema,
   WeightUpsertRequestSchema,
+  WorkoutDeleteQuerySchema,
+  WorkoutIdParamSchema,
+  WorkoutLogQuerySchema,
+  WorkoutUpsertRequestSchema,
   type ApiErrorCode,
   type DietaryPrefs,
+  type Exercise,
+  type Workout,
   type FeedbackNote,
   type ExportResponse,
   type Food,
@@ -78,9 +89,18 @@ import {
   searchableBrandedFood,
   targetsOnly,
   writeWins,
+  buildExerciseStats,
+  checkWorkoutRange,
+  checkWorkoutWrite,
+  customExercise,
+  exerciseHistory,
+  workoutFromRequest,
+  type ExerciseSetRow,
+  type LoggableExercise,
 } from '@pt/core';
 import type { z } from 'zod';
 import { ApiError, type ApiClient } from '../client';
+import { MOCK_EXERCISE_CATALOG_VERSION, MOCK_EXERCISES } from './exercises';
 import { MOCK_CATALOG, MOCK_SOURCE, toMockFood } from './foods';
 import { mockPhotoReading, mockTextReading } from './drafts';
 import { mockFeedbackReading } from './feedback';
@@ -118,14 +138,55 @@ interface UserRecord {
   favourites: { foodId: string; createdAt: string }[];
   /** The user's own foods, most recently changed first (spec 006). One name for every locale. */
   customFoods: Food[];
+  /** The training log, deletes included as tombstones (spec 009 AC23). */
+  workouts: StoredWorkout[];
+  /** The user's own exercises, most recently changed first, deletes kept as tombstones (spec 009). */
+  customExercises: StoredCustomExercise[];
 }
 
 type StoredMealItem = MealItem & { deleted: boolean };
+type StoredWorkout = Workout & { deleted: boolean };
+interface StoredCustomExercise {
+  exercise: Exercise;
+  recordedAt: string;
+  deletedAt: string | null;
+}
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v6: spec 006). */
-export const MOCK_DB_KEY = 'pt.mock-db.v6';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v7: spec 009). */
+export const MOCK_DB_KEY = 'pt.mock-db.v7';
+
+const exerciseById = new Map(MOCK_EXERCISES.map((e) => [e.id, e]));
+
+/** Newest first, as the API lists workouts: by day, then by start time. */
+const newestWorkoutFirst = (a: Workout, b: Workout) =>
+  b.localDate.localeCompare(a.localDate) || Date.parse(b.startedAt) - Date.parse(a.startedAt);
+
+const withoutDeleted = ({ deleted: _, ...workout }: StoredWorkout): Workout => workout;
+
+const liveWorkouts = (record: UserRecord): Workout[] =>
+  record.workouts.filter((w) => !w.deleted).map(withoutDeleted);
+
+/** Every set of the live workouts, oldest workout first (the rows of the stats, spec 009 AC14). */
+function exerciseSetRows(record: UserRecord, exerciseId?: string): ExerciseSetRow[] {
+  return liveWorkouts(record)
+    .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))
+    .flatMap((w) =>
+      w.exercises.flatMap((e) => {
+        const id = e.exerciseId;
+        if (id === null || (exerciseId && id !== exerciseId)) return [];
+        return e.sets.map((set) => ({
+          workoutId: w.id,
+          localDate: w.localDate,
+          startedAt: w.startedAt,
+          exerciseId: id,
+          tracking: e.tracking,
+          set,
+        }));
+      }),
+    );
+}
 
 /** What the mock "reads" from every label photo (spec 006 AC15): a pack of biscuits. */
 const MOCK_LABEL_READING: LabelReading = {
@@ -243,6 +304,8 @@ const emptyUser = (email: string | null): UserRecord => ({
   mealItems: [],
   favourites: [],
   customFoods: [],
+  workouts: [],
+  customExercises: [],
 });
 
 export function createMockApiClient({
@@ -338,6 +401,32 @@ export function createMockApiClient({
         return food ? [food] : [];
       });
   }
+
+  /** The user's own exercises that were not deleted, most recently changed first. */
+  const ownExercises = (record: UserRecord): Exercise[] =>
+    record.customExercises.filter((e) => e.deletedAt === null).map((e) => e.exercise);
+
+  /**
+   * The exercises a workout may use: the catalog and the user's own, deleted ones included (an old
+   * session that used one can still be edited, as in the API).
+   */
+  const loggable = (record: UserRecord): Map<string, LoggableExercise> =>
+    new Map<string, LoggableExercise>([
+      ...exerciseById,
+      ...record.customExercises.map((e) => [e.exercise.id, e.exercise] as const),
+    ]);
+
+  /** An id of the catalog or of another user's exercise is never written (409 `id_taken`). */
+  const exerciseIdTaken = (userId: string, id: string) =>
+    exerciseById.has(id) ||
+    Object.entries(db).some(
+      ([owner, other]) =>
+        owner !== userId && other.customExercises.some((e) => e.exercise.id === id),
+    );
+
+  /** A device clock more than a day ahead of the server is rejected. */
+  const inFuture = (recordedAt: string) =>
+    Date.parse(recordedAt) > now().getTime() + 24 * 60 * 60 * 1000;
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -591,8 +680,154 @@ export function createMockApiClient({
                 ? 'Products with a barcode: contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). It is written by volunteers and may contain errors: always check the package.'
                 : 'Productos con código de barras: contiene datos de Open Food Facts (https://openfoodfacts.org), disponibles bajo la Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). Los escriben voluntarios y pueden tener errores: comprueba siempre el envase.',
           },
+          {
+            id: 'free-exercise-db',
+            name: 'Free Exercise DB',
+            url: 'https://github.com/yuhonas/free-exercise-db',
+            license: 'The Unlicense (public domain)',
+            version: 'f00c92c (2026-09-27)',
+            attribution:
+              locale === 'en'
+                ? 'Exercises: categories, muscles and equipment from Free Exercise DB (https://github.com/yuhonas/free-exercise-db), public domain (The Unlicense). Spanish names and synonyms: our own work.'
+                : 'Ejercicios: categorías, músculos y material de Free Exercise DB (https://github.com/yuhonas/free-exercise-db), de dominio público (The Unlicense). Nombres en español y sinónimos: elaboración propia.',
+          },
         ],
       };
+    },
+
+    exerciseCatalog: async () => {
+      const { record } = await authenticateWithConsent();
+      return {
+        version: MOCK_EXERCISE_CATALOG_VERSION,
+        exercises: [...MOCK_EXERCISES, ...ownExercises(record)],
+      };
+    },
+
+    saveCustomExercise: async (exerciseId, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { id } = parse(ExerciseIdParamSchema, { id: exerciseId });
+      const request = parse(CustomExerciseUpsertRequestSchema, body);
+      if (inFuture(request.recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const own = ownExercises(record);
+      if (own.length >= WORKOUT_LIMITS.customExercisesMax && !own.some((e) => e.id === id)) {
+        throw fail('exercise_limit_reached');
+      }
+      if (exerciseIdTaken(user.userId, id)) throw fail('id_taken', { id: 'taken' });
+      const stored = record.customExercises.find((e) => e.exercise.id === id);
+      // The write recorded later on its device wins, also against a delete.
+      if (writeWins(stored?.recordedAt ?? null, request.recordedAt)) {
+        record.customExercises = [
+          {
+            exercise: customExercise(id, request),
+            recordedAt: new Date(request.recordedAt).toISOString(),
+            deletedAt: null,
+          },
+          ...record.customExercises.filter((e) => e.exercise.id !== id),
+        ];
+        persist();
+      }
+      const current = record.customExercises.find((e) => e.exercise.id === id);
+      return { exercise: current && current.deletedAt === null ? current.exercise : null };
+    },
+
+    deleteCustomExercise: async (exerciseId, query) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(ExerciseIdParamSchema, { id: exerciseId });
+      const { recordedAt } = parse(CustomExerciseDeleteQuerySchema, query);
+      if (inFuture(recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const stored = record.customExercises.find((e) => e.exercise.id === id);
+      // Past sets keep their label; the row stays as a tombstone.
+      if (stored && writeWins(stored.recordedAt, recordedAt)) {
+        stored.deletedAt = now().toISOString();
+        stored.recordedAt = new Date(recordedAt).toISOString();
+        persist();
+      }
+      return { exercise: null };
+    },
+
+    listWorkouts: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { from, to } = parse(WorkoutLogQuerySchema, query);
+      const invalid = checkWorkoutRange(from, to);
+      if (invalid) throw fail('validation_error', invalid);
+      return {
+        workouts: liveWorkouts(record)
+          .filter((w) => w.localDate >= from && w.localDate <= to)
+          .sort(newestWorkoutFirst),
+      };
+    },
+
+    saveWorkout: async (workoutId, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { id } = parse(WorkoutIdParamSchema, { id: workoutId });
+      const request = parse(WorkoutUpsertRequestSchema, body);
+      const invalid = checkWorkoutWrite(request, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const ids = request.kind === 'gym' ? request.exercises.map((e) => e.exerciseId) : [];
+      const workout = workoutFromRequest(id, request, loggable(record));
+      if ('error' in workout) {
+        if (workout.error === 'exercise_not_found') {
+          throw fail('not_found', { exerciseId: 'not_found' });
+        }
+        const index = ids.indexOf(workout.exerciseId);
+        throw fail('validation_error', {
+          [`exercises.${index}.sets.${workout.setNumber - 1}`]: 'set_mismatch',
+        });
+      }
+      const ofDay = liveWorkouts(record).filter((w) => w.localDate === request.localDate);
+      if (ofDay.length >= WORKOUT_LIMITS.workoutsPerDayMax && !ofDay.some((w) => w.id === id)) {
+        throw fail('validation_error', { localDate: 'too_many_workouts' });
+      }
+      // Ids are global: an id that belongs to another user is never touched.
+      for (const [owner, other] of Object.entries(db)) {
+        if (owner !== user.userId && other.workouts.some((w) => w.id === id)) {
+          return { workout: null };
+        }
+      }
+      const stored = record.workouts.find((w) => w.id === id);
+      // The write recorded later on its device wins, also against a delete (AC23).
+      if (writeWins(stored?.recordedAt ?? null, workout.recordedAt)) {
+        record.workouts = [
+          ...record.workouts.filter((w) => w.id !== id),
+          {
+            ...workout,
+            startedAt: new Date(workout.startedAt).toISOString(),
+            recordedAt: new Date(workout.recordedAt).toISOString(),
+            deleted: false,
+          },
+        ];
+        persist();
+      }
+      const current = record.workouts.find((w) => w.id === id);
+      return { workout: current && !current.deleted ? withoutDeleted(current) : null };
+    },
+
+    deleteWorkout: async (workoutId, query) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(WorkoutIdParamSchema, { id: workoutId });
+      const { recordedAt } = parse(WorkoutDeleteQuerySchema, query);
+      if (inFuture(recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const stored = record.workouts.find((w) => w.id === id);
+      // A delete older than the stored write does not remove it; the tombstone keeps the delete time.
+      if (stored && writeWins(stored.recordedAt, recordedAt)) {
+        stored.deleted = true;
+        stored.recordedAt = new Date(recordedAt).toISOString();
+        persist();
+      }
+      return { workout: null };
+    },
+
+    exerciseStats: async () => {
+      const { record } = await authenticateWithConsent();
+      return { stats: buildExerciseStats(exerciseSetRows(record)) };
+    },
+
+    exerciseHistory: async (exerciseId, limit) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(ExerciseIdParamSchema, { id: exerciseId });
+      const query = parse(ExerciseHistoryQuerySchema, limit === undefined ? {} : { limit });
+      if (!loggable(record).has(id)) throw fail('not_found', { id: 'not_found' });
+      return exerciseHistory(id, exerciseSetRows(record, id), query.limit);
     },
 
     listFoodLog: async (query) => {
@@ -899,9 +1134,12 @@ export function createMockApiClient({
         weights: record.weights,
         mealItems: live(record),
         customFoods: record.customFoods,
-        // The training routes join the mock backend with the client step of spec 009.
-        workouts: [],
-        customExercises: [],
+        workouts: liveWorkouts(record).sort(newestWorkoutFirst).reverse(),
+        // Deleted ones too, with `deletedAt`: the tombstone is still data we hold (spec 009 AC25).
+        customExercises: record.customExercises.map((e) => ({
+          ...e.exercise,
+          deletedAt: e.deletedAt,
+        })),
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

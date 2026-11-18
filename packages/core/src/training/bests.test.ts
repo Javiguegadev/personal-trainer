@@ -1,4 +1,4 @@
-import type { WorkoutSet } from '@pt/contracts';
+import type { Workout, WorkoutSet } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   NO_BESTS,
@@ -10,6 +10,7 @@ import {
   newBests,
   oneRepMaxSeries,
   personalBests,
+  statsWithWorkout,
 } from './bests';
 
 const set = (values: Partial<WorkoutSet>, setNumber = 1): WorkoutSet => ({
@@ -199,5 +200,89 @@ describe('exerciseHistory (AC15)', () => {
       sessions: [],
       bests: NO_BESTS,
     });
+  });
+});
+
+describe('statsWithWorkout (AC10, AC22: the offline stats after a save)', () => {
+  const workout = (
+    id: string,
+    day: string,
+    exercises: { exerciseId: string | null; sets: WorkoutSet[] }[],
+  ): Workout => ({
+    id,
+    localDate: day,
+    kind: 'gym',
+    activity: null,
+    name: null,
+    startedAt: `${day}T18:00:00.000Z`,
+    minutes: 60,
+    sessionRpe: null,
+    inputMethod: 'live',
+    exercises: exercises.map((e) => ({ ...e, label: 'x', tracking: 'weight_reps' as const })),
+    recordedAt: `${day}T19:00:00.000Z`,
+  });
+  const before = buildExerciseStats([
+    {
+      workoutId: 'w1',
+      localDate: '2026-11-01',
+      startedAt: '2026-11-01T18:00:00.000Z',
+      exerciseId: 'bench',
+      tracking: 'weight_reps',
+      set: set({ weightKg: 70, reps: 5, restS: 120 }),
+    },
+  ]);
+
+  it('makes a newer session the last one and raises only the bests it beats', () => {
+    const next = statsWithWorkout(
+      before,
+      workout('w2', '2026-11-08', [
+        {
+          exerciseId: 'bench',
+          sets: [set({ weightKg: 72.5, reps: 3 }), set({ weightKg: 60, reps: 8 }, 2)],
+        },
+      ]),
+    );
+    expect(next).toHaveLength(1);
+    expect(next[0]!.last.workoutId).toBe('w2');
+    expect(next[0]!.lastDoneAt).toBe('2026-11-08T18:00:00.000Z');
+    expect(next[0]!.bests.heaviestKg).toEqual({ value: 72.5, localDate: '2026-11-08' });
+    // 70 × 5 → 81.5 still beats 72.5 × 3 → 79.5 and 60 × 8 → 76.
+    expect(next[0]!.bests.oneRepMaxKg).toEqual(before[0]!.bests.oneRepMaxKg);
+  });
+
+  it('keeps the last session when an older one is logged afterwards', () => {
+    const next = statsWithWorkout(
+      before,
+      workout('w0', '2026-10-25', [
+        { exerciseId: 'bench', sets: [set({ weightKg: 75, reps: 1 })] },
+      ]),
+    );
+    expect(next[0]!.last.workoutId).toBe('w1');
+    expect(next[0]!.bests.heaviestKg).toEqual({ value: 75, localDate: '2026-10-25' });
+  });
+
+  it('adds an exercise done for the first time, most recently done first', () => {
+    const next = statsWithWorkout(
+      before,
+      workout('w2', '2026-11-08', [
+        { exerciseId: 'row', sets: [set({ weightKg: 50, reps: 10 })] },
+        { exerciseId: null, sets: [set({ weightKg: 10, reps: 10 })] },
+      ]),
+    );
+    expect(next.map((s) => s.exerciseId)).toEqual(['row', 'bench']);
+    expect(next[0]!.bests.heaviestKg).toEqual({ value: 50, localDate: '2026-11-08' });
+  });
+
+  it('replaces the last session when that same workout is edited', () => {
+    const edited = workout('w1', '2026-11-01', [
+      { exerciseId: 'bench', sets: [set({ weightKg: 70, reps: 6 })] },
+    ]);
+    const next = statsWithWorkout(before, edited);
+    expect(next[0]!.last.sets).toEqual(edited.exercises[0]!.sets);
+  });
+
+  it('leaves the stats alone for an activity', () => {
+    const activity = { ...workout('w2', '2026-11-08', []), kind: 'sport' as const };
+    expect(statsWithWorkout(before, activity)).toEqual(before);
   });
 });

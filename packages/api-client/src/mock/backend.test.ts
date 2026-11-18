@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { isApiError } from '../client';
 import { profileInput } from '../test/fixtures';
 import { createMockApiClient, MOCK_DB_KEY, type KeyValueStorage } from './backend';
+import { MOCK_EXERCISES } from './exercises';
 import { MOCK_CATALOG } from './foods';
 import { mockAccessToken, mockUserFromEmail } from './identity';
 
@@ -493,5 +494,180 @@ describe('mock backend: food log (spec 005)', () => {
     await api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
     expect(await log(api)).toEqual([]);
     expect((await api.favouriteFoods('es')).foods).toEqual([]);
+  });
+});
+
+describe('mock backend: exercises and workouts (spec 009)', () => {
+  const TODAY = '2026-11-11';
+  const at = (seconds: number) => new Date(NOW.getTime() + seconds * 1000).toISOString();
+  const W1 = '70000000-0000-4000-8000-000000000001';
+  const OWN = 'e1000000-0000-4000-8000-000000000001';
+  const byKey = (key: string) => MOCK_EXERCISES.find((e) => e.key === key)!;
+  const bench = byKey('press-banca');
+  const plank = byKey('plancha');
+  const benchSet = (weightKg: number) => ({
+    reps: 8,
+    weightKg,
+    durationS: null,
+    distanceM: null,
+    restS: 90,
+  });
+  const session = (over: Record<string, unknown> = {}) => ({
+    kind: 'gym' as const,
+    name: 'Pecho',
+    minutes: 50,
+    exercises: [{ exerciseId: bench.id, sets: [benchSet(60), benchSet(60)] }],
+    inputMethod: 'live' as const,
+    localDate: TODAY,
+    startedAt: '2026-11-11T08:00:00.000Z',
+    sessionRpe: 7,
+    recordedAt: at(60),
+    today: TODAY,
+    locale: 'es' as const,
+    ...over,
+  });
+  const own = (over: Record<string, unknown> = {}) => ({
+    name: 'Remo Hammer',
+    tracking: 'weight_reps' as const,
+    primaryMuscle: 'back' as const,
+    recordedAt: at(0),
+    ...over,
+  });
+  async function consented(opts: Parameters<typeof setup>[0] = {}) {
+    const s = setup(opts);
+    await s.api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    return s;
+  }
+  const list = async (api: ReturnType<typeof setup>['api']) =>
+    (await api.listWorkouts({ from: '2026-11-01', to: TODAY })).workouts;
+
+  it('has 40 catalog exercises with unique ids and every way of tracking', () => {
+    expect(MOCK_EXERCISES).toHaveLength(40);
+    expect(new Set(MOCK_EXERCISES.map((e) => e.id)).size).toBe(40);
+    expect(new Set(MOCK_EXERCISES.map((e) => e.tracking))).toEqual(
+      new Set(['weight_reps', 'reps', 'duration', 'distance_duration']),
+    );
+  });
+
+  it('needs consent on every training route (403)', async () => {
+    const { api } = setup();
+    for (const call of [
+      () => api.exerciseCatalog(),
+      () => api.listWorkouts({ from: TODAY, to: TODAY }),
+      () => api.saveWorkout(W1, session()),
+      () => api.exerciseStats(),
+      () => api.saveCustomExercise(OWN, own()),
+    ]) {
+      await expect(call()).rejects.toMatchObject({ status: 403 });
+    }
+  });
+
+  it('lists free-exercise-db among the data sources (AC2)', async () => {
+    const { api } = setup();
+    const { sources } = await api.foodSources('es');
+    expect(sources.map((s) => s.id)).toContain('free-exercise-db');
+  });
+
+  it('stores a session with label snapshots and only the tracked values', async () => {
+    const { api } = await consented();
+    const plankSet = { reps: 3, weightKg: null, durationS: 45, distanceM: null, restS: 60 };
+    const { workout } = await api.saveWorkout(
+      W1,
+      session({
+        exercises: [
+          { exerciseId: bench.id, sets: [benchSet(60)] },
+          { exerciseId: plank.id, sets: [plankSet] },
+        ],
+      }),
+    );
+    expect(workout!.exercises.map((e) => [e.label, e.tracking])).toEqual([
+      ['Press de banca', 'weight_reps'],
+      [plank.nameEs, 'duration'],
+    ]);
+    expect(workout!.exercises[1]!.sets[0]).toMatchObject({ durationS: 45, reps: null });
+    expect(await list(api)).toEqual([workout]);
+  });
+
+  it('rejects a future day, a set without its values and an unknown exercise', async () => {
+    const { api } = await consented();
+    await expect(api.saveWorkout(W1, session({ localDate: '2026-11-12' }))).rejects.toMatchObject({
+      status: 400,
+      fields: { localDate: 'in_future' },
+    });
+    const noReps = { ...benchSet(60), reps: null };
+    await expect(
+      api.saveWorkout(W1, session({ exercises: [{ exerciseId: bench.id, sets: [noReps] }] })),
+    ).rejects.toMatchObject({ status: 400, fields: { 'exercises.0.sets.0': 'set_mismatch' } });
+    await expect(
+      api.saveWorkout(W1, session({ exercises: [{ exerciseId: OWN, sets: [benchSet(60)] }] })),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('keeps the later write, and a delete against an older write (AC23)', async () => {
+    const { api } = await consented();
+    await api.saveWorkout(W1, session({ recordedAt: at(100) }));
+    const late = await api.saveWorkout(W1, session({ name: 'Viejo', recordedAt: at(50) }));
+    expect(late.workout!.name).toBe('Pecho');
+    await api.deleteWorkout(W1, { recordedAt: at(200) });
+    await api.saveWorkout(W1, session({ recordedAt: at(150) }));
+    expect(await list(api)).toEqual([]);
+  });
+
+  it('computes stats and history from the stored sets (AC14, AC15)', async () => {
+    const { api } = await consented();
+    await api.saveWorkout(W1, session());
+    const { stats } = await api.exerciseStats();
+    expect(stats).toMatchObject([
+      { exerciseId: bench.id, bests: { heaviestKg: { value: 60, localDate: TODAY } } },
+    ]);
+    const history = await api.exerciseHistory(bench.id);
+    expect(history.sessions.map((s) => s.workoutId)).toEqual([W1]);
+    await expect(api.exerciseHistory(OWN)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('keeps custom exercises private, refuses taken ids, keeps past labels after a delete', async () => {
+    const { api } = await consented();
+    await expect(api.saveCustomExercise(bench.id, own())).rejects.toMatchObject({
+      status: 409,
+      code: 'id_taken',
+    });
+    await api.saveCustomExercise(OWN, own());
+    await api.saveWorkout(W1, session({ exercises: [{ exerciseId: OWN, sets: [benchSet(40)] }] }));
+    expect((await api.exerciseCatalog()).exercises.at(-1)).toMatchObject({
+      id: OWN,
+      origin: 'user',
+    });
+
+    const other = setup({ token: mockAccessToken(mockUserFromEmail('bea@example.com')) });
+    await other.api.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    expect((await other.api.exerciseCatalog()).exercises).toHaveLength(40);
+
+    await api.deleteCustomExercise(OWN, { recordedAt: at(10) });
+    expect((await api.exerciseCatalog()).exercises).toHaveLength(40);
+    expect((await list(api))[0]!.exercises[0]!.label).toBe('Remo Hammer');
+    // An old session that used it can still be edited by its owner.
+    const edit = session({
+      exercises: [{ exerciseId: OWN, sets: [benchSet(42.5)] }],
+      recordedAt: at(120),
+    });
+    await expect(api.saveWorkout(W1, edit)).resolves.toMatchObject({ workout: { id: W1 } });
+  });
+
+  it('exports workouts and custom exercises, and deletes them with the account (AC25)', async () => {
+    const storage = memoryStorage();
+    const { api } = await consented({ storage });
+    await api.saveCustomExercise(OWN, own());
+    await api.deleteCustomExercise(OWN, { recordedAt: at(10) });
+    await api.saveWorkout(W1, session());
+    // The mock database survives a reload.
+    const reloaded = setup({ storage }).api;
+    const data = await reloaded.exportData();
+    expect(data.workouts.map((w) => w.id)).toEqual([W1]);
+    expect(data.customExercises).toMatchObject([{ id: OWN, deletedAt: NOW.toISOString() }]);
+
+    await reloaded.deleteAccount();
+    await reloaded.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
+    expect(await list(reloaded)).toEqual([]);
+    expect((await reloaded.exportData()).customExercises).toEqual([]);
   });
 });

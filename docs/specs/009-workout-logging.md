@@ -342,7 +342,7 @@ the app knows what I actually did, not only what I planned.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - The limits are `WORKOUT_LIMITS` (`TRAINING_LIMITS` already names the weekly plan of spec 002).
   - `workouts.activity` is an enum (`activity_type`, the chips of AC16), not free text; the name of a
@@ -376,4 +376,16 @@ the app knows what I actually did, not only what I planned.
   lists `exercises`, `workouts`, `workout_sets`.
 - Human (2026-11-18): reviewed the SQL of `0009_workout_log`, applied it to dev, imported the exercise
   catalog and ran `pnpm --filter @pt/api test:integration`.
-- Next: client (methods, query options, offline mutations, mock backend with ~40 exercises), UI, E2E.
+- Client (2026-11-18): 8 methods in `client.ts`; `training.ts` with query options (catalog, workouts
+  of the last 60 days, stats, history) and four mutations registered by key in one queue scope
+  (`training`), so a custom exercise created offline is sent before the session that uses it. Saving
+  a workout updates the cached stats at once with `statsWithWorkout` (new in `@pt/core`, test-first),
+  so a record is detected in the next session also offline; bests only rise there, and edits or
+  deletes that lower them show on the next read. `saveWorkoutVariables` takes the edited workout so a
+  deleted custom exercise stays loggable in its old session, as in the API. Hooks in `createApiHooks`.
+  Mock backend: the 8 routes with the API's rules, export, the free-exercise-db source, and 40 real
+  exercises (`mock/exercises.ts`, generated once from the curated CSV and the pinned source record;
+  every way of tracking); `MOCK_DB_KEY` is now `v7`. Tests: route mapping, cache and optimistic
+  writes, offline queue across a restart (AC22), later write wins and tombstone (AC23), rejection
+  undo, mock routes (403, 404, 409, AC25 export and delete).
+- Next: UI (register `registerTrainingMutations` in `apps/app/src/lib/api.ts`), E2E.

@@ -7,6 +7,7 @@ import {
   type ExerciseTracking,
   type PersonalBests,
   type SetValues,
+  type Workout,
   type WorkoutSet,
 } from '@pt/contracts';
 import { roundTo } from '../units';
@@ -207,4 +208,41 @@ export function oneRepMaxSeries(
     })
     .filter((p): p is { localDate: string; value: number } => p.value !== null)
     .sort((a, b) => a.localDate.localeCompare(b.localDate));
+}
+
+/**
+ * The exercise stats after one more saved workout, as the device computes them while offline (AC10,
+ * AC22): a newer session becomes the last one (and an edit of the last one replaces it), the bests rise
+ * where its sets beat them. Bests never go down here; an edit or a delete that lowers them shows on the
+ * next read of `GET /me/exercises/stats`.
+ */
+export function statsWithWorkout(
+  stats: readonly ExerciseStats[],
+  workout: Workout,
+): ExerciseStats[] {
+  const next = new Map(stats.map((s) => [s.exerciseId, s]));
+  for (const exercise of workout.exercises) {
+    if (exercise.exerciseId === null || exercise.sets.length === 0) continue;
+    const current = next.get(exercise.exerciseId);
+    const session: ExerciseSession = {
+      workoutId: workout.id,
+      localDate: workout.localDate,
+      sets: exercise.sets,
+    };
+    let bests = current?.bests ?? NO_BESTS;
+    for (const set of exercise.sets) {
+      bests = addToBests(bests, set, exercise.tracking, workout.localDate);
+    }
+    const isLast =
+      !current ||
+      current.last.workoutId === workout.id ||
+      Date.parse(workout.startedAt) >= Date.parse(current.lastDoneAt);
+    next.set(exercise.exerciseId, {
+      exerciseId: exercise.exerciseId,
+      last: isLast ? session : current.last,
+      bests,
+      lastDoneAt: isLast ? workout.startedAt : current.lastDoneAt,
+    });
+  }
+  return [...next.values()].sort((a, b) => Date.parse(b.lastDoneAt) - Date.parse(a.lastDoneAt));
 }
