@@ -686,6 +686,71 @@ export const en: DeepStringRecord<typeof es> = {
       foodError: "We couldn't load its servings. You can change the meal or delete it.",
     },
   },
+  feedback: {
+    title: 'How is your day going?',
+    titlePast: 'Day summary',
+    button: {
+      today: 'How is your day going?',
+      past: 'Day summary',
+      empty: 'Log something first',
+      offline: 'You need a connection for this',
+      syncing: 'Syncing…',
+    },
+    trainingChip: {
+      today: 'I train today',
+      past: 'I trained that day',
+    },
+    state: {
+      loading: 'Preparing your notes…',
+      error: "We couldn't prepare your notes. Please try again.",
+      stale: "You've logged something since then",
+      update: 'Update',
+    },
+    nutrients: {
+      kcal: 'Energy',
+      protein: 'Protein',
+      fiber: 'Fibre',
+      carbs: 'Carbs',
+    },
+    chip: '{nutrient} {eaten} / {target} {unit}',
+    chipLabel: '{eaten} of {target} {unitLong} of {nutrient}',
+    perMeal: '{meal} {grams} g',
+    perMealLabel: '{meal}: {grams} grams of protein',
+    units: { g: 'g', kcal: 'kcal', gLong: 'grams', kcalLong: 'kilocalories' },
+    and: ' and ',
+    suggestion: 'Add {food} to {meal}',
+    nextTime: 'Next time: {foods}',
+    template: {
+      day_incomplete:
+        'You logged little this day. If you ate something else, add it so the summary is useful.',
+      protein_low:
+        'You fell a bit short on protein. On a similar day, add one more serving at a meal.',
+      protein_gap: 'There is still protein left for {meals}: a good moment to add some.',
+      kcal_low:
+        'You ended below your energy for the day. On a similar day, one more snack gets you closer.',
+      kcal_above:
+        'Today you went above your energy for the day. One day does not change the trend: the week is what counts.',
+      fiber_low:
+        'It was a low-fibre day. On a similar day, add fruit, vegetables, pulses or wholemeal bread.',
+      fiber_gap: 'There is still fibre left for {meals}: fruit, vegetables or pulses add it.',
+      protein_uneven:
+        'Almost all the protein came in one meal. Spreading it over several helps you use it.',
+      carbs_low_training:
+        'On a training day you fell short on carbs. Adding them helps you perform and recover.',
+      carbs_gap_training:
+        'You train today and there are still carbs left for {meals}: they help you perform and recover.',
+      on_track: 'Protein, fibre and carbs close to your targets.',
+    },
+    sources: {
+      title: 'Sources',
+      issn_protein_2017: 'Jäger R. et al. ISSN position stand: protein and exercise (JISSN, 2017)',
+      efsa_fibre_2010: 'EFSA: dietary reference values for carbohydrates and fibre (2010)',
+      acsm_and_dc_2016:
+        'Thomas D.T. et al. Nutrition and athletic performance (ACSM, AND, DC, 2016)',
+      own_targets: 'Your targets: how is this calculated?',
+    },
+    disclaimer: 'For guidance only, not medical advice.',
+  },
   sources: {
     title: 'Data sources',
     intro:

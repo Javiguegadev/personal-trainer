@@ -48,6 +48,8 @@ export const FEEDBACK_LIMITS = {
   carbsGapMinRatio: 0.4,
   /** A candidate portion above this share of the day's kcal target is dropped (AC12). */
   candidateKcalShareMax: 0.5,
+  /** A candidate portion must bring at least this much of the missing nutrient, in grams (AC12). */
+  candidateMinG: { proteinG: 5, carbsG: 10, fiberG: 1.5 },
   /** Days of recents the candidates come from (AC12, spec 005 recents). */
   candidateDays: 60,
 } as const;

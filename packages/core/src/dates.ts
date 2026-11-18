@@ -54,6 +54,13 @@ export function toLocalIsoDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** The time of `date` in the device's time zone, as `HH:mm` (spec 008: the state of the day). */
+export function toLocalTime(date: Date): string {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 /**
  * The client sends its local date; accept it only within ±1 day of the server's UTC date, which covers
  * every time zone.

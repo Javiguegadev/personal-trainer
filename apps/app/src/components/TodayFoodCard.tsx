@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
 import { useFoodLog } from '@/lib/api';
 import { Button } from './Button';
+import { FeedbackCard } from './FeedbackCard';
 import { Notice } from './Notice';
 import { NutritionSummaryCard } from './NutritionSummaryCard';
 import { TargetsCard } from './TargetsCard';
@@ -37,10 +38,11 @@ export function TodayFoodCard({ profile, targets }: { profile: Profile; targets:
   }
 
   const failed = log.isError && !log.data;
+  const todayItems = (log.data ?? []).filter((item) => item.localDate === today);
   return (
     <NutritionSummaryCard
       title={s.title}
-      totals={dailyTotals((log.data ?? []).filter((item) => item.localDate === today))}
+      totals={dailyTotals(todayItems)}
       targets={targets}
       noTargetsNote={t.targets.none}
       aside={
@@ -57,6 +59,16 @@ export function TodayFoodCard({ profile, targets }: { profile: Profile; targets:
         </>
       ) : null}
       {logFood}
+      {log.data ? (
+        <FeedbackCard
+          key={today}
+          localDate={today}
+          today={today}
+          items={todayItems}
+          safetyFlags={profile.safetyFlags}
+          hasTargets={targets !== null}
+        />
+      ) : null}
       {targets ? (
         <Button
           variant="ghost"

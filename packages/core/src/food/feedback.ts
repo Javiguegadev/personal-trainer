@@ -71,6 +71,17 @@ export const FEEDBACK_CITATIONS: Record<FeedbackObservationKind, FeedbackCitatio
   on_track: 'own_targets',
 };
 
+/**
+ * Where each citation leads (AC18): the paper's DOI, or null for the user's own targets, which link to
+ * the "¿Cómo se calcula?" screen of the app.
+ */
+export const FEEDBACK_SOURCE_URLS: Record<FeedbackCitationId, string | null> = {
+  issn_protein_2017: 'https://doi.org/10.1186/s12970-017-0177-8',
+  efsa_fibre_2010: 'https://doi.org/10.2903/j.efsa.2010.1462',
+  acsm_and_dc_2016: 'https://doi.org/10.1016/j.jand.2015.12.006',
+  own_targets: null,
+};
+
 /** The order notes are kept in (AC11); the first `notesMax` stay. */
 const ORDER: readonly FeedbackObservationKind[] = [
   'protein_low',
@@ -312,7 +323,9 @@ export function feedbackCandidates(
       .flatMap(({ food, portion }) => {
         const preview = portionPreview(food, portion);
         const value = preview?.nutrients[nutrient];
-        if (!preview || value === null || value === undefined || value <= 0) return [];
+        // A food that brings almost none of it is no tip (an egg for carbohydrates).
+        if (!preview || value === null || value === undefined) return [];
+        if (value < L.candidateMinG[nutrient]) return [];
         if (preview.nutrients.kcal > L.candidateKcalShareMax * kcalTarget) return [];
         return [
           {

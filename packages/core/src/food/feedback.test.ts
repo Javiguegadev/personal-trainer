@@ -592,6 +592,20 @@ describe('feedbackCandidates (AC12)', () => {
     expect(new Set(refs).size).toBe(refs.length);
   });
 
+  it('drops portions that bring almost none of the missing nutrient', () => {
+    const egg = food(30, { kcal: 140, proteinG: 12.7, carbsG: 0.3 }); // 100 g → 0.3 g carbs
+    const bread = food(31, { kcal: 250, proteinG: 4.9, carbsG: 41, fiberG: 1.4 }); // 100 g
+    const result = feedbackCandidates(
+      [obs('carbs_gap_training'), obs('protein_gap'), obs('fiber_gap')],
+      { recents: [recent(egg, 100), recent(bread, 100)], favourites: [] },
+      2000,
+    );
+    expect(result.carbs_gap_training?.map((c) => c.food.id)).toEqual([bread.id]);
+    // 4.9 g of protein and 1.4 g of fiber are below the minimums (5 g, 1.5 g).
+    expect(result.protein_gap?.map((c) => c.food.id)).toEqual([egg.id]);
+    expect(result.fiber_gap).toEqual([]);
+  });
+
   it('keeps at most 5 candidates and none for observations food cannot fix', () => {
     const many = Array.from({ length: 8 }, (_, i) => food(10 + i, { kcal: 100, proteinG: 5 + i }));
     const result = feedbackCandidates(

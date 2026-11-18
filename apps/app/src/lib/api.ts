@@ -59,6 +59,8 @@ export const {
   useDeleteMealItem,
   useSetFavouriteFood,
   usePendingMealItemIds,
+  useDailyFeedback,
+  useFoodLogSyncing,
   useRejectedFoodWrite,
   useCustomFoods,
   useSaveCustomFood,

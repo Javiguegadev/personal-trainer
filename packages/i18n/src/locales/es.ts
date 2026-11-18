@@ -693,6 +693,71 @@ export const es = {
       foodError: 'No hemos podido cargar sus raciones. Puedes cambiar la comida o borrarlo.',
     },
   },
+  feedback: {
+    title: '¿Cómo va el día?',
+    titlePast: 'Resumen del día',
+    button: {
+      today: '¿Cómo va el día?',
+      past: 'Resumen del día',
+      empty: 'Registra algo primero',
+      offline: 'Necesitas conexión para esto',
+      syncing: 'Sincronizando…',
+    },
+    trainingChip: {
+      today: 'Hoy entreno',
+      past: 'Ese día entrené',
+    },
+    state: {
+      loading: 'Preparando tus notas…',
+      error: 'No hemos podido preparar las notas. Vuelve a intentarlo.',
+      stale: 'Has registrado algo desde entonces',
+      update: 'Actualizar',
+    },
+    nutrients: {
+      kcal: 'Energía',
+      protein: 'Proteína',
+      fiber: 'Fibra',
+      carbs: 'Hidratos',
+    },
+    chip: '{nutrient} {eaten} / {target} {unit}',
+    chipLabel: '{eaten} de {target} {unitLong} de {nutrient}',
+    perMeal: '{meal} {grams} g',
+    perMealLabel: '{meal}: {grams} gramos de proteína',
+    units: { g: 'g', kcal: 'kcal', gLong: 'gramos', kcalLong: 'kilocalorías' },
+    and: ' y ',
+    suggestion: 'Añadir {food} a {meal}',
+    nextTime: 'La próxima vez: {foods}',
+    template: {
+      day_incomplete:
+        'Has registrado poco este día. Si comiste algo más, añádelo para que el resumen te sirva.',
+      protein_low:
+        'Te quedaste algo corto de proteína. En un día parecido, suma una ración más en alguna comida.',
+      protein_gap: 'Aún te queda proteína para {meals}: es un buen momento para sumarla.',
+      kcal_low:
+        'Te quedaste por debajo de tu energía del día. En un día parecido, un tentempié más te acerca.',
+      kcal_above:
+        'Hoy pasaste de tu energía del día. Un día no cambia la tendencia: lo que cuenta es la semana.',
+      fiber_low:
+        'Fue un día bajo en fibra. En un día parecido, añade fruta, verdura, legumbre o pan integral.',
+      fiber_gap: 'Aún te queda fibra para {meals}: fruta, verdura o legumbre la suman.',
+      protein_uneven:
+        'Casi toda la proteína llegó en una comida. Repartirla entre varias ayuda a aprovecharla.',
+      carbs_low_training:
+        'En un día de entreno te quedaste corto de hidratos. Sumarlos ayuda a rendir y recuperar.',
+      carbs_gap_training:
+        'Hoy entrenas y aún te quedan hidratos para {meals}: te ayudan a rendir y recuperar.',
+      on_track: 'Proteína, fibra e hidratos cerca de tus objetivos.',
+    },
+    sources: {
+      title: 'Fuentes',
+      issn_protein_2017: 'Jäger R. et al. ISSN: proteína y ejercicio (JISSN, 2017)',
+      efsa_fibre_2010: 'EFSA: valores de referencia de hidratos y fibra (2010)',
+      acsm_and_dc_2016:
+        'Thomas D.T. et al. Nutrición y rendimiento deportivo (ACSM, AND, DC, 2016)',
+      own_targets: 'Tus objetivos: ¿Cómo se calcula?',
+    },
+    disclaimer: 'Orientativo, no es consejo médico.',
+  },
   sources: {
     title: 'Fuentes de datos',
     intro:

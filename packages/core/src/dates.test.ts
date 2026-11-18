@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, isPlausibleClientDate, lastDays, toLocalIsoDate } from './dates';
+import { addDays, isPlausibleClientDate, lastDays, toLocalIsoDate, toLocalTime } from './dates';
+
+describe('toLocalTime', () => {
+  it('is the local HH:mm, zero-padded', () => {
+    expect(toLocalTime(new Date(2026, 0, 5, 7, 5))).toBe('07:05');
+    expect(toLocalTime(new Date(2026, 10, 11, 23, 59))).toBe('23:59');
+  });
+});
 
 describe('toLocalIsoDate', () => {
   it('uses the local calendar date, zero-padded', () => {
