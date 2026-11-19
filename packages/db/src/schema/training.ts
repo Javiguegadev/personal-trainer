@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { authenticatedRole, authUid } from 'drizzle-orm/supabase';
@@ -21,6 +22,7 @@ import {
   exerciseOriginEnum,
   exerciseTrackingEnum,
   muscleGroupEnum,
+  programOriginEnum,
   workoutInputMethodEnum,
   workoutKindEnum,
 } from './enums';
@@ -121,6 +123,10 @@ export const workouts = pgTable(
     minutes: smallint('minutes').notNull(),
     sessionRpe: smallint('session_rpe'),
     inputMethod: workoutInputMethodEnum('input_method').notNull(),
+    /** The routine session it was started from (spec 010 AC18); null when free or removed. */
+    programSessionId: uuid('program_session_id').references(() => programSessions.id, {
+      onDelete: 'set null',
+    }),
     /** Device time of the write: the later one wins, also against a delete (AC23). */
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -132,6 +138,7 @@ export const workouts = pgTable(
   },
   (t) => [
     index('workouts_user_date_idx').on(t.userId, t.localDate),
+    index('workouts_user_program_session_idx').on(t.userId, t.programSessionId),
     check('workouts_minutes_range', sql`${t.minutes} between 1 and 600`),
     check('workouts_rpe_range', sql`${t.sessionRpe} is null or ${t.sessionRpe} between 1 and 10`),
     check('workouts_name_length', sql`${t.name} is null or length(${t.name}) between 1 and 60`),
@@ -192,6 +199,121 @@ export const workoutSets = pgTable(
     ),
     check('workout_sets_rest_range', sql`${t.restS} is null or ${t.restS} between 0 and 900`),
     pgPolicy('workout_sets_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+/**
+ * The user's routine (spec 010, the Plans block of BLUEPRINT §5): a template of @pt/core edited by the
+ * user, or built by hand. One active routine per user; a delete keeps the row as a tombstone so an
+ * older write cannot bring it back (AC22). The AI programs of E7 write to the same tables.
+ * RLS: users may only read their own rows; every write goes through apps/api.
+ */
+export const workoutPrograms = pgTable(
+  'workout_programs',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    origin: programOriginEnum('origin').notNull(),
+    /** The template it came from (`full-body-ab`); null when built by hand. */
+    templateKey: text('template_key'),
+    /** Device time of the write: the later one wins, also against a delete (AC22). */
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex('workout_programs_one_active_idx')
+      .on(t.userId)
+      .where(sql`${t.deletedAt} is null`),
+    check('workout_programs_name_length', sql`length(${t.name}) between 1 and 60`),
+    pgPolicy('workout_programs_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+/**
+ * The sessions of a routine, in rotation order (A, B, C…). Their ids come from the device and stay the
+ * same across edits, so workouts keep pointing at them (AC19); a session left out of a write is deleted
+ * and its workouts lose the link (`on delete set null`, AC22).
+ * RLS: users may only read their own rows; every write goes through apps/api.
+ */
+export const programSessions = pgTable(
+  'program_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    programId: uuid('program_id')
+      .notNull()
+      .references(() => workoutPrograms.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    position: smallint('position').notNull(),
+    name: text('name').notNull(),
+  },
+  (t) => [
+    index('program_sessions_program_id_idx').on(t.programId),
+    check('program_sessions_name_length', sql`length(${t.name}) between 1 and 40`),
+    pgPolicy('program_sessions_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+/**
+ * The exercises of a routine session with their target (sets and a rep range, or a time), replaced
+ * with the routine on every write. The label is a snapshot, as in `workout_sets`.
+ * RLS: users may only read their own rows; every write goes through apps/api.
+ */
+export const programExercises = pgTable(
+  'program_exercises',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => programSessions.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    position: smallint('position').notNull(),
+    exerciseId: uuid('exercise_id').references(() => exercises.id, { onDelete: 'set null' }),
+    exerciseLabel: text('exercise_label').notNull(),
+    tracking: exerciseTrackingEnum('tracking').notNull(),
+    sets: smallint('sets').notNull(),
+    repsMin: smallint('reps_min'),
+    repsMax: smallint('reps_max'),
+    durationS: integer('duration_s'),
+    restS: smallint('rest_s'),
+  },
+  (t) => [
+    index('program_exercises_session_id_idx').on(t.sessionId),
+    index('program_exercises_user_id_idx').on(t.userId),
+    check('program_exercises_sets_range', sql`${t.sets} between 1 and 10`),
+    check(
+      'program_exercises_reps_range',
+      sql`(${t.repsMin} is null and ${t.repsMax} is null) or (${t.repsMin} between 1 and 100 and ${t.repsMax} between ${t.repsMin} and 100)`,
+    ),
+    check(
+      'program_exercises_duration_range',
+      sql`${t.durationS} is null or ${t.durationS} between 1 and 10800`,
+    ),
+    check('program_exercises_rest_range', sql`${t.restS} is null or ${t.restS} between 0 and 900`),
+    pgPolicy('program_exercises_select_own', {
       for: 'select',
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,
