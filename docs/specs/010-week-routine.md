@@ -1,6 +1,6 @@
 # 010 — Typical week, week view and starter routine
 
-- Status: draft
+- Status: approved (2026-11-19)
 - Phase: E5, slice (b) of three. Slice (a) (spec 009): exercise library, Training tab, workout logging.
   Slice (c) (spec 011): daily check-in, day readiness and the sentence shortcut.
 - Tier: free (no AI in this spec, so there is no cap)
