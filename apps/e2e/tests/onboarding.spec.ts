@@ -131,4 +131,44 @@ test.describe('onboarding (spec 001, spec 002)', () => {
     await profile.getByTestId('back-link').click();
     await expect((await openTab(page, 'today')).getByTestId('targets-kcal')).toContainText('3150');
   });
+
+  test('an onboarded account with an older consent is asked again, then goes back to Today (spec 002 AC14)', async ({
+    page,
+  }) => {
+    await signInWithGoogle(page);
+    const form = await acceptConsent(page);
+    await fillForm(form, {
+      sex: 'male',
+      age: 30,
+      height: { cm: '175' },
+      weight: '80',
+      job: 'sedentary',
+      goal: 'maintain',
+    });
+    await form.getByTestId('form-continue').click();
+    await confirmSummary(page);
+
+    // A new CONSENT_VERSION ships: the stored consent is now for an older text.
+    await page.evaluate(() => {
+      // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
+      const key = 'pt.mock-db.v7';
+      const db = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
+        string,
+        { consents: { version: string }[] }
+      >;
+      for (const record of Object.values(db)) {
+        for (const consent of record.consents) consent.version = '2000-01-v0';
+      }
+      localStorage.setItem(key, JSON.stringify(db));
+    });
+    await page.reload();
+
+    const consent = await screen(page, 'consent-screen');
+    await consent.getByTestId('consent-checkbox').click();
+    await consent.getByTestId('accept-consent').click();
+
+    // Straight home, not to the onboarding form, and nothing stored was lost.
+    const today = await screen(page, 'today-screen');
+    await expect(today.getByTestId('targets-kcal')).toContainText('2450');
+  });
 });

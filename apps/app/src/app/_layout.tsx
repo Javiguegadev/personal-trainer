@@ -67,14 +67,16 @@ function RootNavigator() {
   const allow = (condition: boolean) => loading || condition;
 
   // Where the user belongs right now. Groups have no index route, so every guard redirects to a real
-  // screen instead of the group itself.
+  // screen instead of the group itself. Consent comes before everything else, also for an onboarded
+  // account whose consent is for an older version of the text (spec 002 AC14).
   const destination = !signedIn
     ? '/sign-in'
-    : onboarded
-      ? '/'
-      : consented
-        ? '/onboarding/form'
-        : '/onboarding/consent';
+    : !consented
+      ? '/onboarding/consent'
+      : onboarded
+        ? '/'
+        : '/onboarding/form';
+  const ready = signedIn && onboarded && consented;
 
   return (
     <>
@@ -82,10 +84,10 @@ function RootNavigator() {
         <Stack.Protected guard={allow(!signedIn)} redirectTo={destination}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={allow(signedIn && !onboarded)} redirectTo={destination}>
+        <Stack.Protected guard={allow(signedIn && !ready)} redirectTo={destination}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
-        <Stack.Protected guard={allow(signedIn && onboarded)} redirectTo={destination}>
+        <Stack.Protected guard={allow(ready)} redirectTo={destination}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="weight" options={{ presentation: 'modal' }} />
           <Stack.Screen name="food/add" options={{ presentation: 'modal' }} />
