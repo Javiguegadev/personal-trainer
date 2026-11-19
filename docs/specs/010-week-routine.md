@@ -327,5 +327,15 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
+  - `WeekRequestSchema`, `TrainingProfileUpdateSchema` and the week schemas live in `profile.ts` next
+    to `PlannedActivitySchema` (no `week.ts`; its tests are in `week.test.ts`). `EMPTY_WEEK` is the week
+    of a profile that never saved "Mi semana".
+  - `PlannedActivity.days` and `programSessionId` (gym requests) default to empty / null, so the clients
+    of specs 002 and 009 keep working; the contracts commit makes stores and mocks return those neutral
+    values until the API step stores them.
+  - A routine session may have no exercises (the empty routine of the pregnancy rule).
+  - `context-v4` and `CONSENT_VERSION` change in the core and UI steps, so every commit stays green.
+- Done so far (2026-11-19), one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
+  (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`).
