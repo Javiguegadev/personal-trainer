@@ -10,6 +10,7 @@ import {
   CUSTOM_FOOD_LIMITS,
   ConsentRequestSchema,
   CustomFoodUpsertRequestSchema,
+  EMPTY_WEEK,
   DailyFeedbackRequestSchema,
   FEEDBACK_LIMITS,
   FOOD_LOG_LIMITS,
@@ -560,6 +561,9 @@ export function createMockApiClient({
         units: input.units,
         locale: input.locale,
         onboardingCompletedAt: record.profile?.onboardingCompletedAt ?? at,
+        week: record.profile?.week ?? EMPTY_WEEK,
+        trainingExperience: record.profile?.trainingExperience ?? null,
+        equipmentAccess: record.profile?.equipmentAccess ?? null,
       };
       record.dietaryPrefs = input.dietaryPrefs;
       for (const row of record.targets) if (row.validTo === null) row.validTo = at;

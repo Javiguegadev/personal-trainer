@@ -1,5 +1,5 @@
 import type { ConsentKind, PlannedActivity, SafetyFlag } from '@pt/contracts';
-import { SafetyFlagSchema } from '@pt/contracts';
+import { EMPTY_WEEK, SafetyFlagSchema } from '@pt/contracts';
 import { and, asc, count, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
 import { createFoodStore, exportFoodLog } from './food-store';
@@ -40,6 +40,8 @@ function toActivity(row: ActivityRow): PlannedActivity {
     sessionsPerWeek: row.sessionsPerWeek,
     minutesPerSession: row.minutesPerSession,
     intensity: row.intensity,
+    // The days of the typical week are stored from spec 010 (db step).
+    days: [],
   };
 }
 
@@ -67,6 +69,10 @@ function toProfile(
     units: row.units,
     locale: row.locale,
     onboardingCompletedAt: row.onboardingCompletedAt?.toISOString() ?? null,
+    // Stored from spec 010 (db step).
+    week: EMPTY_WEEK,
+    trainingExperience: null,
+    equipmentAccess: null,
   };
 }
 

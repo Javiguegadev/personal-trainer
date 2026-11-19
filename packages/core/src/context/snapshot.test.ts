@@ -10,6 +10,7 @@ const gym: PlannedActivity = {
   sessionsPerWeek: 3,
   minutesPerSession: 60,
   intensity: 'moderate',
+  days: [],
 };
 const football: PlannedActivity = {
   kind: 'sport',
@@ -17,6 +18,7 @@ const football: PlannedActivity = {
   sessionsPerWeek: 2,
   minutesPerSession: 90,
   intensity: 'moderate',
+  days: [],
 };
 
 const sources: ContextSources = {

@@ -8,6 +8,7 @@ import {
   type ReadMeal,
   type WordFeedback,
 } from '@pt/ai';
+import { EMPTY_WEEK } from '@pt/contracts';
 import type {
   ConsentKind,
   CustomFoodUpsertRequest,
@@ -151,6 +152,9 @@ export class FakeStore implements Store {
     rows.profile = {
       ...data.profile,
       onboardingCompletedAt: rows.profile?.onboardingCompletedAt ?? iso,
+      week: rows.profile?.week ?? EMPTY_WEEK,
+      trainingExperience: rows.profile?.trainingExperience ?? null,
+      equipmentAccess: rows.profile?.equipmentAccess ?? null,
     };
     rows.dietaryPrefs = data.dietaryPrefs;
     for (const t of rows.targets) if (t.validTo === null) t.validTo = iso;

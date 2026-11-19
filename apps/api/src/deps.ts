@@ -39,7 +39,15 @@ export interface MeRecord {
 }
 
 export interface ProfileWrite {
-  profile: Omit<Profile, 'onboardingCompletedAt' | 'jobActivity' | 'trainingFocus'> & {
+  profile: Omit<
+    Profile,
+    | 'onboardingCompletedAt'
+    | 'jobActivity'
+    | 'trainingFocus'
+    | 'week'
+    | 'trainingExperience'
+    | 'equipmentAccess'
+  > & {
     jobActivity: JobActivity;
     trainingFocus: TrainingFocus;
   };

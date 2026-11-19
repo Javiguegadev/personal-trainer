@@ -178,5 +178,11 @@ export function workoutToRequest(
     }));
   if (!exercises.length) return null;
   const inputMethod = workout.inputMethod === 'activity' ? 'manual' : workout.inputMethod;
-  return { kind: 'gym', exercises, inputMethod, ...shared };
+  return {
+    kind: 'gym',
+    exercises,
+    inputMethod,
+    programSessionId: workout.programSessionId,
+    ...shared,
+  };
 }

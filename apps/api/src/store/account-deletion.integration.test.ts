@@ -90,6 +90,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
               sessionsPerWeek: 2,
               minutesPerSession: 90,
               intensity: 'moderate',
+              days: [],
             },
           ],
           requestedGoal: input.goal,
@@ -395,6 +396,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       minutes: 55,
       sessionRpe: 7,
       inputMethod: 'live' as const,
+      programSessionId: null,
       exercises: [
         {
           exerciseId,

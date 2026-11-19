@@ -1,4 +1,4 @@
-import type { Profile, ProfileInput, SafetyFlag } from '@pt/contracts';
+import { EMPTY_WEEK, type Profile, type ProfileInput, type SafetyFlag } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { evaluateProfileInput } from '../profile/evaluate';
 import { applyLatestWeight, checkWeightWrite } from './apply';
@@ -47,6 +47,9 @@ function stored(weightKg: number, overrides: Partial<ProfileInput> = {}) {
     units: input.units,
     locale: input.locale,
     onboardingCompletedAt: NOW.toISOString(),
+    week: EMPTY_WEEK,
+    trainingExperience: null,
+    equipmentAccess: null,
   };
   return { profile, targets: evaluation.targets, safety: evaluation.safety };
 }

@@ -74,6 +74,7 @@ export function workoutFromRequest(
     minutes: request.minutes,
     sessionRpe: request.sessionRpe,
     inputMethod: request.inputMethod,
+    programSessionId: request.kind === 'gym' ? request.programSessionId : null,
     recordedAt: request.recordedAt,
   };
   if (request.kind !== 'gym') {

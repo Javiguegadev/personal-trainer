@@ -139,6 +139,7 @@ describe('mock backend: profile and targets', () => {
       sessionsPerWeek: 3,
       minutesPerSession: 90,
       intensity: 'moderate' as const,
+      days: [],
     };
     const noSport = await api
       .updateProfile(input({ trainingFocus: 'sport_performance' }))
@@ -174,6 +175,7 @@ describe('mock backend: profile and targets', () => {
             sessionsPerWeek: 2,
             minutesPerSession: 90,
             intensity: 'moderate',
+            days: [],
           },
         ],
       }),
@@ -192,6 +194,7 @@ describe('mock backend: profile and targets', () => {
         sessionsPerWeek: 3,
         minutesPerSession: 60,
         intensity: 'moderate' as const,
+        days: [],
       },
     ];
     const me = await api.updateProfile(input({ jobActivity: 'standing', plannedActivities }));
@@ -214,6 +217,7 @@ describe('mock backend: profile and targets', () => {
               sessionsPerWeek: 6,
               minutesPerSession: 240,
               intensity: 'light',
+              days: [],
             },
           ],
         }),
@@ -518,6 +522,7 @@ describe('mock backend: exercises and workouts (spec 009)', () => {
     minutes: 50,
     exercises: [{ exerciseId: bench.id, sets: [benchSet(60), benchSet(60)] }],
     inputMethod: 'live' as const,
+    programSessionId: null,
     localDate: TODAY,
     startedAt: '2026-11-11T08:00:00.000Z',
     sessionRpe: 7,

@@ -76,6 +76,8 @@ function toWorkout(row: WorkoutRow, sets: SetRow[]): Workout {
     minutes: row.minutes,
     sessionRpe: row.sessionRpe,
     inputMethod: row.inputMethod,
+    // Stored from spec 010 (db step).
+    programSessionId: null,
     exercises: [...byPosition.values()],
     recordedAt: row.recordedAt.toISOString(),
   };

@@ -66,7 +66,14 @@ const activity = (
   sessionsPerWeek: number,
   minutesPerSession: number,
   intensity: PlannedActivity['intensity'] = 'moderate',
-): PlannedActivity => ({ kind, label: null, sessionsPerWeek, minutesPerSession, intensity });
+): PlannedActivity => ({
+  kind,
+  label: null,
+  sessionsPerWeek,
+  minutesPerSession,
+  intensity,
+  days: [],
+});
 
 /** The man of the comparison table in spec 002: 30 y, 175 cm, 80 kg. BMR 800+1093.75−150+5 = 1748.75. */
 const man: Omit<Person, 'job'> = {
