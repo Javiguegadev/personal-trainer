@@ -10,6 +10,7 @@ const gym: PlannedActivity = {
   sessionsPerWeek: 3,
   minutesPerSession: 60,
   intensity: 'moderate',
+  days: [],
 };
 const football: PlannedActivity = {
   kind: 'sport',
@@ -17,6 +18,7 @@ const football: PlannedActivity = {
   sessionsPerWeek: 2,
   minutesPerSession: 90,
   intensity: 'moderate',
+  days: [],
 };
 
 const sources: ContextSources = {
@@ -34,11 +36,11 @@ const sources: ContextSources = {
   trainingFocus: 'strength',
 };
 
-describe('buildContextSnapshot — context-v3 (spec 002 AC12, spec 003 AC25, spec 004 AC11)', () => {
+describe('buildContextSnapshot — context-v4 (spec 002 AC12, spec 003 AC25, spec 004 AC11)', () => {
   it('returns the profile, the job and the planned training for the given day', () => {
     const snapshot = buildContextSnapshot(sources, TODAY);
     expect(snapshot).toEqual({
-      version: 'context-v3',
+      version: 'context-v4',
       date: TODAY,
       profile: {
         sex: 'male',
@@ -57,6 +59,14 @@ describe('buildContextSnapshot — context-v3 (spec 002 AC12, spec 003 AC25, spe
         // (3 h × 2.5 + 3 h × 5) / 168
         factor: 22.5 / 168,
         focus: 'strength',
+        experience: null,
+        equipment: null,
+        hasRoutine: false,
+      },
+      week: {
+        workPattern: null,
+        dayStartMinute: 0,
+        days: Array.from({ length: 7 }, (_, i) => ({ weekday: i + 1, work: null, training: [] })),
       },
       weight: {
         lastKg: null,
@@ -78,6 +88,9 @@ describe('buildContextSnapshot — context-v3 (spec 002 AC12, spec 003 AC25, spe
       minutesPerWeek: 0,
       factor: 0,
       focus: 'strength',
+      experience: null,
+      equipment: null,
+      hasRoutine: false,
     });
   });
 
@@ -130,6 +143,55 @@ describe('buildContextSnapshot — context-v3 (spec 002 AC12, spec 003 AC25, spe
       });
     },
   );
+
+  it('adds the typical week and the routine answers (spec 010 AC25)', () => {
+    const gymDays: PlannedActivity = {
+      ...gym,
+      days: [1, 3, 5].map((weekday) => ({ weekday, startMinute: 1110, isMatch: false })),
+    };
+    const footballDays: PlannedActivity = {
+      ...football,
+      days: [
+        { weekday: 3, startMinute: 1200, isMatch: false },
+        { weekday: 6, startMinute: 660, isMatch: true },
+      ],
+    };
+    const snapshot = buildContextSnapshot(
+      {
+        ...sources,
+        plannedActivities: [gymDays, footballDays],
+        week: {
+          workPattern: 'fixed',
+          workBlocks: [{ weekday: 7, startMinute: 1320, endMinute: 360 }],
+          dayStartMinute: 240,
+        },
+        trainingExperience: 'beginner',
+        equipmentAccess: 'full_gym',
+        hasRoutine: true,
+      },
+      TODAY,
+    );
+    expect(snapshot.training).toMatchObject({
+      experience: 'beginner',
+      equipment: 'full_gym',
+      hasRoutine: true,
+    });
+    expect(snapshot.week.workPattern).toBe('fixed');
+    expect(snapshot.week.dayStartMinute).toBe(240);
+    expect(snapshot.week.days[2]).toEqual({
+      weekday: 3,
+      work: null,
+      training: [
+        { activityIndex: 0, kind: 'strength', minutes: 60, startMinute: 1110, isMatch: false },
+        { activityIndex: 1, kind: 'sport', minutes: 90, startMinute: 1200, isMatch: false },
+      ],
+    });
+    expect(snapshot.week.days[5]!.training).toEqual([
+      { activityIndex: 1, kind: 'sport', minutes: 90, startMinute: 660, isMatch: true },
+    ]);
+    expect(snapshot.week.days[6]!.work).toEqual({ startMinute: 1320, endMinute: 360 });
+    expect(ContextSnapshotSchema.safeParse(snapshot).success).toBe(true);
+  });
 
   it('uses the age on the given day', () => {
     expect(buildContextSnapshot(sources, '2026-11-10').profile.ageYears).toBe(29);

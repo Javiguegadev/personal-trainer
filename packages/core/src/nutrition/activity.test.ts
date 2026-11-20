@@ -16,6 +16,7 @@ const activity = (overrides: Partial<PlannedActivity> = {}): PlannedActivity => 
   sessionsPerWeek: 4,
   minutesPerSession: 60,
   intensity: 'moderate',
+  days: [],
   ...overrides,
 });
 
@@ -41,7 +42,13 @@ describe('trainingFactor (spec 002 AC6)', () => {
     const week = [
       activity({ sessionsPerWeek: 3 }), // 3 h × 2.5 = 7.5
       activity({ kind: 'sport', sessionsPerWeek: 2, minutesPerSession: 90 }), // 3 h × 5 = 15
-      activity({ kind: 'sport', sessionsPerWeek: 1, minutesPerSession: 90, intensity: 'hard' }), // 1.5 h × 7 = 10.5
+      activity({
+        kind: 'sport',
+        sessionsPerWeek: 1,
+        minutesPerSession: 90,
+        intensity: 'hard',
+        days: [],
+      }), // 1.5 h × 7 = 10.5
     ];
     expect(trainingFactor(week)).toBeCloseTo(33 / 168, 10);
   });
@@ -57,17 +64,19 @@ describe('trainingFactor (spec 002 AC6)', () => {
 
   it('grows with intensity, duration and frequency for every kind', () => {
     for (const kind of ['strength', 'cardio', 'sport', 'other'] as const) {
-      const base = trainingFactor([activity({ kind, intensity: 'light' })]);
+      const base = trainingFactor([activity({ kind, intensity: 'light', days: [] })]);
       expect(base).toBeGreaterThan(0);
-      expect(trainingFactor([activity({ kind, intensity: 'moderate' })])).toBeGreaterThan(base);
-      expect(trainingFactor([activity({ kind, intensity: 'hard' })])).toBeGreaterThan(
-        trainingFactor([activity({ kind, intensity: 'moderate' })]),
+      expect(trainingFactor([activity({ kind, intensity: 'moderate', days: [] })])).toBeGreaterThan(
+        base,
+      );
+      expect(trainingFactor([activity({ kind, intensity: 'hard', days: [] })])).toBeGreaterThan(
+        trainingFactor([activity({ kind, intensity: 'moderate', days: [] })]),
       );
       expect(
-        trainingFactor([activity({ kind, intensity: 'light', minutesPerSession: 90 })]),
+        trainingFactor([activity({ kind, intensity: 'light', days: [], minutesPerSession: 90 })]),
       ).toBeGreaterThan(base);
       expect(
-        trainingFactor([activity({ kind, intensity: 'light', sessionsPerWeek: 5 })]),
+        trainingFactor([activity({ kind, intensity: 'light', days: [], sessionsPerWeek: 5 })]),
       ).toBeGreaterThan(base);
     }
   });
@@ -99,6 +108,7 @@ describe('sportActivityNames', () => {
       sessionsPerWeek: 2,
       minutesPerSession: 60,
       intensity: 'moderate',
+      days: [] as PlannedActivity['days'],
     }) as const;
 
   it('lists the named sport activities once each, as typed (spec 004 AC12)', () => {

@@ -1,4 +1,4 @@
-import type { Exercise, Workout, WorkoutExercise } from '@pt/contracts';
+import type { Exercise, Program, ProgramExercise, Workout, WorkoutExercise } from '@pt/contracts';
 import { customExercise, type ExerciseSetRow } from '@pt/core';
 import {
   and,
@@ -10,6 +10,8 @@ import {
   isNotNull,
   isNull,
   lte,
+  ne,
+  notInArray,
   or,
   schema,
   sql,
@@ -18,12 +20,77 @@ import {
 } from '@pt/db';
 import type { Store } from '../deps';
 
-const { exercises, workouts, workoutSets } = schema;
+const { exercises, programExercises, programSessions, workoutPrograms, workouts, workoutSets } =
+  schema;
 
 type ExerciseRow = typeof exercises.$inferSelect;
 type WorkoutRow = typeof workouts.$inferSelect;
 type SetRow = typeof workoutSets.$inferSelect;
+type ProgramExerciseRow = typeof programExercises.$inferSelect;
 type Reader = Pick<Db, 'select'>;
+
+type StoredProgram = Program & { deletedAt: string | null };
+
+const toProgramExercise = (row: ProgramExerciseRow): ProgramExercise => ({
+  exerciseId: row.exerciseId,
+  label: row.exerciseLabel,
+  tracking: row.tracking,
+  sets: row.sets,
+  repsMin: row.repsMin,
+  repsMax: row.repsMax,
+  durationS: row.durationS,
+  restS: row.restS,
+});
+
+/** Routines matching `where`, oldest first, with their sessions and exercises in order. */
+async function loadPrograms(db: Reader, where: SQL | undefined): Promise<StoredProgram[]> {
+  const rows = await db
+    .select()
+    .from(workoutPrograms)
+    .where(where)
+    .orderBy(asc(workoutPrograms.createdAt));
+  if (rows.length === 0) return [];
+  const sessions = await db
+    .select()
+    .from(programSessions)
+    .where(
+      inArray(
+        programSessions.programId,
+        rows.map((r) => r.id),
+      ),
+    )
+    .orderBy(asc(programSessions.position));
+  const exerciseRows =
+    sessions.length === 0
+      ? []
+      : await db
+          .select()
+          .from(programExercises)
+          .where(
+            inArray(
+              programExercises.sessionId,
+              sessions.map((s) => s.id),
+            ),
+          )
+          .orderBy(asc(programExercises.position));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    origin: row.origin,
+    templateKey: row.templateKey,
+    sessions: sessions
+      .filter((s) => s.programId === row.id)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        exercises: exerciseRows.filter((e) => e.sessionId === s.id).map(toProgramExercise),
+      })),
+    recordedAt: row.recordedAt.toISOString(),
+    deletedAt: row.deletedAt?.toISOString() ?? null,
+  }));
+}
+
+const withoutTombstone = ({ deletedAt: _, ...program }: StoredProgram): Program => program;
 
 function toExercise(row: ExerciseRow): Exercise {
   return {
@@ -76,6 +143,7 @@ function toWorkout(row: WorkoutRow, sets: SetRow[]): Workout {
     minutes: row.minutes,
     sessionRpe: row.sessionRpe,
     inputMethod: row.inputMethod,
+    programSessionId: row.programSessionId,
     exercises: [...byPosition.values()],
     recordedAt: row.recordedAt.toISOString(),
   };
@@ -123,6 +191,10 @@ type TrainingStore = Pick<
   | 'upsertWorkout'
   | 'deleteWorkout'
   | 'listExerciseSetRows'
+  | 'getProgram'
+  | 'upsertProgram'
+  | 'deleteProgram'
+  | 'programSessionOwner'
 >;
 
 /** The exercise catalog, custom exercises and the workout log (spec 009), on Drizzle. */
@@ -235,6 +307,7 @@ export function createTrainingStore(db: Db): TrainingStore {
           minutes: workout.minutes,
           sessionRpe: workout.sessionRpe,
           inputMethod: workout.inputMethod,
+          programSessionId: workout.programSessionId,
           recordedAt: new Date(workout.recordedAt),
           deletedAt: null,
         };
@@ -307,21 +380,155 @@ export function createTrainingStore(db: Db): TrainingStore {
         set: setValues(set),
       }));
     },
+
+    async getProgram(userId) {
+      const [program] = await loadPrograms(
+        db,
+        and(eq(workoutPrograms.userId, userId), isNull(workoutPrograms.deletedAt)),
+      );
+      return program ? withoutTombstone(program) : null;
+    },
+
+    async upsertProgram(userId, program) {
+      const recordedAt = new Date(program.recordedAt);
+      const sessionIds = program.sessions.map((s) => s.id);
+      const conflict = await db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select({ userId: workoutPrograms.userId, recordedAt: workoutPrograms.recordedAt })
+          .from(workoutPrograms)
+          .where(eq(workoutPrograms.id, program.id))
+          .for('update');
+        if (existing && existing.userId !== userId) return 'id_taken' as const;
+        // AC22: a later write or delete already won; the caller reads what is stored.
+        if (existing && existing.recordedAt > recordedAt) return null;
+        const [takenSession] = await tx
+          .select({ id: programSessions.id })
+          .from(programSessions)
+          .where(
+            and(inArray(programSessions.id, sessionIds), ne(programSessions.programId, program.id)),
+          )
+          .limit(1);
+        if (takenSession) return 'id_taken' as const;
+        const [other] = await tx
+          .select({ id: workoutPrograms.id })
+          .from(workoutPrograms)
+          .where(
+            and(
+              eq(workoutPrograms.userId, userId),
+              isNull(workoutPrograms.deletedAt),
+              ne(workoutPrograms.id, program.id),
+            ),
+          )
+          .limit(1);
+        if (other) return 'program_exists' as const;
+
+        const update = {
+          name: program.name,
+          origin: program.origin,
+          templateKey: program.templateKey,
+          recordedAt,
+          deletedAt: null,
+        };
+        await tx
+          .insert(workoutPrograms)
+          .values({ id: program.id, userId, ...update })
+          .onConflictDoUpdate({
+            target: workoutPrograms.id,
+            set: { ...update, updatedAt: sql`now()` },
+          });
+        // A session left out is deleted: its workouts keep their sets and lose the link (AC22).
+        await tx
+          .delete(programSessions)
+          .where(
+            and(
+              eq(programSessions.programId, program.id),
+              notInArray(programSessions.id, sessionIds),
+            ),
+          );
+        for (const [position, session] of program.sessions.entries()) {
+          await tx
+            .insert(programSessions)
+            .values({ id: session.id, programId: program.id, userId, position, name: session.name })
+            .onConflictDoUpdate({
+              target: programSessions.id,
+              set: { position, name: session.name },
+            });
+        }
+        await tx.delete(programExercises).where(inArray(programExercises.sessionId, sessionIds));
+        const rows = program.sessions.flatMap((session) =>
+          session.exercises.map((exercise, position) => ({
+            sessionId: session.id,
+            userId,
+            position,
+            exerciseId: exercise.exerciseId,
+            exerciseLabel: exercise.label,
+            tracking: exercise.tracking,
+            sets: exercise.sets,
+            repsMin: exercise.repsMin,
+            repsMax: exercise.repsMax,
+            durationS: exercise.durationS,
+            restS: exercise.restS,
+          })),
+        );
+        if (rows.length > 0) await tx.insert(programExercises).values(rows);
+        return null;
+      });
+      if (conflict) return conflict;
+      const [saved] = await loadPrograms(
+        db,
+        and(
+          eq(workoutPrograms.id, program.id),
+          eq(workoutPrograms.userId, userId),
+          isNull(workoutPrograms.deletedAt),
+        ),
+      );
+      return saved ? withoutTombstone(saved) : null;
+    },
+
+    async deleteProgram(userId, id, recordedAt) {
+      const at = new Date(recordedAt);
+      // A tombstone: workouts keep pointing at its sessions, and an older write cannot bring it back.
+      await db
+        .update(workoutPrograms)
+        .set({ deletedAt: sql`now()`, recordedAt: at, updatedAt: sql`now()` })
+        .where(
+          and(
+            eq(workoutPrograms.id, id),
+            eq(workoutPrograms.userId, userId),
+            isNull(workoutPrograms.deletedAt),
+            lte(workoutPrograms.recordedAt, at),
+          ),
+        );
+    },
+
+    async programSessionOwner(userId, sessionId) {
+      const [row] = await db
+        .select({ userId: programSessions.userId })
+        .from(programSessions)
+        .where(eq(programSessions.id, sessionId));
+      if (!row) return 'missing';
+      return row.userId === userId ? 'own' : 'other';
+    },
   };
 }
 
-/** The training log and the user's own exercises for "Download my data" (AC25). */
+/**
+ * The training log, the user's own exercises (spec 009 AC25) and their routines, deleted ones
+ * included (spec 010 AC24), for "Download my data".
+ */
 export async function exportTrainingLog(db: Db, userId: string) {
-  const [log, custom] = await Promise.all([
+  const [log, custom, programs] = await Promise.all([
     loadWorkouts(db, liveWorkouts(userId)),
     db
       .select()
       .from(exercises)
       .where(eq(exercises.ownerId, userId))
       .orderBy(asc(exercises.createdAt)),
+    loadPrograms(db, eq(workoutPrograms.userId, userId)),
   ]);
   return {
     workouts: log.reverse(),
+    programs,
     customExercises: custom.map((row) => ({
       ...toExercise(row),
       deletedAt: row.deletedAt?.toISOString() ?? null,

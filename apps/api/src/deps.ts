@@ -18,6 +18,11 @@ import type {
   CustomExerciseUpsertRequest,
   Exercise,
   Workout,
+  PlannedActivity,
+  Program,
+  TrainingProfileUpdate,
+  Week,
+  WorkPattern,
 } from '@pt/contracts';
 import type { ExerciseSetRow, LoggableExercise } from '@pt/core';
 import type { LookupProduct } from './off/client';
@@ -39,7 +44,15 @@ export interface MeRecord {
 }
 
 export interface ProfileWrite {
-  profile: Omit<Profile, 'onboardingCompletedAt' | 'jobActivity' | 'trainingFocus'> & {
+  profile: Omit<
+    Profile,
+    | 'onboardingCompletedAt'
+    | 'jobActivity'
+    | 'trainingFocus'
+    | 'week'
+    | 'trainingExperience'
+    | 'equipmentAccess'
+  > & {
     jobActivity: JobActivity;
     trainingFocus: TrainingFocus;
   };
@@ -269,6 +282,43 @@ export interface Store {
   deleteWorkout(userId: string, id: string, recordedAt: string): Promise<void>;
   /** Every set of the user's live workouts that points to an exercise, or only of one (AC14, AC15). */
   listExerciseSetRows(userId: string, exerciseId?: string): Promise<ExerciseSetRow[]>;
+
+  // Typical week and routine (spec 010)
+  /**
+   * In one transaction (AC4): the work pattern, work blocks and day start, the activities with their
+   * days, and, when the training load changed, the profile evaluated again. Returns false when the
+   * user has no profile, or one from before spec 002 without a job (nothing is written).
+   */
+  saveWeek(userId: string, write: WeekWrite, at: Date): Promise<boolean>;
+  /** The routine wizard's answers (AC14). Returns false when the user has no profile. */
+  saveTrainingProfile(userId: string, update: TrainingProfileUpdate, at: Date): Promise<boolean>;
+  /** The user's active routine with its sessions in rotation order, or null. */
+  getProgram(userId: string): Promise<Program | null>;
+  /**
+   * Replaces the routine unless the stored row of that id (live or deleted) was recorded later (AC22):
+   * sessions are kept by id and the missing ones deleted (their workouts lose the link), exercises are
+   * replaced. Returns the live routine of that id after the write, or null when a later delete won.
+   * `id_taken`: the routine or one of its session ids belongs to another user or another routine.
+   * `program_exists`: another routine of the user is active (AC20: the client deletes it first).
+   */
+  upsertProgram(userId: string, program: Program): Promise<Program | null | ProgramWriteConflict>;
+  /** Marks the routine deleted (a tombstone) unless it was recorded after `recordedAt` (AC20, AC22). */
+  deleteProgram(userId: string, id: string, recordedAt: string): Promise<void>;
+  /** Who owns a routine session (AC18): the user (live or deleted routine), someone else, or nobody. */
+  programSessionOwner(userId: string, sessionId: string): Promise<'own' | 'other' | 'missing'>;
+}
+
+export type ProgramWriteConflict = 'id_taken' | 'program_exists';
+
+/** A `PUT /me/week` write (AC4). */
+export interface WeekWrite {
+  week: Omit<Week, 'workPattern'> & { workPattern: WorkPattern };
+  plannedActivities: PlannedActivity[];
+  /**
+   * Set when the training load changed: the profile evaluated again with the new activities (the
+   * targets row is closed and `targets` inserted, null = none). Absent: goal, flags and targets stay.
+   */
+  evaluation?: { goal: Profile['goal']; safetyFlags: SafetyFlag[]; targets: Targets | null };
 }
 
 /** Supabase Auth admin (service key, server only). Deleting the auth user cascades to every user row. */

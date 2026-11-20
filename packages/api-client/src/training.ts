@@ -11,6 +11,12 @@ import {
   type Exercise,
   type ExerciseCatalogResponse,
   type ExerciseStats,
+  type MeResponse,
+  type Profile,
+  type Program,
+  type ProgramResponse,
+  type ProgramUpsertRequest,
+  type TrainingProfileUpdate,
   type Workout,
   type WorkoutSaveResponse,
   type WorkoutUpsertRequest,
@@ -18,12 +24,15 @@ import {
 import {
   addDays,
   customExercise,
+  programFromRequest,
   statsWithWorkout,
   workoutFromRequest,
   type LoggableExercise,
 } from '@pt/core';
 import { queryOptions, skipToken, type QueryClient } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
+import { meKey } from './keys';
+import { cachedWeekWorkout, cancelWeekLogs, invalidateWeekLogs, setWeekWorkout } from './week';
 import { isRejected } from './weights';
 
 export const trainingKeys = {
@@ -44,7 +53,33 @@ export const trainingKeys = {
   deleteWorkout: ['training', 'workout-delete'] as const,
   saveExercise: ['training', 'exercise-save'] as const,
   deleteExercise: ['training', 'exercise-delete'] as const,
+  /** The active routine, or null (spec 010). */
+  program: ['training-program'] as const,
+  saveProgram: ['training', 'program-save'] as const,
+  deleteProgram: ['training', 'program-delete'] as const,
+  /** The routine wizard's answers (spec 010 AC14). */
+  saveTrainingProfile: ['training', 'profile-save'] as const,
 };
+
+export interface SaveProgramVariables {
+  /** Client-generated routine id. */
+  id: string;
+  request: ProgramUpsertRequest;
+  /** The routine as the screens show it until the API answers. */
+  preview: Program;
+}
+
+export interface DeleteProgramVariables {
+  id: string;
+  /** Device time of the delete (AC22). */
+  recordedAt: string;
+}
+
+export interface SaveTrainingProfileVariables {
+  /** The user id: names the write in "waiting to sync" and in a rejection notice. */
+  id: string;
+  update: TrainingProfileUpdate;
+}
 
 export interface SaveWorkoutVariables {
   /** Client-generated workout id. */
@@ -212,19 +247,24 @@ export function registerTrainingMutations(queryClient: QueryClient, api: ApiClie
   /** With more writes queued, a refetch now would drop their optimistic changes for a moment. */
   const lastInQueue = () => queryClient.isMutating({ mutationKey: trainingKeys.mutations }) <= 1;
 
-  const setWorkout = (id: string, workout: Workout | null) =>
+  const setWorkout = (id: string, workout: Workout | null) => {
     queryClient.setQueryData<Workout[]>(trainingKeys.log, (workouts = []) =>
       withWorkout(workouts, id, workout),
     );
+    // The week view and the day screens of older days (spec 010 AC11, AC12).
+    setWeekWorkout(queryClient, id, workout);
+  };
 
   const onWorkoutMutate = async (id: string, workout: Workout | null) => {
     // A list request in flight would overwrite the optimistic workout with older data.
     await Promise.all([
       queryClient.cancelQueries({ queryKey: trainingKeys.log }),
       queryClient.cancelQueries({ queryKey: trainingKeys.stats }),
+      cancelWeekLogs(queryClient),
     ]);
     const previous =
-      queryClient.getQueryData<Workout[]>(trainingKeys.log)?.find((w) => w.id === id) ?? null;
+      queryClient.getQueryData<Workout[]>(trainingKeys.log)?.find((w) => w.id === id) ??
+      cachedWeekWorkout(queryClient, id);
     setWorkout(id, workout);
     // A new record must show in the next session also without a connection (AC10, AC22).
     if (workout) {
@@ -259,6 +299,7 @@ export function registerTrainingMutations(queryClient: QueryClient, api: ApiClie
         queryClient.invalidateQueries({ queryKey: trainingKeys.log }),
         queryClient.invalidateQueries({ queryKey: trainingKeys.stats }),
         queryClient.invalidateQueries({ queryKey: trainingKeys.historyAll }),
+        invalidateWeekLogs(queryClient),
       ]);
     },
   };
@@ -326,6 +367,138 @@ export function registerTrainingMutations(queryClient: QueryClient, api: ApiClie
       api.deleteCustomExercise(id, { recordedAt }),
     // Past sessions keep their sets and labels; only the library and the picker lose it.
     onMutate: ({ id }: DeleteCustomExerciseVariables) => onExerciseMutate(id, null),
+  });
+
+  // ── Routine (spec 010 AC16–AC22) ──
+  // Same queue as the workouts: a routine created offline is sent before the workout that uses it
+  // (AC21), and "Cambiar de rutina" sends the delete of the old one before the new one (AC20).
+
+  const cachedProgram = () => queryClient.getQueryData<Program | null>(trainingKeys.program);
+
+  const onProgramMutate = async (program: (current: Program | null) => Program | null) => {
+    await queryClient.cancelQueries({ queryKey: trainingKeys.program });
+    const previous = cachedProgram() ?? null;
+    queryClient.setQueryData<Program | null>(trainingKeys.program, program(previous));
+    queryClient.setQueryData(trainingKeys.rejected, null);
+    return { previous };
+  };
+
+  const programShared = {
+    ...queue,
+    onError: (
+      error: unknown,
+      variables: { id: string },
+      context: { previous: Program | null } | undefined,
+    ) => {
+      queryClient.setQueryData<Program | null>(trainingKeys.program, context?.previous ?? null);
+      queryClient.setQueryData(trainingKeys.rejected, rejection(variables.id, error));
+    },
+    onSuccess: (data: ProgramResponse, variables: { id: string }) => {
+      // Only while the cache still shows that routine: a later write queued after it (a delete, or
+      // the routine that replaces it) already set what the user expects to see.
+      if (cachedProgram()?.id !== variables.id) return;
+      queryClient.setQueryData<Program | null>(trainingKeys.program, data.program);
+    },
+    onSettled: async () => {
+      if (!lastInQueue()) return;
+      await queryClient.invalidateQueries({ queryKey: trainingKeys.program });
+    },
+  };
+
+  queryClient.setMutationDefaults(trainingKeys.saveProgram, {
+    ...programShared,
+    mutationFn: ({ id, request }: SaveProgramVariables) => api.saveProgram(id, request),
+    onMutate: ({ preview }: SaveProgramVariables) => onProgramMutate(() => preview),
+  });
+
+  queryClient.setMutationDefaults(trainingKeys.deleteProgram, {
+    ...programShared,
+    mutationFn: ({ id, recordedAt }: DeleteProgramVariables) =>
+      api.deleteProgram(id, { recordedAt }),
+    onMutate: ({ id }: DeleteProgramVariables) =>
+      onProgramMutate((current) => (current?.id === id ? null : current)),
+    onSuccess: (_data: ProgramResponse, { id }: DeleteProgramVariables) => {
+      if (cachedProgram()?.id === id) queryClient.setQueryData(trainingKeys.program, null);
+    },
+  });
+
+  // The wizard's answers (AC14) also go through the queue: the wizard works without a connection.
+  const setTrainingAnswers = (answers: {
+    trainingExperience: Profile['trainingExperience'];
+    equipmentAccess: Profile['equipmentAccess'];
+  }) =>
+    queryClient.setQueryData<MeResponse>(meKey, (me) =>
+      me?.profile ? { ...me, profile: { ...me.profile, ...answers } } : me,
+    );
+
+  queryClient.setMutationDefaults(trainingKeys.saveTrainingProfile, {
+    ...queue,
+    mutationFn: ({ update }: SaveTrainingProfileVariables) => api.saveTrainingProfile(update),
+    onMutate: async ({ update }: SaveTrainingProfileVariables) => {
+      await queryClient.cancelQueries({ queryKey: meKey });
+      const profile = queryClient.getQueryData<MeResponse>(meKey)?.profile ?? null;
+      setTrainingAnswers({
+        trainingExperience: update.experience,
+        equipmentAccess: update.equipment,
+      });
+      return {
+        previous: profile && {
+          trainingExperience: profile.trainingExperience,
+          equipmentAccess: profile.equipmentAccess,
+        },
+      };
+    },
+    onError: (
+      error: unknown,
+      variables: SaveTrainingProfileVariables,
+      context: { previous: Parameters<typeof setTrainingAnswers>[0] | null } | undefined,
+    ) => {
+      if (context?.previous) setTrainingAnswers(context.previous);
+      queryClient.setQueryData(trainingKeys.rejected, rejection(variables.id, error));
+    },
+    onSuccess: (me: MeResponse) => {
+      queryClient.setQueryData(meKey, me);
+    },
+  });
+}
+
+/**
+ * The variables of a routine write: the preview is built by `@pt/core` as the API builds the stored
+ * routine. `exercises` are the ones the device knows (the cached catalog and the user's own); an
+ * exercise of the routine being edited stays usable with its label, as a custom exercise deleted since
+ * still is for the API.
+ */
+export function saveProgramVariables(
+  id: string,
+  request: ProgramUpsertRequest,
+  exercises: readonly LoggableExercise[],
+  editing: Program | null = null,
+): SaveProgramVariables {
+  const known = new Map<string, LoggableExercise>();
+  for (const session of editing?.sessions ?? []) {
+    for (const e of session.exercises) {
+      if (e.exerciseId !== null) {
+        known.set(e.exerciseId, {
+          id: e.exerciseId,
+          nameEs: e.label,
+          nameEn: e.label,
+          tracking: e.tracking,
+        });
+      }
+    }
+  }
+  for (const e of exercises) known.set(e.id, e);
+  const preview = programFromRequest(id, request, known);
+  if ('error' in preview) throw new Error(`saveProgramVariables: ${preview.error}`);
+  return { id, request, preview };
+}
+
+/** The active routine (spec 010), kept offline so it can be started in the gym (AC21). */
+export function programQueryOptions(api: ApiClient) {
+  return queryOptions({
+    queryKey: trainingKeys.program,
+    queryFn: async () => (await api.program()).program,
+    retry,
   });
 }
 

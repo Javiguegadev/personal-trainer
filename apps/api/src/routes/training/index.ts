@@ -28,6 +28,7 @@ import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { createExerciseCatalogCache, loggableExercises } from '../../services/training';
+import { programRoutes } from './program';
 
 const error = (description: string) => ({
   description,
@@ -165,7 +166,7 @@ export function trainingRoutes(deps: Deps) {
       400: error('Invalid body, day or set values, or too many workouts that day'),
       401: error('Unauthenticated'),
       403: error('Consent required'),
-      404: error('Unknown exercise, or another user’s'),
+      404: error('Unknown exercise, or another user’s exercise or routine session'),
     },
   });
 
@@ -260,6 +261,15 @@ export function trainingRoutes(deps: Deps) {
       if (ofDay.length >= WORKOUT_LIMITS.workoutsPerDayMax && !ofDay.includes(id)) {
         return apiError(c, 400, 'validation_error', { localDate: 'too_many_workouts' });
       }
+      if (workout.programSessionId !== null) {
+        const owner = await deps.store.programSessionOwner(userId, workout.programSessionId);
+        if (owner === 'other') {
+          return apiError(c, 404, 'not_found', { programSessionId: 'not_found' });
+        }
+        // A session removed from the routine before this write arrived (a queued workout): the
+        // workout keeps its sets and loses the link, as when the session is removed later (AC22).
+        if (owner === 'missing') workout.programSessionId = null;
+      }
       return c.json({ workout: await deps.store.upsertWorkout(userId, workout) }, 200);
     })
     .openapi(deleteWorkout, async (c) => {
@@ -270,5 +280,6 @@ export function trainingRoutes(deps: Deps) {
       }
       await deps.store.deleteWorkout(c.var.user.userId, id, recordedAt);
       return c.json({ workout: null }, 200);
-    });
+    })
+    .route('/', programRoutes(deps));
 }

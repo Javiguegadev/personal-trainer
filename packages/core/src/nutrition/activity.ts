@@ -41,11 +41,15 @@ export function jobFactor(job: JobActivity): number {
   return JOB_FACTORS[job];
 }
 
-export function trainingMinutesPerWeek(activities: readonly PlannedActivity[]): number {
+export function trainingMinutesPerWeek(
+  activities: readonly Pick<PlannedActivity, 'sessionsPerWeek' | 'minutesPerSession'>[],
+): number {
   return activities.reduce((sum, a) => sum + a.sessionsPerWeek * a.minutesPerSession, 0);
 }
 
-export function trainingSessionsPerWeek(activities: readonly PlannedActivity[]): number {
+export function trainingSessionsPerWeek(
+  activities: readonly Pick<PlannedActivity, 'sessionsPerWeek'>[],
+): number {
   return activities.reduce((sum, a) => sum + a.sessionsPerWeek, 0);
 }
 

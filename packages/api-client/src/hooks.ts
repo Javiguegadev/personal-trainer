@@ -16,7 +16,9 @@ import type {
   MealItemSaveResponse,
   MeResponse,
   ProfileInput,
+  ProgramResponse,
   TargetsChange,
+  WeekRequest,
   WeightSaveResponse,
 } from '@pt/contracts';
 import {
@@ -55,14 +57,20 @@ import {
   exerciseCatalogQueryOptions,
   exerciseHistoryQueryOptions,
   exerciseStatsQueryOptions,
+  programQueryOptions,
   trainingKeys,
   workoutsQueryOptions,
   type DeleteCustomExerciseVariables,
+  type DeleteProgramVariables,
   type DeleteWorkoutVariables,
   type RejectedTrainingWrite,
   type SaveCustomExerciseVariables,
+  type SaveProgramVariables,
+  type SaveTrainingProfileVariables,
   type SaveWorkoutVariables,
 } from './training';
+import { meKey } from './keys';
+import { weekLogQueryOptions, type WeekSaveResult } from './week';
 import {
   dismissWeightNotice,
   weightKeys,
@@ -73,7 +81,7 @@ import {
 } from './weights';
 
 export const queryKeys = {
-  me: ['me'] as const,
+  me: meKey,
   targetsPreview: (input: ProfileInput | null) => ['onboarding', 'targets-preview', input] as const,
 };
 
@@ -391,6 +399,56 @@ export function createApiHooks(api: ApiClient) {
         initialData: null,
       });
       return { rejected: data, dismiss: () => dismissRejectedTrainingWrite(queryClient) };
+    },
+
+    /** The active routine, or null; kept offline (spec 010 AC21). */
+    useProgram: (options: { enabled?: boolean } = {}) =>
+      useQuery({ ...programQueryOptions(api), enabled: options.enabled ?? true }),
+
+    /**
+     * Optimistic and offline-safe, in the queue of the workouts (spec 010 AC21). Build the variables
+     * with `saveProgramVariables`. "Cambiar de rutina" deletes the old one first (AC20).
+     */
+    useSaveProgram: () =>
+      useMutation<ProgramResponse, unknown, SaveProgramVariables>({
+        mutationKey: trainingKeys.saveProgram,
+      }),
+
+    useDeleteProgram: () =>
+      useMutation<ProgramResponse, unknown, DeleteProgramVariables>({
+        mutationKey: trainingKeys.deleteProgram,
+      }),
+
+    /** The wizard's experience and equipment (spec 010 AC14); queued, so the wizard works offline. */
+    useSaveTrainingProfile: () =>
+      useMutation<MeResponse, unknown, SaveTrainingProfileVariables>({
+        mutationKey: trainingKeys.saveTrainingProfile,
+      }),
+
+    /**
+     * The meals and workouts of the week starting on `monday` (spec 010 AC8, AC10). A week visited
+     * before stays cached; offline, an unvisited one is paused with no data.
+     */
+    useWeekLog: (monday: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...weekLogQueryOptions(api, monday), enabled: options.enabled ?? true }),
+
+    /**
+     * "Guardar" on "Mi semana" (spec 010 AC4). Needs a connection (AC21): never paused and replayed,
+     * never retried; the screen keeps the edits on an error. `weekTargetsChange(result)` gives the old
+     * and new targets for the notice when the training load changed them.
+     */
+    useSaveWeek: () => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: async (body: WeekRequest): Promise<WeekSaveResult> => {
+          const previousTargets =
+            queryClient.getQueryData<MeResponse>(queryKeys.me)?.targets ?? null;
+          return { me: await api.saveWeek(body), previousTargets };
+        },
+        networkMode: 'always',
+        retry: false,
+        onSuccess: ({ me }) => afterProfileSaved(queryClient, me),
+      });
     },
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),

@@ -66,6 +66,7 @@ const gym = (over: Partial<GymWorkoutRequest> = {}): GymWorkoutRequest => ({
     { exerciseId: EXERCISE.pullUp, sets: [set({ weightKg: null, reps: 10 })] },
   ],
   inputMethod: 'live',
+  programSessionId: null,
   localDate: TODAY,
   startedAt: '2026-11-11T08:00:00Z',
   sessionRpe: 7,
@@ -229,6 +230,7 @@ describe('PUT /me/workouts/:id (AC12, AC16, AC23)', () => {
       minutes: 55,
       sessionRpe: 7,
       inputMethod: 'live',
+      programSessionId: null,
       startedAt: '2026-11-11T08:00:00.000Z',
     });
     expect(workout?.exercises).toEqual([

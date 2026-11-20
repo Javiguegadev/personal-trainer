@@ -100,6 +100,7 @@ describe('evaluateProfileInput', () => {
       sessionsPerWeek: 4,
       minutesPerSession: 60,
       intensity: 'moderate' as const,
+      days: [],
     };
     expect(kcal({ jobActivity: 'physical' })).toBeGreaterThan(seated);
     expect(kcal({ plannedActivities: [gym] })).toBeGreaterThan(seated);
@@ -115,6 +116,7 @@ describe('evaluateProfileInput', () => {
             sessionsPerWeek: 5,
             minutesPerSession: 120,
             intensity: 'moderate',
+            days: [],
           },
         ],
       }),

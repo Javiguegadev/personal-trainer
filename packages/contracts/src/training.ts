@@ -214,8 +214,11 @@ export const ActivityTypeSchema = z.enum([
 ]);
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 
-/** How a workout reached the log. Spec 011 adds `text` and `voice`. */
-export const WorkoutInputMethodSchema = z.enum(['live', 'manual', 'repeat', 'activity']);
+/**
+ * How a workout reached the log. `program`: started from a routine session (spec 010 AC18). Spec 011
+ * adds `text` and `voice`.
+ */
+export const WorkoutInputMethodSchema = z.enum(['live', 'manual', 'repeat', 'activity', 'program']);
 export type WorkoutInputMethod = z.infer<typeof WorkoutInputMethodSchema>;
 
 const reps = z.number().int().min(WORKOUT_LIMITS.repsMin).max(WORKOUT_LIMITS.repsMax);
@@ -279,7 +282,9 @@ export const WorkoutUpsertRequestSchema = z.discriminatedUnion('kind', [
       .array(WorkoutExerciseInputSchema)
       .min(1)
       .max(WORKOUT_LIMITS.exercisesPerSessionMax),
-    inputMethod: z.enum(['live', 'manual', 'repeat']),
+    inputMethod: z.enum(['live', 'manual', 'repeat', 'program']),
+    /** The routine session it was started from (spec 010 AC18); it moves the rotation (AC19). */
+    programSessionId: z.uuid().nullable().default(null),
     ...workoutPlacement,
   }),
   z.object({
@@ -321,6 +326,8 @@ export const WorkoutSchema = z.object({
   minutes: z.number().int(),
   sessionRpe: z.number().int().nullable(),
   inputMethod: WorkoutInputMethodSchema,
+  /** The routine session it was started from; null when free, or when that session was removed. */
+  programSessionId: z.uuid().nullable(),
   /** In session order; empty for an activity. */
   exercises: z.array(WorkoutExerciseSchema),
   recordedAt: datetime,
@@ -404,3 +411,105 @@ export const ExerciseHistoryResponseSchema = z.object({
   bests: PersonalBestsSchema,
 });
 export type ExerciseHistoryResponse = z.infer<typeof ExerciseHistoryResponseSchema>;
+
+// ── Routine (spec 010) ────────────────────────────────────────────────────────────────────────────
+
+/** Limits of a routine (spec 010 AC16). */
+export const PROGRAM_LIMITS = {
+  nameMax: 60,
+  sessionNameMax: 40,
+  sessionsMin: 1,
+  sessionsMax: 7,
+  exercisesPerSessionMax: 15,
+  setsMin: 1,
+  setsMax: 10,
+} as const;
+
+/** Where a routine comes from: a template of core, or built by hand. E7 adds `ai`. */
+export const ProgramOriginSchema = z.enum(['template', 'user']);
+export type ProgramOrigin = z.infer<typeof ProgramOriginSchema>;
+
+const programSets = z.number().int().min(PROGRAM_LIMITS.setsMin).max(PROGRAM_LIMITS.setsMax);
+
+/** The target of one exercise: a rep range (weight and reps-only exercises) or a time. */
+const programTarget = {
+  sets: programSets,
+  repsMin: reps.nullable(),
+  repsMax: reps.nullable(),
+  durationS: durationS.nullable(),
+  restS: z.number().int().min(0).max(WORKOUT_LIMITS.restSMax).nullable(),
+};
+
+const repRangeIsValid = (target: { repsMin: number | null; repsMax: number | null }) =>
+  (target.repsMin === null) === (target.repsMax === null) &&
+  (target.repsMin === null || target.repsMax === null || target.repsMin <= target.repsMax);
+
+export const ProgramExerciseInputSchema = z
+  .object({ exerciseId: z.uuid(), ...programTarget })
+  .refine(repRangeIsValid, { path: ['repsMax'], message: 'Invalid rep range' });
+export type ProgramExerciseInput = z.infer<typeof ProgramExerciseInputSchema>;
+
+export const ProgramSessionInputSchema = z.object({
+  /** From the device and stable across edits, so workouts keep pointing at it (AC19, AC22). */
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(PROGRAM_LIMITS.sessionNameMax),
+  /** May be empty: a routine built by hand starts empty (spec 010 Safety, pregnancy). */
+  exercises: z.array(ProgramExerciseInputSchema).max(PROGRAM_LIMITS.exercisesPerSessionMax),
+});
+export type ProgramSessionInput = z.infer<typeof ProgramSessionInputSchema>;
+
+/** `PUT /me/program/:id`: the whole routine is replaced; sessions are kept by id (AC22). */
+export const ProgramUpsertRequestSchema = z.object({
+  name: z.string().trim().min(1).max(PROGRAM_LIMITS.nameMax),
+  origin: ProgramOriginSchema,
+  /** The template it came from (`full-body-ab`); null when built by hand. */
+  templateKey: z.string().max(40).nullable(),
+  sessions: z
+    .array(ProgramSessionInputSchema)
+    .min(PROGRAM_LIMITS.sessionsMin)
+    .max(PROGRAM_LIMITS.sessionsMax)
+    .refine((sessions) => new Set(sessions.map((s) => s.id)).size === sessions.length, {
+      message: 'Repeated session id',
+    }),
+  /** Device time of the write. The later one wins, also against a delete (AC22). */
+  recordedAt: datetime,
+  /** Language of the exercise name snapshots. */
+  locale: LocaleSchema.default('es'),
+});
+export type ProgramUpsertRequest = z.infer<typeof ProgramUpsertRequestSchema>;
+
+export const ProgramExerciseSchema = z.object({
+  /** Null when the exercise no longer exists. */
+  exerciseId: z.uuid().nullable(),
+  /** Snapshot of the exercise's name. */
+  label: z.string(),
+  tracking: ExerciseTrackingSchema,
+  ...programTarget,
+});
+export type ProgramExercise = z.infer<typeof ProgramExerciseSchema>;
+
+export const ProgramSessionSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  exercises: z.array(ProgramExerciseSchema),
+});
+export type ProgramSession = z.infer<typeof ProgramSessionSchema>;
+
+export const ProgramSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  origin: ProgramOriginSchema,
+  templateKey: z.string().nullable(),
+  /** In rotation order (A, B, C…). */
+  sessions: z.array(ProgramSessionSchema),
+  recordedAt: datetime,
+});
+export type Program = z.infer<typeof ProgramSchema>;
+
+export const ProgramIdParamSchema = z.object({ id: z.uuid() });
+export const ProgramDeleteQuerySchema = z.object({ recordedAt: datetime });
+export type ProgramDeleteQuery = z.infer<typeof ProgramDeleteQuerySchema>;
+
+/** `GET /me/program` and the result of a write: the active routine, or null. */
+export const ProgramResponseSchema = z.object({ program: ProgramSchema.nullable() });
+export type ProgramResponse = z.infer<typeof ProgramResponseSchema>;

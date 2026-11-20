@@ -10,6 +10,7 @@ import {
   CUSTOM_FOOD_LIMITS,
   ConsentRequestSchema,
   CustomFoodUpsertRequestSchema,
+  EMPTY_WEEK,
   DailyFeedbackRequestSchema,
   FEEDBACK_LIMITS,
   FOOD_LOG_LIMITS,
@@ -40,6 +41,12 @@ import {
   WorkoutIdParamSchema,
   WorkoutLogQuerySchema,
   WorkoutUpsertRequestSchema,
+  ProgramDeleteQuerySchema,
+  ProgramIdParamSchema,
+  ProgramUpsertRequestSchema,
+  TrainingProfileUpdateSchema,
+  WeekRequestSchema,
+  type Program,
   type ApiErrorCode,
   type DietaryPrefs,
   type Exercise,
@@ -95,6 +102,9 @@ import {
   customExercise,
   exerciseHistory,
   workoutFromRequest,
+  evaluateStoredProfile,
+  programFromRequest,
+  sameTrainingLoad,
   type ExerciseSetRow,
   type LoggableExercise,
 } from '@pt/core';
@@ -142,7 +152,11 @@ interface UserRecord {
   workouts: StoredWorkout[];
   /** The user's own exercises, most recently changed first, deletes kept as tombstones (spec 009). */
   customExercises: StoredCustomExercise[];
+  /** Routines, oldest first, deletes kept as tombstones (spec 010 AC22). */
+  programs: StoredProgram[];
 }
+
+type StoredProgram = Program & { deletedAt: string | null };
 
 type StoredMealItem = MealItem & { deleted: boolean };
 type StoredWorkout = Workout & { deleted: boolean };
@@ -154,8 +168,8 @@ interface StoredCustomExercise {
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v7: spec 009). */
-export const MOCK_DB_KEY = 'pt.mock-db.v7';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v8: spec 010). */
+export const MOCK_DB_KEY = 'pt.mock-db.v8';
 
 const exerciseById = new Map(MOCK_EXERCISES.map((e) => [e.id, e]));
 
@@ -252,6 +266,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   feedback_unavailable: 'The daily feedback is not available for this profile',
   exercise_limit_reached: 'Too many exercises of your own',
   id_taken: 'This id is already used',
+  program_exists: 'Another routine is active: delete it first',
 };
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -272,6 +287,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   feedback_unavailable: 422,
   exercise_limit_reached: 400,
   id_taken: 409,
+  program_exists: 409,
 };
 
 const fail = (code: ApiErrorCode, fields?: Record<string, string>) =>
@@ -306,6 +322,7 @@ const emptyUser = (email: string | null): UserRecord => ({
   customFoods: [],
   workouts: [],
   customExercises: [],
+  programs: [],
 });
 
 export function createMockApiClient({
@@ -427,6 +444,21 @@ export function createMockApiClient({
   /** A device clock more than a day ahead of the server is rejected. */
   const inFuture = (recordedAt: string) =>
     Date.parse(recordedAt) > now().getTime() + 24 * 60 * 60 * 1000;
+
+  /** Who owns a routine session: the user (live or deleted routine), someone else, or nobody. */
+  const programSessionOwner = (userId: string, sessionId: string) => {
+    for (const [owner, other] of Object.entries(db)) {
+      if (other.programs.some((p) => p.sessions.some((s) => s.id === sessionId))) {
+        return owner === userId ? 'own' : 'other';
+      }
+    }
+    return 'missing';
+  };
+
+  const activeProgram = (record: UserRecord): Program | null => {
+    const live = record.programs.find((p) => p.deletedAt === null);
+    return live ? (({ deletedAt: _, ...program }) => program)(live) : null;
+  };
 
   async function authenticateWithConsent() {
     const session = await authenticate();
@@ -560,6 +592,9 @@ export function createMockApiClient({
         units: input.units,
         locale: input.locale,
         onboardingCompletedAt: record.profile?.onboardingCompletedAt ?? at,
+        week: record.profile?.week ?? EMPTY_WEEK,
+        trainingExperience: record.profile?.trainingExperience ?? null,
+        equipmentAccess: record.profile?.equipmentAccess ?? null,
       };
       record.dietaryPrefs = input.dietaryPrefs;
       for (const row of record.targets) if (row.validTo === null) row.validTo = at;
@@ -567,6 +602,129 @@ export function createMockApiClient({
         record.targets.push({ ...evaluation.targets, validFrom: at, validTo: null });
       persist();
       return toMe(user.userId, record);
+    },
+
+    saveWeek: async (body) => {
+      const { user, record } = await authenticateWithConsent();
+      const request = parse(WeekRequestSchema, body);
+      if (!isPlausibleClientDate(request.today, now().toISOString())) {
+        throw fail('validation_error', { today: 'implausible' });
+      }
+      const profile = record.profile;
+      if (!profile || profile.jobActivity === null) {
+        throw fail('validation_error', { profile: 'required' });
+      }
+      const next: Profile = {
+        ...profile,
+        plannedActivities: request.plannedActivities,
+        week: {
+          workPattern: request.workPattern,
+          workBlocks: request.workBlocks,
+          dayStartMinute: request.dayStartMinute,
+        },
+      };
+      // The targets change only with the training load (spec 010 AC4), as in the API.
+      if (!sameTrainingLoad(profile.plannedActivities, request.plannedActivities)) {
+        const evaluation = evaluateStoredProfile(
+          { ...next, jobActivity: profile.jobActivity },
+          profile.weightKg,
+          request.today,
+          record.weights,
+        );
+        if (evaluation.kind === 'blocked') throw fail('age_blocked');
+        next.goal = evaluation.safety.appliedGoal;
+        next.safetyFlags = evaluation.flags;
+        const at = now().toISOString();
+        for (const row of record.targets) if (row.validTo === null) row.validTo = at;
+        if (evaluation.targets) {
+          record.targets.push({ ...evaluation.targets, validFrom: at, validTo: null });
+        }
+      }
+      record.profile = next;
+      persist();
+      return toMe(user.userId, record);
+    },
+
+    saveTrainingProfile: async (body) => {
+      const { user, record } = await authenticateWithConsent();
+      const update = parse(TrainingProfileUpdateSchema, body);
+      if (!record.profile) throw fail('validation_error', { profile: 'required' });
+      record.profile = {
+        ...record.profile,
+        trainingExperience: update.experience,
+        equipmentAccess: update.equipment,
+      };
+      persist();
+      return toMe(user.userId, record);
+    },
+
+    program: async () => {
+      const { record } = await authenticateWithConsent();
+      return { program: activeProgram(record) };
+    },
+
+    saveProgram: async (programId, body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { id } = parse(ProgramIdParamSchema, { id: programId });
+      const request = parse(ProgramUpsertRequestSchema, body);
+      if (inFuture(request.recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const program = programFromRequest(id, request, loggable(record));
+      if ('error' in program) {
+        if (program.error === 'exercise_not_found') {
+          throw fail('not_found', { exerciseId: 'not_found' });
+        }
+        throw fail('validation_error', {
+          [`sessions.${program.sessionIndex}.exercises.${program.exerciseIndex}`]:
+            'target_mismatch',
+        });
+      }
+      const all = Object.entries(db).flatMap(([owner, r]) => r.programs.map((p) => ({ owner, p })));
+      const existing = all.find(({ p }) => p.id === id);
+      if (existing && existing.owner !== user.userId) throw fail('id_taken', { id: 'taken' });
+      const read = () => {
+        const current = record.programs.find((p) => p.id === id && p.deletedAt === null);
+        return { program: current ? (({ deletedAt: _, ...p }) => p)(current) : null };
+      };
+      // AC22: a later write or delete already won.
+      if (existing && !writeWins(existing.p.recordedAt, request.recordedAt)) return read();
+      const ids = new Set(program.sessions.map((s) => s.id));
+      if (all.some(({ p }) => p.id !== id && p.sessions.some((s) => ids.has(s.id)))) {
+        throw fail('id_taken', { id: 'taken' });
+      }
+      if (record.programs.some((p) => p.id !== id && p.deletedAt === null)) {
+        throw fail('program_exists');
+      }
+      // Workouts of a session left out keep their sets and lose the link (AC22).
+      for (const removed of existing?.p.sessions.filter((s) => !ids.has(s.id)) ?? []) {
+        for (const w of record.workouts) {
+          if (w.programSessionId === removed.id) w.programSessionId = null;
+        }
+      }
+      const next: StoredProgram = {
+        ...program,
+        recordedAt: new Date(program.recordedAt).toISOString(),
+        deletedAt: null,
+      };
+      record.programs = existing
+        ? record.programs.map((p) => (p.id === id ? next : p))
+        : [...record.programs, next];
+      persist();
+      return read();
+    },
+
+    deleteProgram: async (programId, query) => {
+      const { record } = await authenticateWithConsent();
+      const { id } = parse(ProgramIdParamSchema, { id: programId });
+      const { recordedAt } = parse(ProgramDeleteQuerySchema, query);
+      if (inFuture(recordedAt)) throw fail('validation_error', { recordedAt: 'in_future' });
+      const stored = record.programs.find((p) => p.id === id && p.deletedAt === null);
+      // A tombstone: its sessions stay, so past workouts keep the link (AC20).
+      if (stored && writeWins(stored.recordedAt, recordedAt)) {
+        stored.deletedAt = now().toISOString();
+        stored.recordedAt = new Date(recordedAt).toISOString();
+        persist();
+      }
+      return { program: null };
     },
 
     targetsPreview: async (body) => {
@@ -777,6 +935,12 @@ export function createMockApiClient({
       const ofDay = liveWorkouts(record).filter((w) => w.localDate === request.localDate);
       if (ofDay.length >= WORKOUT_LIMITS.workoutsPerDayMax && !ofDay.some((w) => w.id === id)) {
         throw fail('validation_error', { localDate: 'too_many_workouts' });
+      }
+      if (workout.programSessionId !== null) {
+        const owner = programSessionOwner(user.userId, workout.programSessionId);
+        if (owner === 'other') throw fail('not_found', { programSessionId: 'not_found' });
+        // A session removed before a queued workout arrived: the workout loses the link (AC22).
+        if (owner === 'missing') workout.programSessionId = null;
       }
       // Ids are global: an id that belongs to another user is never touched.
       for (const [owner, other] of Object.entries(db)) {
@@ -1140,6 +1304,8 @@ export function createMockApiClient({
           ...e.exercise,
           deletedAt: e.deletedAt,
         })),
+        // Deleted ones too, with `deletedAt` (spec 010 AC24).
+        programs: record.programs,
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

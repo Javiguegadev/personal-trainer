@@ -68,6 +68,7 @@ const gym = (
   minutes: 55,
   exercises,
   inputMethod: 'live',
+  programSessionId: null,
   localDate: TODAY,
   startedAt: `${over.localDate ?? TODAY}T08:00:00.000Z`,
   sessionRpe: 7,

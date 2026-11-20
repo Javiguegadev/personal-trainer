@@ -37,6 +37,12 @@ const COVERED_USER_TABLES = [
   'exercises',
   'workouts',
   'workout_sets',
+  // Spec 010: the typical week and the routine.
+  'work_blocks',
+  'planned_activity_days',
+  'workout_programs',
+  'program_sessions',
+  'program_exercises',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -90,6 +96,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
               sessionsPerWeek: 2,
               minutesPerSession: 90,
               intensity: 'moderate',
+              days: [],
             },
           ],
           requestedGoal: input.goal,
@@ -395,6 +402,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       minutes: 55,
       sessionRpe: 7,
       inputMethod: 'live' as const,
+      programSessionId: null,
       exercises: [
         {
           exerciseId,
@@ -452,6 +460,109 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     expect(otherWorkout).toBeNull();
     // Re-add rows so the cascade below covers every training table.
     expect(await store.upsertWorkout(id, { ...edited, recordedAt: iso(6000) })).not.toBeNull();
+
+    // Spec 010: the typical week, stored in one write with the activity days (AC4).
+    const football = {
+      kind: 'sport' as const,
+      label: 'fútbol',
+      sessionsPerWeek: 2,
+      minutesPerSession: 90,
+      intensity: 'moderate' as const,
+      days: [
+        { weekday: 2, startMinute: 1170, isMatch: false },
+        { weekday: 6, startMinute: 660, isMatch: true },
+      ],
+    };
+    const nightShift = [{ weekday: 1, startMinute: 1320, endMinute: 360 }];
+    const targetsBefore = (await store.getMe(id)).targets;
+    expect(
+      await store.saveWeek(
+        id,
+        {
+          week: { workPattern: 'fixed', workBlocks: nightShift, dayStartMinute: 240 },
+          plannedActivities: [football],
+        },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      await store.saveTrainingProfile(id, { experience: 'beginner', equipment: 'full_gym' }, now),
+    ).toBe(true);
+    const withWeek = (await store.getMe(id)).profile;
+    expect(withWeek?.week).toEqual({
+      workPattern: 'fixed',
+      workBlocks: nightShift,
+      dayStartMinute: 240,
+    });
+    expect(withWeek?.plannedActivities).toEqual([football]);
+    expect(withWeek).toMatchObject({ trainingExperience: 'beginner', equipmentAccess: 'full_gym' });
+    // Without an evaluation (same training load) the targets row is untouched.
+    expect((await store.getMe(id)).targets).toEqual(targetsBefore);
+
+    // Spec 010: the routine, its sessions kept by id and the rotation link of a workout (AC22).
+    const programId = crypto.randomUUID();
+    const [sessionA, sessionB] = [crypto.randomUUID(), crypto.randomUUID()];
+    const target = (sets: number) => ({
+      exerciseId,
+      label: 'Press AC25 bis',
+      tracking: 'weight_reps' as const,
+      sets,
+      repsMin: 8,
+      repsMax: 12,
+      durationS: null,
+      restS: 120,
+    });
+    const program = {
+      id: programId,
+      name: 'Rutina AC24',
+      origin: 'template' as const,
+      templateKey: 'full-body-ab',
+      sessions: [
+        { id: sessionA, name: 'Rutina A', exercises: [target(3)] },
+        { id: sessionB, name: 'Rutina B', exercises: [target(2)] },
+      ],
+      recordedAt: iso(7000),
+    };
+    expect(await store.upsertProgram(id, program)).toEqual(program);
+    expect(await store.getProgram(id)).toEqual(program);
+    expect(await store.upsertProgram(id, { ...program, id: crypto.randomUUID() })).toBe('id_taken');
+    expect(await store.programSessionOwner(id, sessionB)).toBe('own');
+    expect(await store.programSessionOwner(crypto.randomUUID(), sessionB)).toBe('other');
+    const fromB = {
+      ...edited,
+      id: crypto.randomUUID(),
+      programSessionId: sessionB,
+      recordedAt: iso(7100),
+    };
+    expect((await store.upsertWorkout(id, fromB))?.programSessionId).toBe(sessionB);
+    // Session B left out: the workout keeps its sets and loses the link.
+    const onlyA = { ...program, sessions: [program.sessions[0]!], recordedAt: iso(7200) };
+    expect(await store.upsertProgram(id, onlyA)).toEqual(onlyA);
+    expect(await store.programSessionOwner(id, sessionB)).toBe('missing');
+    const unlinked = (await store.listWorkouts(id, TODAY, TODAY)).find((w) => w.id === fromB.id);
+    expect(unlinked).toMatchObject({ programSessionId: null, exercises: [{ sets: [set(1, 70)] }] });
+    // An older write changes nothing; a delete is a tombstone that an older write cannot undo.
+    expect(
+      await store.upsertProgram(id, { ...program, name: 'Vieja', recordedAt: iso(7150) }),
+    ).toEqual(onlyA);
+    await store.deleteProgram(id, programId, iso(7300));
+    expect(await store.getProgram(id)).toBeNull();
+    expect(await store.upsertProgram(id, { ...onlyA, recordedAt: iso(7250) })).toBeNull();
+    const second = {
+      ...onlyA,
+      id: crypto.randomUUID(),
+      sessions: [{ ...onlyA.sessions[0]!, id: crypto.randomUUID() }],
+      recordedAt: iso(7400),
+    };
+    expect(await store.upsertProgram(id, second)).toEqual(second);
+    expect(await store.upsertProgram(id, { ...onlyA, recordedAt: iso(7500) })).toBe(
+      'program_exists',
+    );
+    const exportedPrograms = (await store.exportUser(id)).programs;
+    expect(exportedPrograms.map((p) => [p.id, p.deletedAt !== null])).toEqual([
+      [programId, true],
+      [second.id, false],
+    ]);
 
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.
