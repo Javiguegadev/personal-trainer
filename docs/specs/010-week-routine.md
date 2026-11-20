@@ -343,7 +343,7 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
 - Decisions taken during implementation:
   - `WeekRequestSchema`, `TrainingProfileUpdateSchema` and the week schemas live in `profile.ts` next
     to `PlannedActivitySchema` (no `week.ts`; its tests are in `week.test.ts`). `EMPTY_WEEK` is the week
@@ -446,11 +446,28 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
     start "Rutina A" (input method `program`, the session id, reps prefilled with the top of the
     range), save it and see "Siguiente: Rutina B" on the tab and on Today, change routine and
     delete. The mock catalog is a subset, so a bodyweight routine there has fewer exercises than
-    with the real catalog. Next: the E2E of the UI section.
-- Done so far, one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
+    with the real catalog.
+  - E2E (2026-11-20, `apps/e2e/tests/week-routine.spec.ts`, 6 journeys, mock backend): "Mi semana"
+    (work Monday–Friday 08:00–16:00, gym L-X-V 18:30, football match Saturday 11:00, the
+    "day before the match" notice, the targets notice, the week view rows); the week view with a
+    meal and an activity, two weeks back to a day 10 days ago and a meal added on it, a read-only day
+    older than 4 weeks, `ed_soft_stop` hides the kcal (set on the mock server: no form sets it); the
+    starter routine (beginner, full gym, 3 × 60 min), one more set on an exercise, "Rutina A" started
+    from Today, then "Siguiente: Rutina B", the workout stored with `program` and the session id,
+    "Borrar rutina"; no strength activity links to "Mi semana"; a routine created offline syncs before
+    its workout (the workout keeps its link) and "Mi semana" needs the connection; day start 04:00
+    with the clock at Tuesday 02:30 keeps Monday (Today and a meal's `local_date`). The clock is fixed
+    (`page.clock`) where the weekday matters. The full suite (40) passes. It caught a bug of UI part
+    2: the food item sheet opened from the Food tab crashed ("Invalid ISO date") because the week-log
+    query was built from an empty `week` param; fixed (`ac098cc`).
+- Done, one commit per step: one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
   (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`); core
   (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20); API (week,
   training profile, routine, workout link, export; the account-deletion integration test covers the
   5 new tables and the routine write rules, and passes on dev)
   (2026-11-20); client (methods, week log and routine queries, queued routine writes, mock routes)
-  (2026-11-20); UI part 1 "Mi semana" (`2b46176`); UI part 2 week view and day screen (`c1601e9`); UI part 3 routine (`d29cf63`).
+  (2026-11-20); UI part 1 "Mi semana" (`2b46176`); UI part 2 week view and day screen (`c1601e9`); UI part 3 routine (`d29cf63`);
+  E2E (`0c8cb29`).
+- Left for the human: the phone check in Expo Go (the time pickers on Android and iOS, the seven
+  chips at 360 px, the week view rows, the wizard and the editor's steppers, a routine session
+  started from Today); the professional review of the templates and notices (Open questions).
