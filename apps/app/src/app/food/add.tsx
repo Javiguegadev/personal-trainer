@@ -1,4 +1,4 @@
-import { FOOD_LOG_DAYS, isApiError } from '@pt/api-client';
+import { isApiError } from '@pt/api-client';
 import {
   FOOD_LOG_LIMITS,
   IsoDateSchema,
@@ -24,6 +24,7 @@ import {
   isOwnFood,
   mealTypeForTime,
   showsFoodNumbers,
+  WEEK_VIEW,
 } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -148,7 +149,8 @@ export default function FoodAddRoute() {
   const date =
     requestedDate.success &&
     requestedDate.data <= today &&
-    requestedDate.data >= addDays(today, -(FOOD_LOG_DAYS - 2))
+    // The Food tab offers 6 days back; a day screen of the week view 27 (spec 010 AC12).
+    requestedDate.data >= addDays(today, -WEEK_VIEW.addDaysBack)
       ? requestedDate.data
       : today;
   const requestedMeal = MealTypeSchema.safeParse(params.meal);

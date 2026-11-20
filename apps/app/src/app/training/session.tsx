@@ -250,6 +250,11 @@ function ManualStart({
   const s = t.training.session;
   const [time, setTime] = useState(() => toLocalTime(new Date(session.startedAt)));
   const [error, setError] = useState<string | null>(null);
+  // Today and the 6 days before; a session started from an older day screen (spec 010 AC12) keeps it.
+  const recentDays = lastDays(today, WORKOUT_LIMITS.pastDaysUi);
+  const [days] = useState(() =>
+    recentDays.includes(session.localDate) ? recentDays : [...recentDays, session.localDate],
+  );
 
   const apply = (day: string, text: string) => {
     const startedAt = localDateTime(day, text);
@@ -269,7 +274,7 @@ function ManualStart({
     <View style={styles.manual}>
       <DaySelector
         label={s.day}
-        days={lastDays(today, WORKOUT_LIMITS.pastDaysUi)}
+        days={days}
         today={today}
         value={session.localDate}
         onChange={(day) => apply(day, time)}

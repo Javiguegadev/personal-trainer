@@ -18,7 +18,14 @@ import { Screen } from '@/components/Screen';
 import { useFoodLogActions } from '@/hooks/useFoodLogActions';
 import { useI18n } from '@/hooks/useI18n';
 import { useToday } from '@/hooks/useToday';
-import { useFavouriteFoods, useFood, useFoodLog, useMe, useSetFavouriteFood } from '@/lib/api';
+import {
+  useFavouriteFoods,
+  useFood,
+  useFoodLog,
+  useMe,
+  useSetFavouriteFood,
+  useWeekLog,
+} from '@/lib/api';
 
 /** A logged item (spec 005 AC11), opened over the tabs: change its portion or its meal, or delete it. */
 export default function FoodItemRoute() {
@@ -27,8 +34,12 @@ export default function FoodItemRoute() {
   const me = useMe();
   const today = useToday();
   const log = useFoodLog(today);
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const found = log.data?.find((item) => item.id === id);
+  // `week`: opened from a day screen (spec 010 AC11), which may be older than the food log keeps.
+  const { id, week } = useLocalSearchParams<{ id: string; week?: string }>();
+  const weekLog = useWeekLog(week ?? '', { enabled: week !== undefined });
+  const found =
+    log.data?.find((item) => item.id === id) ??
+    weekLog.data?.mealItems.find((item) => item.id === id);
   // A deleted item leaves the log at once: keep showing it while the sheet closes.
   const [last, setLast] = useState(found);
   if (found && found !== last) setLast(found);
