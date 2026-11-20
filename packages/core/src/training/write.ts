@@ -105,7 +105,7 @@ export function workoutFromRequest(
   return { ...base, kind: 'gym', activity: null, exercises: out };
 }
 
-const labelFor = (exercise: LoggableExercise, locale: Locale) =>
+export const labelFor = (exercise: LoggableExercise, locale: Locale) =>
   locale === 'en' ? exercise.nameEn : exercise.nameEs;
 
 /**

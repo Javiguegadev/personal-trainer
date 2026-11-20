@@ -21,6 +21,8 @@ import type {
   CustomExerciseUpsertRequest,
   Exercise,
   Workout,
+  Program,
+  TrainingProfileUpdate,
 } from '@pt/contracts';
 import { USER_FOOD_SOURCE, customExercise, type ExerciseSetRow } from '@pt/core';
 import { randomUUID } from 'node:crypto';
@@ -36,6 +38,7 @@ import type {
   KnowledgeSourceRecord,
   MeRecord,
   Store,
+  WeekWrite,
 } from '../deps';
 import { createJwtVerifier } from '../middleware/auth';
 import type { OffLookup } from '../off/client';
@@ -60,6 +63,8 @@ interface UserRows {
   favourites: { foodId: string; createdAt: string }[];
   /** The training log, with deleted workouts kept as tombstones (spec 009 AC23). */
   workouts: (Workout & { deleted: boolean })[];
+  /** Routines, oldest first, with deleted ones kept as tombstones (spec 010 AC22). */
+  programs: (Program & { deletedAt: string | null })[];
 }
 
 /** A custom exercise as stored: its owner, write time and tombstone (spec 009). */
@@ -98,6 +103,7 @@ export class FakeStore implements Store {
         mealItems: [],
         favourites: [],
         workouts: [],
+        programs: [],
       };
       this.users.set(userId, rows);
     }
@@ -527,9 +533,103 @@ export class FakeStore implements Store {
       );
   }
 
+  // Typical week and routine (spec 010), same semantics as the Drizzle store.
+
+  /** Accounts from before spec 002 (no job): `saveWeek` refuses them, as the missing lifestyle row. */
+  async saveWeek(userId: string, write: WeekWrite, at: Date) {
+    const rows = this.rows(userId);
+    if (!rows.profile || rows.profile.jobActivity === null) return false;
+    rows.profile = {
+      ...rows.profile,
+      week: structuredClone(write.week),
+      plannedActivities: structuredClone(write.plannedActivities),
+      ...(write.evaluation
+        ? { goal: write.evaluation.goal, safetyFlags: write.evaluation.safetyFlags }
+        : {}),
+    };
+    if (write.evaluation) {
+      const iso = at.toISOString();
+      for (const t of rows.targets) if (t.validTo === null) t.validTo = iso;
+      if (write.evaluation.targets) {
+        rows.targets.push({ ...write.evaluation.targets, validFrom: iso, validTo: null });
+      }
+    }
+    return true;
+  }
+
+  async saveTrainingProfile(userId: string, update: TrainingProfileUpdate) {
+    const rows = this.rows(userId);
+    if (!rows.profile) return false;
+    rows.profile = {
+      ...rows.profile,
+      trainingExperience: update.experience,
+      equipmentAccess: update.equipment,
+    };
+    return true;
+  }
+
+  async getProgram(userId: string) {
+    const live = this.rows(userId).programs.find((p) => p.deletedAt === null);
+    return live ? (({ deletedAt: _, ...p }) => structuredClone(p))(live) : null;
+  }
+
+  async upsertProgram(userId: string, program: Program) {
+    const all = [...this.users].flatMap(([owner, r]) => r.programs.map((p) => ({ owner, p })));
+    const existing = all.find(({ p }) => p.id === program.id);
+    if (existing && existing.owner !== userId) return 'id_taken' as const;
+    const rows = this.rows(userId);
+    const read = () => {
+      const current = rows.programs.find((p) => p.id === program.id && p.deletedAt === null);
+      return current ? (({ deletedAt: _, ...p }) => structuredClone(p))(current) : null;
+    };
+    if (existing && Date.parse(existing.p.recordedAt) > Date.parse(program.recordedAt)) {
+      return read();
+    }
+    const ids = new Set(program.sessions.map((s) => s.id));
+    if (all.some(({ p }) => p.id !== program.id && p.sessions.some((s) => ids.has(s.id)))) {
+      return 'id_taken' as const;
+    }
+    if (rows.programs.some((p) => p.id !== program.id && p.deletedAt === null)) {
+      return 'program_exists' as const;
+    }
+    // Workouts of a session left out lose the link (on delete set null).
+    for (const removed of existing?.p.sessions.filter((s) => !ids.has(s.id)) ?? []) {
+      for (const w of rows.workouts) {
+        if (w.programSessionId === removed.id) w.programSessionId = null;
+      }
+    }
+    const next = {
+      ...structuredClone(program),
+      recordedAt: new Date(program.recordedAt).toISOString(),
+      deletedAt: null,
+    };
+    rows.programs = existing
+      ? rows.programs.map((p) => (p.id === program.id ? next : p))
+      : [...rows.programs, next];
+    return read();
+  }
+
+  async deleteProgram(userId: string, id: string, recordedAt: string) {
+    const stored = this.rows(userId).programs.find((p) => p.id === id && p.deletedAt === null);
+    if (stored && Date.parse(stored.recordedAt) <= Date.parse(recordedAt)) {
+      stored.deletedAt = NOW.toISOString();
+      stored.recordedAt = new Date(recordedAt).toISOString();
+    }
+  }
+
+  async programSessionOwner(userId: string, sessionId: string) {
+    for (const [owner, rows] of this.users) {
+      if (rows.programs.some((p) => p.sessions.some((s) => s.id === sessionId))) {
+        return owner === userId ? ('own' as const) : ('other' as const);
+      }
+    }
+    return 'missing' as const;
+  }
+
   async exportUser(userId: string): Promise<ExportRecord> {
     const rows = this.rows(userId);
     return {
+      programs: structuredClone(rows.programs),
       profile: rows.profile,
       dietaryPrefs: rows.dietaryPrefs,
       targets: rows.targets,

@@ -253,6 +253,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   feedback_unavailable: 'The daily feedback is not available for this profile',
   exercise_limit_reached: 'Too many exercises of your own',
   id_taken: 'This id is already used',
+  program_exists: 'Another routine is active: delete it first',
 };
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -273,6 +274,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   feedback_unavailable: 422,
   exercise_limit_reached: 400,
   id_taken: 409,
+  program_exists: 409,
 };
 
 const fail = (code: ApiErrorCode, fields?: Record<string, string>) =>
@@ -1144,6 +1146,8 @@ export function createMockApiClient({
           ...e.exercise,
           deletedAt: e.deletedAt,
         })),
+        // The mock stores routines from the client step of spec 010.
+        programs: [],
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

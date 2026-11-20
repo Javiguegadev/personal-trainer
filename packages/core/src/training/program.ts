@@ -13,11 +13,72 @@ import {
 import type { ProgramDraft } from './routine';
 import { newLiveExercise, startSession, type LiveSession } from './session';
 import { EMPTY_SET, setForTracking } from './sets';
+import { labelFor, type LoggableExercise } from './write';
 
 /**
  * A saved routine at work (spec 010 AC16–AC19): the editor's reducer, the rotation of its sessions and
  * the live session a routine session starts. Pure; ids and times are passed in.
  */
+
+export type ProgramWriteError =
+  | { error: 'exercise_not_found'; exerciseId: string }
+  | { error: 'target_mismatch'; sessionIndex: number; exerciseIndex: number };
+
+/** The target a tracking uses: a rep range, a time (required or optional), or nothing else. */
+function targetForTracking(
+  target: Pick<ProgramExercise, 'repsMin' | 'repsMax' | 'durationS'>,
+  tracking: ExerciseTracking,
+): Pick<ProgramExercise, 'repsMin' | 'repsMax' | 'durationS'> | null {
+  switch (tracking) {
+    case 'weight_reps':
+    case 'reps':
+      if (target.repsMin === null || target.repsMax === null) return null;
+      return { repsMin: target.repsMin, repsMax: target.repsMax, durationS: null };
+    case 'duration':
+      if (target.durationS === null) return null;
+      return { repsMin: null, repsMax: null, durationS: target.durationS };
+    case 'distance_duration':
+      return { repsMin: null, repsMax: null, durationS: target.durationS };
+  }
+}
+
+/**
+ * The stored routine for a `PUT /me/program/:id` (AC16, AC22). Names are snapshots in the user's
+ * locale; each exercise keeps only the target its tracking uses, and a missing one is an error.
+ */
+export function programFromRequest(
+  id: string,
+  request: ProgramUpsertRequest,
+  exercises: ReadonlyMap<string, LoggableExercise>,
+): Program | ProgramWriteError {
+  const sessions: ProgramSession[] = [];
+  for (const [sessionIndex, session] of request.sessions.entries()) {
+    const out: ProgramExercise[] = [];
+    for (const [exerciseIndex, entry] of session.exercises.entries()) {
+      const exercise = exercises.get(entry.exerciseId);
+      if (!exercise) return { error: 'exercise_not_found', exerciseId: entry.exerciseId };
+      const target = targetForTracking(entry, exercise.tracking);
+      if (!target) return { error: 'target_mismatch', sessionIndex, exerciseIndex };
+      out.push({
+        exerciseId: exercise.id,
+        label: labelFor(exercise, request.locale),
+        tracking: exercise.tracking,
+        sets: entry.sets,
+        ...target,
+        restS: entry.restS,
+      });
+    }
+    sessions.push({ id: session.id, name: session.name, exercises: out });
+  }
+  return {
+    id,
+    name: request.name,
+    origin: request.origin,
+    templateKey: request.templateKey,
+    sessions,
+    recordedAt: request.recordedAt,
+  };
+}
 
 /** The `PUT /me/program/:id` body (AC16). Exercises whose catalog entry is gone are left out. */
 export function programToRequest(

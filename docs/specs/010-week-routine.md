@@ -343,7 +343,7 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - `WeekRequestSchema`, `TrainingProfileUpdateSchema` and the week schemas live in `profile.ts` next
     to `PlannedActivitySchema` (no `week.ts`; its tests are in `week.test.ts`). `EMPTY_WEEK` is the week
@@ -379,7 +379,25 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
     set, the last one repeated; the routine's rest when it has one), `nextProgramSession` (newest by
     `localDate`, then `startedAt`; sessions of another routine are ignored).
   - `ContextSources` gains optional `week`, `trainingExperience`, `equipmentAccess`, `hasRoutine`;
-    the API passes them in its step.
+    no API route builds a context snapshot yet, so nothing passes them until an AI feature reads it.
+  - API (2026-11-20): `PUT /me/week` (`routes/me/week.ts`, `services/week.ts`) recomputes goal, flags
+    and targets with `evaluateStoredProfile` only when `sameTrainingLoad` is false; an account from
+    before spec 002 (no job) gets 400 `profile: required`. `PUT /me/profile` now stores the activity
+    days too (same `replaceActivities`), and keeps the week. `PUT /me/training-profile` answers
+    `MeResponse`. Routine routes in `routes/training/program.ts`; core gained `programFromRequest`
+    (name snapshots in the locale, keeps only the target its tracking uses; a reps exercise without a
+    rep range or a time exercise without a time is 400 `target_mismatch`). New error code
+    `program_exists` (409) apart from `id_taken` (409: the routine id or a session id belongs to
+    another user or another routine). `ExportResponse` gained `programs` (deleted ones with
+    `deletedAt`).
+  - `PUT /me/workouts/:id` with a `programSessionId`: another user's session is 404 (as the spec
+    says), but a session that no longer exists (removed from the routine before a queued workout
+    arrived) stores the workout without the link instead of 404, so the offline queue never gets
+    stuck; it is the same result as removing the session afterwards (AC22). Sessions of a deleted
+    routine still exist (tombstone), so their workouts keep the link.
 - Done so far, one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
   (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`); core
-  (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20).
+  (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20); API (week,
+  training profile, routine, workout link, export; the account-deletion integration test covers the
+  5 new tables and the routine write rules, not run yet: it needs migration `0010` on dev)
+  (2026-11-20).

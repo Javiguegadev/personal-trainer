@@ -10,6 +10,7 @@ import {
   canSaveProgram,
   nextProgramSession,
   programExerciseFor,
+  programFromRequest,
   programReducer,
   programToDraft,
   programToRequest,
@@ -297,5 +298,136 @@ describe('programToRequest and canSaveProgram (spec 010 AC16)', () => {
     expect(canSaveProgram({ ...draft, name: ' ' })).toBe(false);
     expect(canSaveProgram({ ...draft, sessions: [{ ...A, name: '' }] })).toBe(false);
     expect(canSaveProgram({ ...draft, sessions: [{ ...A, exercises: [] }] })).toBe(false);
+  });
+});
+
+describe('programFromRequest (spec 010 AC16, AC22)', () => {
+  const exercises = new Map([
+    [
+      uuid(1),
+      {
+        id: uuid(1),
+        nameEs: 'Press de banca',
+        nameEn: 'Bench press',
+        tracking: 'weight_reps' as const,
+      },
+    ],
+    [uuid(2), { id: uuid(2), nameEs: 'Plancha', nameEn: 'Plank', tracking: 'duration' as const }],
+    [
+      uuid(3),
+      { id: uuid(3), nameEs: 'Correr', nameEn: 'Running', tracking: 'distance_duration' as const },
+    ],
+  ]);
+  const request = ProgramUpsertRequestSchema.parse({
+    name: 'Rutina',
+    origin: 'template',
+    templateKey: 'full-body-ab',
+    sessions: [
+      {
+        id: uuid(10),
+        name: 'Rutina A',
+        exercises: [
+          { exerciseId: uuid(1), sets: 3, repsMin: 8, repsMax: 12, durationS: 40, restS: 120 },
+          {
+            exerciseId: uuid(2),
+            sets: 2,
+            repsMin: null,
+            repsMax: null,
+            durationS: 30,
+            restS: null,
+          },
+        ],
+      },
+      {
+        id: uuid(11),
+        name: 'Rutina B',
+        exercises: [
+          {
+            exerciseId: uuid(3),
+            sets: 1,
+            repsMin: null,
+            repsMax: null,
+            durationS: 1200,
+            restS: null,
+          },
+        ],
+      },
+    ],
+    recordedAt: '2026-11-20T10:00:00.000Z',
+    locale: 'en',
+  });
+
+  it('snapshots the names in the locale and keeps the target of each tracking', () => {
+    const program = programFromRequest(uuid(9), request, exercises);
+    expect(program).toEqual({
+      id: uuid(9),
+      name: 'Rutina',
+      origin: 'template',
+      templateKey: 'full-body-ab',
+      recordedAt: '2026-11-20T10:00:00.000Z',
+      sessions: [
+        {
+          id: uuid(10),
+          name: 'Rutina A',
+          exercises: [
+            { ...bench, label: 'Bench press', restS: 120 },
+            { ...plank, label: 'Plank', sets: 2 },
+          ],
+        },
+        {
+          id: uuid(11),
+          name: 'Rutina B',
+          exercises: [
+            {
+              exerciseId: uuid(3),
+              label: 'Running',
+              tracking: 'distance_duration',
+              sets: 1,
+              repsMin: null,
+              repsMax: null,
+              durationS: 1200,
+              restS: null,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('rejects an exercise the user may not use', () => {
+    const only = new Map([...exercises].filter(([id]) => id !== uuid(2)));
+    expect(programFromRequest(uuid(9), request, only)).toEqual({
+      error: 'exercise_not_found',
+      exerciseId: uuid(2),
+    });
+  });
+
+  it('rejects a target its tracking cannot use', () => {
+    const noReps = {
+      ...request,
+      sessions: [
+        {
+          ...request.sessions[0]!,
+          exercises: [{ ...request.sessions[0]!.exercises[0]!, repsMin: null, repsMax: null }],
+        },
+      ],
+    };
+    expect(programFromRequest(uuid(9), noReps, exercises)).toEqual({
+      error: 'target_mismatch',
+      sessionIndex: 0,
+      exerciseIndex: 0,
+    });
+    const noTime = {
+      ...request,
+      sessions: [
+        {
+          ...request.sessions[0]!,
+          exercises: [{ ...request.sessions[0]!.exercises[1]!, durationS: null }],
+        },
+      ],
+    };
+    expect(programFromRequest(uuid(9), noTime, exercises)).toMatchObject({
+      error: 'target_mismatch',
+    });
   });
 });

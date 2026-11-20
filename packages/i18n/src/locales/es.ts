@@ -1102,6 +1102,7 @@ export const es = {
     exercise_limit_reached:
       'Has llegado al máximo de ejercicios propios. Borra alguno para crear otro.',
     id_taken: 'No hemos podido guardarlo. Vuelve a intentarlo.',
+    program_exists: 'Ya tienes una rutina. Cámbiala desde Mi rutina.',
     internal_error: 'Algo ha fallado en el servidor. Vuelve a intentarlo.',
     network: 'No hay conexión con el servidor. Comprueba tu red.',
     unknown: 'Algo ha fallado. Vuelve a intentarlo.',

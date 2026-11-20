@@ -8,6 +8,7 @@ import {
 } from '@pt/contracts';
 import { addDays, evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
+import { weekRoutes } from './week';
 import { weightRoutes } from './weights';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
@@ -131,5 +132,6 @@ export function meRoutes(deps: Deps) {
       await deps.authAdmin.deleteUser(c.var.user.userId);
       return c.body(null, 204);
     })
-    .route('/', weightRoutes(deps));
+    .route('/', weightRoutes(deps))
+    .route('/', weekRoutes(deps));
 }

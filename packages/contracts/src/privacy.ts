@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { DietaryPrefsSchema, ProfileSchema, StoredTargetsSchema } from './profile';
 import { WeightEntrySchema } from './weight';
 import { FoodSchema, MealItemSchema } from './food';
-import { ExerciseSchema, WorkoutSchema } from './training';
+import { ExerciseSchema, ProgramSchema, WorkoutSchema } from './training';
 
 /**
  * Version of the consent text shown to the user. Bump it when the text changes: a consent given to an
@@ -41,6 +41,8 @@ export const ExportResponseSchema = z.object({
   workouts: z.array(WorkoutSchema),
   /** The exercises the user created, deleted ones included with their date (spec 009 AC25). */
   customExercises: z.array(ExerciseSchema.extend({ deletedAt: datetime.nullable() })),
+  /** The user's routines, deleted ones included with their date (spec 010 AC24). */
+  programs: z.array(ProgramSchema.extend({ deletedAt: datetime.nullable() })),
   consents: z.array(
     z.object({
       kind: ConsentKindSchema,
