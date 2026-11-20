@@ -17,6 +17,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { RoutineCard } from '@/components/RoutineCard';
 import { Screen } from '@/components/Screen';
 import { SessionInProgress } from '@/components/SessionInProgress';
 import { TrainingNotes } from '@/components/TrainingNotes';
@@ -28,7 +29,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
 import { useExerciseLookups, useTrainingActions } from '@/hooks/useTraining';
 import { useWorkoutText } from '@/hooks/useWorkoutText';
-import { useMe, usePendingTrainingIds, useWorkouts } from '@/lib/api';
+import { useMe, usePendingTrainingIds, useProgram, useWorkouts } from '@/lib/api';
 import { useSession } from '@/lib/liveSession';
 import { profileWeek } from '@/lib/week';
 import { clearWorkoutUndo, useWorkoutUndo } from '@/lib/workoutUndo';
@@ -49,6 +50,7 @@ function TrainingTab({ profile }: { profile: Profile }) {
   const router = useRouter();
   const today = useToday();
   const log = useWorkouts(today);
+  const program = useProgram();
   const live = useSession('live');
   const { statsList } = useExerciseLookups();
   const pendingIds = usePendingTrainingIds();
@@ -154,10 +156,17 @@ function TrainingTab({ profile }: { profile: Profile }) {
       <OfflineBanner />
       <TrainingRejectedNotice />
       <TrainingNotes flags={flags} />
+      <RoutineCard profile={profile} />
       {live ? (
         <SessionInProgress session={live} label={tr.inProgress} />
       ) : (
-        <Button label={tr.start} onPress={start} testID="training-start" />
+        <Button
+          // With a routine, its "Empezar" is the main action (spec 010 AC17).
+          variant={program.data ? 'secondary' : 'primary'}
+          label={tr.start}
+          onPress={start}
+          testID="training-start"
+        />
       )}
       <Button
         variant="secondary"

@@ -1,4 +1,5 @@
 import { MUSCLE_FILTERS, type Exercise, type MuscleFilter } from '@pt/contracts';
+import { exerciseName, programExerciseFor } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -17,19 +18,21 @@ import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useExerciseLookups, useTrainingActions } from '@/hooks/useTraining';
 import type { SessionSlot } from '@/lib/liveSession';
+import { dispatchRoutineDraft } from '@/lib/routineDraft';
 
 const FILTERS = Object.keys(MUSCLE_FILTERS) as MuscleFilter[];
 
 /**
  * "Añadir ejercicios" (spec 009 AC3, AC5, AC7): search on the device (works offline with the cached
  * catalog), recents and muscle chips with an empty query, several exercises in one visit, and "Crear
- * ejercicio" with the query as its name when nothing matches.
+ * ejercicio" with the query as its name when nothing matches. Also adds to a routine (spec 010 AC16).
  */
 export default function PickerRoute() {
-  const { t, format } = useI18n();
+  const { t, format, locale } = useI18n();
   const { colors } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ slot?: string }>();
+  // `routine` is the id of a routine session being edited (spec 010 AC16); otherwise a workout slot.
+  const params = useLocalSearchParams<{ slot?: string; routine?: string }>();
   const slot: SessionSlot = params.slot === 'draft' ? 'draft' : 'live';
   const { catalog, exerciseById } = useExerciseLookups();
   const actions = useTrainingActions();
@@ -50,7 +53,17 @@ export default function PickerRoute() {
     const picked = selected
       .map((id) => exerciseById.get(id))
       .filter((e): e is Exercise => e !== undefined);
-    actions.addExercises(slot, picked);
+    if (params.routine) {
+      dispatchRoutineDraft({
+        type: 'addExercises',
+        sessionId: params.routine,
+        exercises: picked.map((e) =>
+          programExerciseFor({ id: e.id, label: exerciseName(e, locale), tracking: e.tracking }),
+        ),
+      });
+    } else {
+      actions.addExercises(slot, picked);
+    }
     close();
   };
 

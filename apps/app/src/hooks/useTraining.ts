@@ -1,11 +1,18 @@
 import { saveWorkoutVariables } from '@pt/api-client';
-import type { ActivityKindForLog, ActivityType, Exercise, Workout } from '@pt/contracts';
+import type {
+  ActivityKindForLog,
+  ActivityType,
+  Exercise,
+  ProgramSession,
+  Workout,
+} from '@pt/contracts';
 import {
   canRewriteWorkout,
   editWorkout,
   exerciseName,
   newLiveExercise,
   repeatWorkout,
+  sessionFromProgram,
   sessionToRequest,
   startSession,
   workoutToRequest,
@@ -68,6 +75,18 @@ export function useTrainingActions() {
       });
       setSession('live', session);
       return session;
+    },
+    /** "Empezar" on a routine session (spec 010 AC18): prefilled from last time or the routine. */
+    startProgram(session: ProgramSession): LiveSession {
+      const live = sessionFromProgram(session, {
+        id: newId(),
+        localDate: today,
+        startedAt: now(),
+        stats: statsById,
+        newId,
+      });
+      setSession('live', live);
+      return live;
     },
     /** "Registrar entreno pasado" (AC17): the same screen without the rest timer. */
     startManual(localDate: string, startedAt: string): LiveSession {

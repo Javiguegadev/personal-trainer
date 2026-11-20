@@ -10,12 +10,14 @@ import { useSession } from '@/lib/liveSession';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { Card } from './Card';
+import { RoutineCard } from './RoutineCard';
 import { SessionInProgress } from './SessionInProgress';
 
 /**
  * The training block of Today (spec 009 AC21): the session in progress with "Continuar", or what was
  * done today ("Hoy: Pierna · 55 min · 1 récord"), and "Registrar entreno", which opens the Training
- * tab's choice (start a session or log an activity).
+ * tab's choice (start a session or log an activity). On a gym day, the routine's next session (spec 010
+ * AC17).
  */
 export function TodayWorkoutCard({ profile }: { profile: Profile }) {
   const { t, format, locale } = useI18n();
@@ -48,6 +50,7 @@ export function TodayWorkoutCard({ profile }: { profile: Profile }) {
           })}
         </AppText>
       ) : null}
+      <RoutineCard profile={profile} compact />
       {live ? null : (
         <Button
           variant="secondary"

@@ -326,6 +326,20 @@ export function routineDays(
   };
 }
 
+/**
+ * Whether Today shows "Siguiente: …" on this weekday (AC17): a strength activity with that weekday
+ * among its days, or one without days (the app cannot know which days it falls on).
+ */
+export function routineDueOn(
+  activities: readonly Pick<PlannedActivity, 'kind' | 'days'>[],
+  weekday: number,
+): boolean {
+  return activities.some(
+    (a) =>
+      a.kind === 'strength' && (a.days.length === 0 || a.days.some((d) => d.weekday === weekday)),
+  );
+}
+
 /** What the wizard and the routine screen do for the user's safety flags (spec 010 Safety). */
 export function routineSafety(flags: readonly SafetyFlag[]): {
   /** Pregnancy: no template, an empty routine built by hand. */

@@ -15,6 +15,7 @@ import {
   exerciseSeconds,
   WARM_UP_MINUTES,
   routineDays,
+  routineDueOn,
   routineExerciseKeys,
   routineSafety,
   routineTarget,
@@ -344,5 +345,39 @@ describe('routineDays (spec 010 AC13, AC14)', () => {
   it('is null without a strength activity', () => {
     expect(routineDays([activity('sport', 2, 90)])).toBeNull();
     expect(routineDays([])).toBeNull();
+  });
+});
+
+describe('routineDueOn (spec 010 AC17)', () => {
+  const strength = (days: PlannedActivity['days']): PlannedActivity => ({
+    kind: 'strength',
+    label: null,
+    sessionsPerWeek: days.length || 3,
+    minutesPerSession: 60,
+    intensity: 'moderate',
+    days,
+  });
+  const day = (weekday: 1 | 2 | 3 | 4 | 5 | 6 | 7) => ({
+    weekday,
+    startMinute: null,
+    isMatch: false,
+  });
+
+  it('is true on a gym day of the typical week', () => {
+    expect(routineDueOn([strength([day(1), day(3), day(5)])], 3)).toBe(true);
+  });
+
+  it('is false on a weekday without the gym', () => {
+    expect(routineDueOn([strength([day(1), day(3), day(5)])], 2)).toBe(false);
+  });
+
+  it('is true every day for a strength activity without days', () => {
+    expect(routineDueOn([strength([])], 7)).toBe(true);
+  });
+
+  it('is false without a strength activity', () => {
+    const football: PlannedActivity = { ...strength([day(2)]), kind: 'sport', label: 'Fútbol' };
+    expect(routineDueOn([football], 2)).toBe(false);
+    expect(routineDueOn([], 2)).toBe(false);
   });
 });
