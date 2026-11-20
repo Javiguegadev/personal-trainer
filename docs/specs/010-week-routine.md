@@ -343,7 +343,7 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui (2 of 3 parts) · [ ] e2e
 - Decisions taken during implementation:
   - `WeekRequestSchema`, `TrainingProfileUpdateSchema` and the week schemas live in `profile.ts` next
     to `PlannedActivitySchema` (no `week.ts`; its tests are in `week.test.ts`). `EMPTY_WEEK` is the week
@@ -405,10 +405,41 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
     (`networkMode: 'always'`, no retry) and returns the targets before the write;
     `weekTargetsChange` gives the old and new targets for the notice. The mock implements every
     new route (`pt.mock-db.v8`).
+  - UI part 1, "Mi semana" (2026-11-20, `2b46176`): `settings/week` (linked from Profile, the
+    Training tab and the week view). New work days take the hours of the first one (08:00–16:00 by
+    default); "Copiar a todos" sits on each day's header. The pattern must be chosen before saving
+    ("Elige cómo es tu horario"). "Mi día empieza a las" is a row of chips (00:00–06:00 every 30 min),
+    not a time picker. `TimeField`: `@expo/ui/community/datetime-picker` (Android dialog, iOS compact
+    inline; the pick is rounded to 15 min because the picker has no minute interval) and a `<select>`
+    on the web. The profile form shows `ActivityDaysRow` instead of the stepper when an activity has
+    days; changing the kind drops match days unless it is a sport. `useToday` reads the day start from
+    the cached `/me` (AC6), and so does "Registrar entreno pasado". A `/me` cached before spec 010
+    has no `week` and activities without `days`: `lib/week.ts` (`profileWeek`,
+    `profileActivities`) reads them as empty instead of crashing (offline the old copy may stay).
+    `CONSENT_VERSION` is `2026-11-v8` (verified: consent is asked again). The week notices name the
+    activity ("Tu gimnasio del viernes se solapa con tu trabajo").
+  - UI part 2, week view and day screen (2026-11-20, `c1601e9`): Today has a `SegmentedControl`
+    (Día / Semana, `lib/todayView.ts`, device storage). `TodayWeek` + `WeekDayRow`: today has a
+    primary border and "· Hoy" in text; meal dots are neutral grey; planned training is muted and the
+    workouts are plain text (not matched). `day/[date]` reuses `MealSection` (its "Añadir" is now
+    optional) and `WorkoutRow`; "Registrar entreno" reveals "Sesión de gimnasio" (manual session on
+    that day, an hour ago's time) and "Actividad" (`training/activity?date=`). `food/add` accepts
+    27 days back; `food/item/[id]?week=` also looks in that cached week; the activity sheet and the
+    past-session day selector add the older day as one more chip.
+  - Next, UI part 3 (routine, AC13–AC20): `RoutineCard` on the Training tab ("Crea tu rutina" /
+    "Añade el gimnasio…" / "Siguiente: … · Empezar" + "Elegir otra sesión" + "Mi rutina"), the same
+    line on Today (gym day today or activity without days), `training/routine/new` (wizard: experience,
+    equipment, confirm days and minutes with "Cambiar" → Mi semana; pregnancy → empty routine with the
+    midwife line; injury/medical line), `training/routine` (editor: `programReducer`,
+    `canSaveProgram`, picker of spec 009, `saveProgramVariables`; "Cambiar de rutina" and "Borrar
+    rutina" with confirmation), and starting a session with `sessionFromProgram` (input method
+    `program`, `programSessionId`). Hooks already exported in `lib/api.ts`: `useProgram`,
+    `useSaveProgram`, `useDeleteProgram`, `useSaveTrainingProfile`. i18n `routine.*` not written
+    yet. Then the E2E of the UI section.
 - Done so far, one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
   (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`); core
   (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20); API (week,
   training profile, routine, workout link, export; the account-deletion integration test covers the
   5 new tables and the routine write rules, and passes on dev)
   (2026-11-20); client (methods, week log and routine queries, queued routine writes, mock routes)
-  (2026-11-20).
+  (2026-11-20); UI part 1 "Mi semana" (`2b46176`); UI part 2 week view and day screen (`c1601e9`).
