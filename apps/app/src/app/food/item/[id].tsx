@@ -1,10 +1,11 @@
-import { MEAL_TYPES, type MealItem } from '@pt/contracts';
+import { IsoDateSchema, MEAL_TYPES, type MealItem } from '@pt/contracts';
 import {
   formatNumber,
   formatPortion,
   initialPortion,
   itemPortion,
   showsFoodNumbers,
+  weekStartOf,
 } from '@pt/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -36,7 +37,11 @@ export default function FoodItemRoute() {
   const log = useFoodLog(today);
   // `week`: opened from a day screen (spec 010 AC11), which may be older than the food log keeps.
   const { id, week } = useLocalSearchParams<{ id: string; week?: string }>();
-  const weekLog = useWeekLog(week ?? '', { enabled: week !== undefined });
+  // A missing or malformed `week` reads nothing (the query key still needs a real date).
+  const weekParam = IsoDateSchema.safeParse(week);
+  const weekLog = useWeekLog(weekParam.success ? weekStartOf(weekParam.data) : weekStartOf(today), {
+    enabled: weekParam.success,
+  });
   const found =
     log.data?.find((item) => item.id === id) ??
     weekLog.data?.mealItems.find((item) => item.id === id);
