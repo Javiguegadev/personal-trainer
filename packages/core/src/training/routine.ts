@@ -1,13 +1,14 @@
-import type {
-  EquipmentAccess,
-  Exercise,
-  Locale,
-  PlannedActivity,
-  Program,
-  ProgramExercise,
-  SafetyFlag,
-  TrainingExperience,
-  TrainingFocus,
+import {
+  WORKOUT_LIMITS,
+  type EquipmentAccess,
+  type Exercise,
+  type Locale,
+  type PlannedActivity,
+  type Program,
+  type ProgramExercise,
+  type SafetyFlag,
+  type TrainingExperience,
+  type TrainingFocus,
 } from '@pt/contracts';
 
 /**
@@ -207,8 +208,10 @@ export function routineExerciseKeys(): string[] {
   return [...new Set(keys.filter((k): k is string => k !== null))].sort();
 }
 
-/** Minutes one set takes, rest included, to fit a session in the user's time (AC15). */
-export const MINUTES_PER_SET = 2.5;
+/** Seconds of work counted for a set that is not timed, to fit a session in the user's time (AC15). */
+export const WORK_SECONDS_PER_SET = 45;
+/** Minutes of every session kept for the warm-up. */
+export const WARM_UP_MINUTES = 5;
 /** A trimmed session keeps at least this many exercises. */
 export const MIN_ROUTINE_EXERCISES = 4;
 /** At or below this length a session keeps 4 exercises with 2 sets. */
@@ -265,7 +268,8 @@ export function routineTarget(input: {
   }
   const [repsMin, repsMax] =
     focus === 'strength'
-      ? compound && !input.teen
+      ? // Beginners and 16–17-year-olds train without supervision: no 4–6 on compound lifts.
+        compound && !input.teen && experience !== 'beginner'
         ? [4, 6]
         : [6, 10]
       : focus === 'hypertrophy'
@@ -275,22 +279,28 @@ export function routineTarget(input: {
   return { sets, repsMin, repsMax, durationS: null, restS };
 }
 
+type Timed = Pick<ProgramExercise, 'sets' | 'restS' | 'durationS'>;
+
+/** Seconds an exercise takes: each set is its work (45 s, or its time) plus its rest (AC15). */
+export function exerciseSeconds(exercise: Timed): number {
+  const work = exercise.durationS ?? WORK_SECONDS_PER_SET;
+  return exercise.sets * (work + (exercise.restS ?? WORKOUT_LIMITS.defaultRestS));
+}
+
 /**
- * The session cut to the user's minutes (AC15): about 2.5 min per set with rest. Exercises are dropped
- * from the end down to 4, then sets are lowered (not below 2) from the last exercise back. A session of
- * 30 min or less keeps the first 4 exercises with 2 sets.
+ * The session cut to the user's minutes (AC15): every set counts its work and its rest, and 5 minutes
+ * are kept for the warm-up. Exercises are dropped from the end down to 4, then sets are lowered (not
+ * below 2) from the last exercise back. A session of 30 min or less keeps the first 4 exercises with 2
+ * sets.
  */
-export function trimToMinutes<T extends { sets: number }>(
-  exercises: readonly T[],
-  minutes: number,
-): T[] {
+export function trimToMinutes<T extends Timed>(exercises: readonly T[], minutes: number): T[] {
   if (minutes <= SHORT_SESSION_MINUTES) {
     return exercises
       .slice(0, MIN_ROUTINE_EXERCISES)
       .map((e) => ({ ...e, sets: Math.min(e.sets, MIN_TRIMMED_SETS) }));
   }
-  const budget = Math.floor(minutes / MINUTES_PER_SET);
-  const total = (list: readonly T[]) => list.reduce((sum, e) => sum + e.sets, 0);
+  const budget = (minutes - WARM_UP_MINUTES) * 60;
+  const total = (list: readonly T[]) => list.reduce((sum, e) => sum + exerciseSeconds(e), 0);
   const kept = exercises.map((e) => ({ ...e }));
   while (kept.length > MIN_ROUTINE_EXERCISES && total(kept) > budget) kept.pop();
   for (let i = kept.length - 1; i >= 0 && total(kept) > budget;) {

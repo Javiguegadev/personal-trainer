@@ -130,12 +130,12 @@ and my equipment, so that I can start a session in one tap instead of choosing e
 - **AC15** — Given the answers, then `starterRoutine` in `@pt/core` returns a routine from the templates:
   1 day → one full-body session; 2–3 days → full body A/B (A/B/C for 3 days from intermediate); 4 days →
   upper/lower A/B; 5–6 days → push/pull/legs from intermediate (beginners keep upper/lower and the
-  rotation covers the extra days). Rep ranges follow the focus (strength: compound lifts 4–6 reps, the
-  rest 6–10; hypertrophy 8–12; general fitness and sport performance 10–15, at most 3 sets); sport
-  performance never gets more than 3 distinct sessions. Exercises are chosen for the equipment, and the
-  session is trimmed to the minutes (about 2.5 min per set including rest, at least 4 exercises; 30 min
-  or less keeps 4 exercises with 2 sets). Every exercise key exists in the curated catalog (a test reads
-  the CSV). _(free)_
+  rotation covers the extra days). Rep ranges follow the focus (strength: compound lifts 4–6 reps, 6–10
+  for beginners, the rest 6–10; hypertrophy 8–12; general fitness and sport performance 10–15, at most 3
+  sets); sport performance never gets more than 3 distinct sessions. Exercises are chosen for the
+  equipment, and the session is trimmed to the minutes (each set counts 45 s of work, or its time, plus
+  its rest, and 5 min are kept for the warm-up; at least 4 exercises; 30 min or less keeps 4 exercises
+  with 2 sets). Every exercise key exists in the curated catalog (a test reads the CSV). _(free)_
 - **AC16** — Given the proposed routine, then the user sees each session with its exercises, sets and
   reps ("Press de banca · 3 × 8–12"), can rename it, rename sessions, add (picker of spec 009), remove
   and reorder exercises, change sets (1–10) and the rep range or the time, and "Guardar rutina" stores
@@ -320,8 +320,24 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 ## Open questions
 
 - For the professional reviewer: the templates (exercises per equipment, sets, rep ranges per focus and
-  for 16–17-year-olds), the 2.5 min per set used to trim a session, the day-before-match rule and the
-  rest-day notice, and whether a beginner on 5–6 days should be told that 3–4 days are enough.
+  for 16–17-year-olds), the time model used to trim a session (45 s of work per set plus rest, 5 min of
+  warm-up), the day-before-match rule and the rest-day notice, and whether a beginner on 5–6 days should
+  be told that 3–4 days are enough.
+- From the domain review of 2026-11-20 (not applied, for the professional reviewer):
+  - Bodyweight exercises take the focus's rep range (4–6 bodyweight squats with the strength focus;
+    10–15 push-ups for a beginner). Should they have their own ranges (e.g. 6–12 upper body, 12–20
+    lower body)?
+  - Bodyweight or sport performance with 4–7 gym days rotates full-body sessions on consecutive days
+    (also beginners on 5–6 days and `teen_limited`; NSCA youth guidance is 2–3 non-consecutive days):
+    cap at 2 sets, or say "2–3 días de fuerza bastan"?
+  - Beginners and 16–17-year-olds: goblet squat and dumbbell Romanian deadlift instead of the barbell
+    lifts, with nobody checking their form?
+  - Home dumbbells assume a bench (dumbbell bench and incline press, Bulgarian split squat, skull
+    crusher, pullover): use the floor press and benchless options? The pullover is a weak stand-in for
+    the lat pulldown (a dumbbell row is another option).
+  - A never-done exercise starts at the top of the rep range (AC18); the bottom is more conservative.
+  - The "no rest day" notice counts a light walk as training; count only strength, moderate or hard?
+  - `ed_soft_stop` and `high_training_load` get the normal volume; cap them at 3 sets?
 - Whether a past week should show the typical week as it was then (needs history on the week tables);
   today it shows the current one.
 
@@ -352,6 +368,12 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
     120 s (compound), 90 s (rest), 60 s (plank). The gym days are the sum of the strength activities
     (max 7) and the minutes the shortest one. Session and routine names come from the caller (i18n).
     The "every key exists" test is `packages/db/src/knowledge/exercises/routine-templates.test.ts`.
+  - Domain review (2026-11-20), applied: every bodyweight session keeps the inverted row as its pull;
+    no bench dips or close push-ups; beginners get incline push-ups instead of feet-elevated ones.
+    With the human: AC15 now trims by 45 s of work (or the exercise's time) plus rest per set and 5 min
+    of warm-up, instead of 2.5 min per set (a 45-min strength session came out at about 60 min, against
+    `ed_soft_stop`), and beginners with the strength focus get 6–10 on compound lifts. The rest of the
+    review is under Open questions.
   - `training/program`: `programReducer` (editor), `canSaveProgram` (needs one exercise, so the empty
     routine of pregnancy is saved once the user adds one), `sessionFromProgram` (last time's sets set by
     set, the last one repeated; the routine's rest when it has one), `nextProgramSession` (newest by

@@ -12,6 +12,8 @@ import {
   ROUTINE_TEMPLATES,
   chooseRoutineTemplate,
   emptyRoutine,
+  exerciseSeconds,
+  WARM_UP_MINUTES,
   routineDays,
   routineExerciseKeys,
   routineSafety,
@@ -125,10 +127,15 @@ describe('routineTarget (spec 010 AC15, Safety)', () => {
 
   it('uses the rep ranges of each focus', () => {
     expect(target('strength', true)).toMatchObject({ repsMin: 4, repsMax: 6 });
+    expect(target('strength', true, 'advanced')).toMatchObject({ repsMin: 4, repsMax: 6 });
     expect(target('strength', false)).toMatchObject({ repsMin: 6, repsMax: 10 });
     expect(target('hypertrophy', true)).toMatchObject({ repsMin: 8, repsMax: 12 });
     expect(target('general_fitness', true)).toMatchObject({ repsMin: 10, repsMax: 15 });
     expect(target('sport_performance', false)).toMatchObject({ repsMin: 10, repsMax: 15 });
+  });
+
+  it('gives beginners 6–10 reps on compound lifts with the strength focus', () => {
+    expect(target('strength', true, 'beginner')).toMatchObject({ repsMin: 6, repsMax: 10 });
   });
 
   it('gives 16–17-year-olds 6–10 reps on compound lifts', () => {
@@ -173,19 +180,25 @@ describe('routineTarget (spec 010 AC15, Safety)', () => {
 });
 
 describe('trimToMinutes (spec 010 AC15)', () => {
-  const six = [4, 3, 3, 3, 2, 2].map((sets, i) => ({ i, sets }));
+  // Each set: 45 s of work + 120 s of rest = 165 s.
+  const six = [4, 3, 3, 3, 2, 2].map((sets, i) => ({ i, sets, restS: 120, durationS: null }));
 
-  it('keeps everything that fits (2.5 min per set)', () => {
-    expect(trimToMinutes(six, 60)).toEqual(six); // 17 sets ≤ 24
+  it('counts each set as its work (45 s, or its time) plus its rest', () => {
+    expect(exerciseSeconds({ sets: 3, restS: 180, durationS: null })).toBe(675);
+    expect(exerciseSeconds({ sets: 2, restS: 60, durationS: 30 })).toBe(180);
+    expect(exerciseSeconds({ sets: 1, restS: null, durationS: null })).toBe(135); // default rest
+  });
+
+  it('keeps everything that fits after 5 min of warm-up', () => {
+    // 17 sets × 165 s = 46.75 min, + 5 ≤ 60.
+    expect(trimToMinutes(six, 60)).toEqual(six);
   });
 
   it('drops exercises from the end, then lowers sets from the last one back', () => {
-    // 45 min = 18 sets: 17 fits.
-    expect(trimToMinutes(six, 45)).toEqual(six);
-    // 35 min = 14 sets: drop to 4 exercises (13 sets).
-    expect(trimToMinutes(six, 35).map((e) => e.sets)).toEqual([4, 3, 3, 3]);
-    // 32 min = 12 sets: 4 exercises, then one set less on the last.
-    expect(trimToMinutes(six, 32).map((e) => e.sets)).toEqual([4, 3, 3, 2]);
+    // 45 min − 5 = 2400 s: 15 sets (2475 s) is too long, 13 sets (2145 s) fits.
+    expect(trimToMinutes(six, 45).map((e) => e.sets)).toEqual([4, 3, 3, 3]);
+    // 40 min − 5 = 2100 s: 4 exercises, then one set less on the last (12 sets, 1980 s).
+    expect(trimToMinutes(six, 40).map((e) => e.sets)).toEqual([4, 3, 3, 2]);
   });
 
   it('keeps 4 exercises with 2 sets at 30 min or less', () => {
@@ -242,9 +255,11 @@ describe('starterRoutine (spec 010 AC15)', () => {
                   const keys = session.exercises.map((e) => e.exerciseId);
                   expect(keys.length, label).toBeGreaterThanOrEqual(4);
                   expect(new Set(keys).size, label).toBe(keys.length);
-                  const sets = session.exercises.reduce((sum, e) => sum + e.sets, 0);
-                  if (minutes > 30 && keys.length > 4)
-                    expect(sets * 2.5, label).toBeLessThanOrEqual(minutes);
+                  // Never longer than the declared minutes above 30 (ed_soft_stop).
+                  const seconds = session.exercises.reduce((sum, e) => sum + exerciseSeconds(e), 0);
+                  if (minutes > 30) {
+                    expect(seconds / 60 + WARM_UP_MINUTES, label).toBeLessThanOrEqual(minutes);
+                  }
                 }
                 const request = programToRequest(routine, {
                   recordedAt: '2026-11-20T10:00:00.000Z',
