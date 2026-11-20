@@ -474,6 +474,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       ],
     };
     const nightShift = [{ weekday: 1, startMinute: 1320, endMinute: 360 }];
+    const targetsBefore = (await store.getMe(id)).targets;
     expect(
       await store.saveWeek(
         id,
@@ -495,7 +496,8 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     });
     expect(withWeek?.plannedActivities).toEqual([football]);
     expect(withWeek).toMatchObject({ trainingExperience: 'beginner', equipmentAccess: 'full_gym' });
-    expect((await store.getMe(id)).targets?.kcal).toBe(1800);
+    // Without an evaluation (same training load) the targets row is untouched.
+    expect((await store.getMe(id)).targets).toEqual(targetsBefore);
 
     // Spec 010: the routine, its sessions kept by id and the rotation link of a workout (AC22).
     const programId = crypto.randomUUID();

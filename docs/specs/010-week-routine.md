@@ -399,5 +399,5 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
   (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`); core
   (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20); API (week,
   training profile, routine, workout link, export; the account-deletion integration test covers the
-  5 new tables and the routine write rules, not run yet: it needs migration `0010` on dev)
+  5 new tables and the routine write rules, and passes on dev)
   (2026-11-20).
