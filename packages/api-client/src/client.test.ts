@@ -3,6 +3,8 @@ import {
   CONSENT_VERSION,
   type CustomExerciseUpsertRequest,
   type MealItemUpsertRequest,
+  type ProgramUpsertRequest,
+  type WeekRequest,
   type WorkoutUpsertRequest,
 } from '@pt/contracts';
 import { NO_BESTS } from '@pt/core';
@@ -46,6 +48,22 @@ const quickAdd: MealItemUpsertRequest = {
   mealType: 'breakfast',
   recordedAt: '2026-11-16T08:00:00.000Z',
   today: '2026-11-16',
+  locale: 'es',
+};
+const weekBody: WeekRequest = {
+  workPattern: 'fixed',
+  workBlocks: [{ weekday: 1, startMinute: 480, endMinute: 960 }],
+  dayStartMinute: 0,
+  plannedActivities: [],
+  today: '2026-11-11',
+};
+const PROGRAM_ID = '90000000-0000-4000-8000-000000000001';
+const programBody: ProgramUpsertRequest = {
+  name: 'Rutina',
+  origin: 'user',
+  templateKey: null,
+  sessions: [{ id: '91000000-0000-4000-8000-00000000000a', name: 'Rutina A', exercises: [] }],
+  recordedAt: '2026-11-11T10:00:00.000Z',
   locale: 'es',
 };
 const healthBody = {
@@ -181,6 +199,39 @@ describe('createApiClient', () => {
         method: 'DELETE',
         path: '/me/weights/2026-11-11?today=2026-11-11',
         res: () => Response.json({ entry: null, targetsChange: null }),
+      },
+      {
+        run: (a: Api) => a.saveWeek(weekBody),
+        method: 'PUT',
+        path: '/me/week',
+        body: weekBody,
+        res: () => Response.json(meBody),
+      },
+      {
+        run: (a: Api) => a.saveTrainingProfile({ experience: 'beginner', equipment: 'full_gym' }),
+        method: 'PUT',
+        path: '/me/training-profile',
+        body: { experience: 'beginner', equipment: 'full_gym' },
+        res: () => Response.json(meBody),
+      },
+      {
+        run: (a: Api) => a.program(),
+        method: 'GET',
+        path: '/me/program',
+        res: () => Response.json({ program: null }),
+      },
+      {
+        run: (a: Api) => a.saveProgram(PROGRAM_ID, programBody),
+        method: 'PUT',
+        path: `/me/program/${PROGRAM_ID}`,
+        body: programBody,
+        res: () => Response.json({ program: null }),
+      },
+      {
+        run: (a: Api) => a.deleteProgram(PROGRAM_ID, { recordedAt: '2026-11-11T10:00:00.000Z' }),
+        method: 'DELETE',
+        path: `/me/program/${PROGRAM_ID}?recordedAt=2026-11-11T10%3A00%3A00.000Z`,
+        res: () => Response.json({ program: null }),
       },
       {
         run: (a: Api) => a.searchFoods('pan con tomate', 'es'),

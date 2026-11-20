@@ -17,6 +17,7 @@ import {
   MealDraftResponseSchema,
   MealItemSaveResponseSchema,
   MeResponseSchema,
+  ProgramResponseSchema,
   RecentFoodsResponseSchema,
   TargetsPreviewResponseSchema,
   WeightListResponseSchema,
@@ -66,6 +67,11 @@ import {
   type WorkoutLogResponse,
   type WorkoutSaveResponse,
   type WorkoutUpsertRequest,
+  type ProgramDeleteQuery,
+  type ProgramResponse,
+  type ProgramUpsertRequest,
+  type TrainingProfileUpdate,
+  type WeekRequest,
 } from '@pt/contracts';
 import type { z } from 'zod';
 
@@ -335,6 +341,35 @@ export function createApiClient({
       request(
         `/me/exercises/${id}/history${limit === undefined ? '' : `?limit=${limit}`}`,
         ExerciseHistoryResponseSchema,
+      ),
+
+    /**
+     * `PUT /me/week`: the typical week and the activities with their days in one write; new targets
+     * when the training load changed (spec 010 AC4). Needs a connection (never queued, AC21).
+     */
+    saveWeek: (body: WeekRequest): Promise<MeResponse> =>
+      request('/me/week', MeResponseSchema, { method: 'PUT', json: body }),
+
+    /** `PUT /me/training-profile`: the routine wizard's experience and equipment (spec 010 AC14). */
+    saveTrainingProfile: (body: TrainingProfileUpdate): Promise<MeResponse> =>
+      request('/me/training-profile', MeResponseSchema, { method: 'PUT', json: body }),
+
+    /** `GET /me/program`: the active routine, or null (spec 010). */
+    program: (): Promise<ProgramResponse> => request('/me/program', ProgramResponseSchema),
+
+    /**
+     * `PUT /me/program/:id`: replaces the routine; the later `recordedAt` wins (spec 010 AC22). 409
+     * `program_exists` while another routine is active: delete it first (AC20).
+     */
+    saveProgram: (id: string, body: ProgramUpsertRequest): Promise<ProgramResponse> =>
+      request(`/me/program/${id}`, ProgramResponseSchema, { method: 'PUT', json: body }),
+
+    /** `DELETE /me/program/:id`: a tombstone; past workouts keep their sets (spec 010 AC20). */
+    deleteProgram: (id: string, { recordedAt }: ProgramDeleteQuery): Promise<ProgramResponse> =>
+      request(
+        `/me/program/${id}?recordedAt=${encodeURIComponent(recordedAt)}`,
+        ProgramResponseSchema,
+        { method: 'DELETE' },
       ),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */

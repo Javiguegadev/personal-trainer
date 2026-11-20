@@ -343,7 +343,7 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - `WeekRequestSchema`, `TrainingProfileUpdateSchema` and the week schemas live in `profile.ts` next
     to `PlannedActivitySchema` (no `week.ts`; its tests are in `week.test.ts`). `EMPTY_WEEK` is the week
@@ -395,9 +395,20 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
     arrived) stores the workout without the link instead of 404, so the offline queue never gets
     stuck; it is the same result as removing the session afterwards (AC22). Sessions of a deleted
     routine still exist (tombstone), so their workouts keep the link.
+  - Client (2026-11-20): the week view reads one cached query per week (`week-log`, the meals and
+    workouts of Monday to Sunday), kept offline like the other logs; the food and training
+    mutations also patch every cached week (and roll back to the week's version of an old item), so
+    a meal added on a day screen 10 days back shows at once. The routine (`training-program`) and
+    its writes, and the wizard's answers (`PUT /me/training-profile`, optimistic on `/me`), go
+    through the `training` queue, so a routine created offline is sent before its workout and
+    "Cambiar de rutina" sends the delete before the new routine. `useSaveWeek` is never queued
+    (`networkMode: 'always'`, no retry) and returns the targets before the write;
+    `weekTargetsChange` gives the old and new targets for the notice. The mock implements every
+    new route (`pt.mock-db.v8`).
 - Done so far, one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
   (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`); core
   (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20); API (week,
   training profile, routine, workout link, export; the account-deletion integration test covers the
   5 new tables and the routine write rules, and passes on dev)
+  (2026-11-20); client (methods, week log and routine queries, queued routine writes, mock routes)
   (2026-11-20).
