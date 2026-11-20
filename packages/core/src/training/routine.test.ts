@@ -29,9 +29,8 @@ const REPS_KEYS = new Set([
   'puente-gluteo',
   'flexiones',
   'flexiones-declinadas',
-  'flexiones-cerradas',
+  'flexiones-inclinadas',
   'remo-invertido',
-  'fondos-banco',
   'crunch',
 ]);
 const tracking = (key: string): ExerciseTracking =>
@@ -258,6 +257,22 @@ describe('starterRoutine (spec 010 AC15)', () => {
         }
       }
     }
+  });
+
+  it('gives every bodyweight session a pull, no bench dips, and easier push-ups to beginners', () => {
+    for (const experience of EXPERIENCES) {
+      for (const days of [1, 2, 3, 4, 5, 6]) {
+        const routine = build({ days, minutes: 90, experience, equipment: 'bodyweight' })!;
+        for (const session of routine.sessions) {
+          const keys = session.exercises.map((e) => e.exerciseId);
+          expect(keys).toContain(idOf('remo-invertido'));
+          expect(keys).not.toContain(idOf('fondos-banco'));
+          if (experience === 'beginner') expect(keys).not.toContain(idOf('flexiones-declinadas'));
+        }
+      }
+    }
+    const beginnerB = build({ equipment: 'bodyweight' })!.sessions[1]!.exercises;
+    expect(beginnerB.map((e) => e.exerciseId)).toContain(idOf('flexiones-inclinadas'));
   });
 
   it('skips exercises missing from the catalog', () => {

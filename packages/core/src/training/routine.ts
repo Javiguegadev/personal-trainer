@@ -107,7 +107,12 @@ const MOVEMENTS = {
     home_dumbbells: 'remo-mancuerna',
     bodyweight: 'remo-invertido',
   },
-  pulldown: { full_gym: 'jalon-pecho', home_dumbbells: 'pullover-mancuerna', bodyweight: null },
+  // Bodyweight: the inverted row is the only pull, so every session keeps one (push/pull balance).
+  pulldown: {
+    full_gym: 'jalon-pecho',
+    home_dumbbells: 'pullover-mancuerna',
+    bodyweight: 'remo-invertido',
+  },
   lateralRaise: {
     full_gym: 'elevaciones-laterales',
     home_dumbbells: 'elevaciones-laterales',
@@ -119,17 +124,23 @@ const MOVEMENTS = {
   triceps: {
     full_gym: 'triceps-cuerda',
     home_dumbbells: 'triceps-tras-nuca',
-    bodyweight: 'fondos-banco',
+    // No bench dips (extreme shoulder extension) and no extra push without a pull.
+    bodyweight: null,
   },
   tricepsOverhead: {
     full_gym: 'triceps-tras-nuca-cuerda',
     home_dumbbells: 'press-frances-mancuernas',
-    bodyweight: 'flexiones-cerradas',
+    bodyweight: null,
   },
   plank: { full_gym: 'plancha', home_dumbbells: 'plancha', bodyweight: 'plancha' },
   crunch: { full_gym: 'crunch-polea', home_dumbbells: 'crunch', bodyweight: 'crunch' },
 } as const satisfies Record<string, Record<EquipmentAccess, string | null>>;
 type Movement = keyof typeof MOVEMENTS;
+
+/** Easier variants for beginners: feet-elevated push-ups are harder than plain ones. */
+const BEGINNER_SWAPS: Readonly<Record<string, string>> = {
+  'flexiones-declinadas': 'flexiones-inclinadas',
+};
 
 /** Multi-joint lifts: the strength focus gives them its lowest rep range (AC15). */
 const COMPOUND: ReadonlySet<Movement> = new Set<Movement>([
@@ -189,7 +200,10 @@ export const ROUTINE_TEMPLATES: Record<RoutineTemplateKey, readonly RoutineSessi
 
 /** Every catalog key the templates use, for the test that reads the curated catalog. */
 export function routineExerciseKeys(): string[] {
-  const keys = Object.values(MOVEMENTS).flatMap((m): (string | null)[] => Object.values(m));
+  const keys = [
+    ...Object.values(MOVEMENTS).flatMap((m): (string | null)[] => Object.values(m)),
+    ...Object.values(BEGINNER_SWAPS),
+  ];
   return [...new Set(keys.filter((k): k is string => k !== null))].sort();
 }
 
@@ -352,7 +366,8 @@ export function starterRoutine(
     const used = new Set<string>();
     const exercises: ProgramExercise[] = [];
     for (const movement of SESSIONS[sessionKey]) {
-      const key: string | null = MOVEMENTS[movement][input.equipment];
+      const base: string | null = MOVEMENTS[movement][input.equipment];
+      const key = base && input.experience === 'beginner' ? (BEGINNER_SWAPS[base] ?? base) : base;
       const exercise = key === null ? undefined : deps.catalogByKey.get(key);
       if (!key || !exercise || used.has(key)) continue;
       used.add(key);
