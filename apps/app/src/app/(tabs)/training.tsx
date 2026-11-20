@@ -1,8 +1,8 @@
 import { WORKOUT_LIMITS, type Profile } from '@pt/contracts';
 import {
   formatShortDate,
+  localToday,
   repeatShortcuts,
-  toLocalIsoDate,
   weekStartOf,
   workoutHistoryWeeks,
   workoutRecordCount,
@@ -30,6 +30,7 @@ import { useExerciseLookups, useTrainingActions } from '@/hooks/useTraining';
 import { useWorkoutText } from '@/hooks/useWorkoutText';
 import { useMe, usePendingTrainingIds, useWorkouts } from '@/lib/api';
 import { useSession } from '@/lib/liveSession';
+import { profileWeek } from '@/lib/week';
 import { clearWorkoutUndo, useWorkoutUndo } from '@/lib/workoutUndo';
 
 /** Days of history shown before "Ver más" (AC20); the cache holds `WORKOUT_LIMITS.cacheDays`. */
@@ -65,7 +66,10 @@ function TrainingTab({ profile }: { profile: Profile }) {
   const startPast = () => {
     // An hour ago by default; the day and the time are the first fields of the screen (AC17).
     const startedAt = new Date(Date.now() - 60 * 60 * 1000);
-    actions.startManual(toLocalIsoDate(startedAt), startedAt.toISOString());
+    actions.startManual(
+      localToday(startedAt, profileWeek(profile).dayStartMinute),
+      startedAt.toISOString(),
+    );
     router.push({ pathname: '/training/session', params: { slot: 'draft' } });
   };
 
@@ -189,6 +193,12 @@ function TrainingTab({ profile }: { profile: Profile }) {
         </Card>
       ) : null}
       {history}
+      <Button
+        variant="ghost"
+        label={`${t.week.link} ›`}
+        onPress={() => router.push('/settings/week')}
+        testID="training-week"
+      />
       <Button
         variant="ghost"
         label={`${tr.libraryLink} ›`}

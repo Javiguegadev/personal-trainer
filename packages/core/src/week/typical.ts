@@ -87,13 +87,19 @@ export function typicalDay(week: TypicalWeek, weekday: Weekday): TypicalDay {
 // ── Editing an activity's days (AC2) ─────────────────────────────────────────────────────────────
 
 /**
+ * What the day helpers need of an activity. Generic, so the profile form (whose label is a string)
+ * uses the same helpers as "Mi semana" (AC4: same component).
+ */
+export type WithDays = Pick<PlannedActivity, 'kind' | 'sessionsPerWeek' | 'days'>;
+
+/**
  * The activity with these days: sorted, `isMatch` only for a sport, and `sessionsPerWeek` equal to
  * their count. With no days it keeps its last count (the "N veces por semana" stepper returns).
  */
-export function applyDaysToActivity(
-  activity: PlannedActivity,
+export function applyDaysToActivity<A extends WithDays>(
+  activity: A,
   days: readonly ActivityDay[],
-): PlannedActivity {
+): A {
   const sorted = [...days]
     .sort((a, b) => a.weekday - b.weekday)
     .map((day) => ({ ...day, isMatch: activity.kind === 'sport' && day.isMatch }));
@@ -105,12 +111,12 @@ export function applyDaysToActivity(
 }
 
 /** The start time shared by the activity's training days (match days have their own). */
-export function activityStartMinute(activity: PlannedActivity): number | null {
+export function activityStartMinute(activity: WithDays): number | null {
   return activity.days.find((d) => !d.isMatch)?.startMinute ?? null;
 }
 
 /** Adds the weekday (with the shared start time) or removes it. */
-export function toggleActivityDay(activity: PlannedActivity, weekday: Weekday): PlannedActivity {
+export function toggleActivityDay<A extends WithDays>(activity: A, weekday: Weekday): A {
   const has = activity.days.some((d) => d.weekday === weekday);
   const days = has
     ? activity.days.filter((d) => d.weekday !== weekday)
@@ -119,10 +125,10 @@ export function toggleActivityDay(activity: PlannedActivity, weekday: Weekday): 
 }
 
 /** One start time for every training day of the activity (AC2); match days keep theirs. */
-export function setActivityStartMinute(
-  activity: PlannedActivity,
+export function setActivityStartMinute<A extends WithDays>(
+  activity: A,
   startMinute: number | null,
-): PlannedActivity {
+): A {
   return applyDaysToActivity(
     activity,
     activity.days.map((d) => (d.isMatch ? d : { ...d, startMinute })),
@@ -130,11 +136,11 @@ export function setActivityStartMinute(
 }
 
 /** Marks a day of a sport as a match with its own start time, or back to a training day. */
-export function setMatchDay(
-  activity: PlannedActivity,
+export function setMatchDay<A extends WithDays>(
+  activity: A,
   weekday: Weekday,
   match: { isMatch: boolean; startMinute: number | null },
-): PlannedActivity {
+): A {
   const shared = activityStartMinute(activity);
   return applyDaysToActivity(
     activity,
@@ -145,6 +151,19 @@ export function setMatchDay(
           ? { ...d, isMatch: true, startMinute: match.startMinute }
           : { ...d, isMatch: false, startMinute: shared },
     ),
+  );
+}
+
+/** The times a time field offers: every `step` minutes from 00:00 up to `max` (AC2: 15 min). */
+export function timeOfDayOptions(step: number, max = MINUTES_PER_DAY - 1): number[] {
+  return Array.from({ length: Math.floor(max / step) + 1 }, (_, i) => i * step);
+}
+
+/** A time picked on a native picker, rounded to the nearest `step` minutes of the same day. */
+export function roundToStep(minute: number, step: number): number {
+  return Math.min(
+    Math.round(minute / step) * step,
+    Math.floor((MINUTES_PER_DAY - 1) / step) * step,
   );
 }
 

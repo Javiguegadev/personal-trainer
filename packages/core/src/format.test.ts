@@ -3,6 +3,7 @@ import {
   formatDecimal,
   formatList,
   formatLongDate,
+  formatMinuteOfDay,
   formatNumber,
   formatShortDate,
   formatWeekdayDay,
@@ -67,5 +68,17 @@ describe('formatList', () => {
     expect(formatList(['tenis', 'Ironman'], 'es')).toBe('tenis e Ironman');
     // "hie-" and "hia-" start with a consonant sound: "y" stays.
     expect(formatList(['tenis', 'hielo'], 'es')).toBe('tenis y hielo');
+  });
+});
+
+describe('formatMinuteOfDay', () => {
+  it('writes 24 h in Spanish and 12 h in English (spec 010 Units)', () => {
+    expect(formatMinuteOfDay(0, 'es')).toBe('00:00');
+    expect(formatMinuteOfDay(480, 'es')).toBe('08:00');
+    expect(formatMinuteOfDay(1110, 'es')).toBe('18:30');
+    expect(formatMinuteOfDay(0, 'en')).toBe('12:00 AM');
+    expect(formatMinuteOfDay(720, 'en')).toBe('12:00 PM');
+    expect(formatMinuteOfDay(1110, 'en')).toBe('6:30 PM');
+    expect(formatMinuteOfDay(1439, 'en')).toBe('11:59 PM');
   });
 });

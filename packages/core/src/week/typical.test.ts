@@ -6,10 +6,12 @@ import {
   blockEndsNextDay,
   copyWorkHours,
   isValidWorkBlock,
+  roundToStep,
   sameTrainingLoad,
   setActivityStartMinute,
   setMatchDay,
   setWorkHours,
+  timeOfDayOptions,
   toggleActivityDay,
   toggleWorkDay,
   typicalDay,
@@ -83,6 +85,38 @@ describe('applyDaysToActivity and the day chips (spec 010 AC2)', () => {
     expect(next.days).toEqual([day(2, 1230), day(6, 660, true)]);
     next = setMatchDay(next, 6, { isMatch: false, startMinute: null });
     expect(next.days).toEqual([day(2, 1230), day(6, 1230)]);
+  });
+});
+
+describe('the day helpers on a profile form value (spec 010 AC4)', () => {
+  it('keep the other fields of the value, such as a string label', () => {
+    const value = {
+      kind: 'cardio' as const,
+      label: '',
+      sessionsPerWeek: 2,
+      minutesPerSession: 30,
+      intensity: 'light' as const,
+      days: [],
+    };
+    const next = toggleActivityDay(value, 3);
+    expect(next).toEqual({ ...value, sessionsPerWeek: 1, days: [day(3)] });
+  });
+});
+
+describe('time options (spec 010 AC2)', () => {
+  it('offers every 15 minutes of the day, and the day start up to 06:00 every 30', () => {
+    const times = timeOfDayOptions(15);
+    expect(times).toHaveLength(96);
+    expect(times.at(-1)).toBe(1425);
+    expect(timeOfDayOptions(30, 360)).toEqual([
+      0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360,
+    ]);
+  });
+
+  it('rounds a picked time to the step without leaving the day', () => {
+    expect(roundToStep(1112, 15)).toBe(1110);
+    expect(roundToStep(1118, 15)).toBe(1125);
+    expect(roundToStep(1439, 15)).toBe(1425);
   });
 });
 
