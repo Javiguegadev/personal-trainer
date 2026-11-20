@@ -8,7 +8,7 @@ import {
   type Workout,
   type WorkoutUpsertRequest,
 } from '@pt/contracts';
-import { addDays } from '../dates';
+import { addDays, weekStartOf } from '../dates';
 import { setScores, type BestKind } from './bests';
 
 /**
@@ -31,12 +31,6 @@ export function groupSets(sets: readonly SetValues[]): { count: number; values: 
     else groups.push({ count: 1, values });
   }
   return groups;
-}
-
-/** The Monday of the week of a day (YYYY-MM-DD). */
-export function weekStartOf(isoDate: string): string {
-  const weekday = new Date(`${isoDate}T00:00:00Z`).getUTCDay(); // 0 = Sunday
-  return addDays(isoDate, -((weekday + 6) % 7));
 }
 
 /**

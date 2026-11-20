@@ -327,7 +327,7 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
 
 ## Progress
 
-- [x] contracts · [x] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - `WeekRequestSchema`, `TrainingProfileUpdateSchema` and the week schemas live in `profile.ts` next
     to `PlannedActivitySchema` (no `week.ts`; its tests are in `week.test.ts`). `EMPTY_WEEK` is the week
@@ -337,5 +337,27 @@ newIds)`, `programToRequest`; `context`: `context-v4`.
     values until the API step stores them.
   - A routine session may have no exercises (the empty routine of the pregnancy rule).
   - `context-v4` and `CONSENT_VERSION` change in the core and UI steps, so every commit stays green.
-- Done so far (2026-11-19), one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
-  (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`).
+  - Core (2026-11-20): `weekStartOf` moved from `training/view` to `dates` (with `isoWeekday`,
+    `weekDays`, `localToday`, which compares wall-clock times so DST nights move nothing). `week/typical`
+    holds the editing helpers of "Mi semana" (`toggleActivityDay`, `setActivityStartMinute`,
+    `setMatchDay`, `toggleWorkDay`, `setWorkHours`, `copyWorkHours`, `weekToRequest`) and
+    `sameTrainingLoad` (AC4: the API recomputes targets only when it is false). `week/view` has
+    `WEEK_VIEW`, `weekNavigation`, `moveWeek`, `dayAccess`, `weekRows`, `dayMeals`.
+  - AC5 notices: a night block also counts on the next day; a match the day before a match does not
+    trigger "hard before match"; "no rest day" only uses activities with days (without days it cannot
+    know).
+  - Templates (`training/routine`): bodyweight and sport performance never get a split (full body
+    A/B or A/B/C; bodyweight has too few exercises for upper/lower or push/pull/legs). Beginners 3 sets
+    on compound lifts and 2 on the rest; advanced 4 on compound lifts. Rest 180 s (strength compound),
+    120 s (compound), 90 s (rest), 60 s (plank). The gym days are the sum of the strength activities
+    (max 7) and the minutes the shortest one. Session and routine names come from the caller (i18n).
+    The "every key exists" test is `packages/db/src/knowledge/exercises/routine-templates.test.ts`.
+  - `training/program`: `programReducer` (editor), `canSaveProgram` (needs one exercise, so the empty
+    routine of pregnancy is saved once the user adds one), `sessionFromProgram` (last time's sets set by
+    set, the last one repeated; the routine's rest when it has one), `nextProgramSession` (newest by
+    `localDate`, then `startedAt`; sessions of another routine are ignored).
+  - `ContextSources` gains optional `week`, `trainingExperience`, `equipmentAccess`, `hasRoutine`;
+    the API passes them in its step.
+- Done so far, one commit per step: contracts (`42b7f0c`); migration `0010_week_routine`
+  (additive: 4 enums and the `program` input method, 5 tables with RLS, 5 columns) (`2dba57d`); core
+  (week, week view, templates, routine editor and rotation, `context-v4`) (2026-11-20).
