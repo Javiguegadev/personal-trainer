@@ -254,7 +254,24 @@ today)`, `checkinPrefill(checkins, today)`, `checkinDue(input)`, `SHIFT_DEFAULT_
 ## Progress
 
 - [x] contracts (7436bfb) · [x] db (688160d, migration `0011` applied on dev 2026-11-23) · [x] core
-      (b5f6c2b, review fixes 7383475) · [x] api (5746775) · [ ] client · [ ] ui · [ ] e2e
+      (b5f6c2b, review fixes 7383475) · [x] api (5746775) · [x] client (51bb9db) · [ ] ui · [ ] e2e
+- Next, the UI step (notes for whoever resumes):
+  - `apps/app/src/lib/api.ts`: call `registerCheckinMutations(queryClient, api)` next to the others and
+    export the new hooks (`useCheckins`, `useSaveCheckin`, `useDeleteCheckin`, `usePendingCheckinDates`,
+    `useRejectedCheckinWrite`).
+  - Readiness on the device: `latestPerDay` → today's check-in, `usualSleep`, `dayReadiness`. Today's line:
+    `readinessLine(readiness, { session: next ? readinessPlanSession(next) : null, activities }, sleepAnswered)`
+    with the activities of today's weekday (`isMatch`). The card: `checkinDue`, `checkinPrefill`,
+    `asksShift`, `selectShift` / `setShiftHours` (preferred hours per kind in device storage),
+    `checkinToRequest`. Pattern notice: `sleepStressNotice`.
+  - Live session: in `useTrainingActions` (`startProgram`, `startLive`, `repeat`) pass the new session
+    through `adjustSessionForReadiness(session, readiness, today)`; `ReadinessBanner` shows
+    `session.readiness.headline` and, when `canTrainNormally`, "Entrenar normal" → dispatch
+    `{ type: 'trainNormally' }`.
+  - Week view and day screen: pass `checkins` to `weekRows` (rows get `shift`); `dayWorkBlock` and
+    `dayNotices` for the day screen and Today; `dayAccess` gives the 27-day edit window (AC5).
+  - Device storage (try/catch, per user): "Hoy no" day, preferred shift hours, pattern notice dismissed
+    day.
 - Decisions taken during implementation (plan approved by the human on 2026-11-23):
   - **a) Pattern notice (AC13)** shows under the readiness line with "Entendido", which hides it until
     the next local day (device storage).
@@ -272,6 +289,9 @@ today)`, `checkinPrefill(checkins, today)`, `checkinDue(input)`, `SHIFT_DEFAULT_
   - `DELETE /me/checkins/{localDate}` also takes `today` (as the weight log), to check the day (AC15).
     A delete with no row stores a tombstone, so an older write arriving later cannot create it.
   - Usual sleep uses the 14 days **before** today (today's night never compares with itself).
+  - The client keeps **one** check-in list (from the Monday 12 weeks back to today, at most 90 days)
+    instead of one query per range: every screen reads it, so the optimistic writes patch one place and
+    no week log rows need patching.
   - The shift overlap notice (AC12) fires when the planned session **overlaps** the shift, not only
     when it starts inside (same rule as spec 010 AC5).
   - Known limit: the shift timeline uses calendar midnight; a shift that starts between 00:00 and a
