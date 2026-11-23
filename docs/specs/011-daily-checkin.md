@@ -254,24 +254,16 @@ today)`, `checkinPrefill(checkins, today)`, `checkinDue(input)`, `SHIFT_DEFAULT_
 ## Progress
 
 - [x] contracts (7436bfb) · [x] db (688160d, migration `0011` applied on dev 2026-11-23) · [x] core
-      (b5f6c2b, review fixes 7383475) · [x] api (5746775) · [x] client (51bb9db) · [ ] ui · [ ] e2e
-- Next, the UI step (notes for whoever resumes):
-  - `apps/app/src/lib/api.ts`: call `registerCheckinMutations(queryClient, api)` next to the others and
-    export the new hooks (`useCheckins`, `useSaveCheckin`, `useDeleteCheckin`, `usePendingCheckinDates`,
-    `useRejectedCheckinWrite`).
-  - Readiness on the device: `latestPerDay` → today's check-in, `usualSleep`, `dayReadiness`. Today's line:
-    `readinessLine(readiness, { session: next ? readinessPlanSession(next) : null, activities }, sleepAnswered)`
-    with the activities of today's weekday (`isMatch`). The card: `checkinDue`, `checkinPrefill`,
-    `asksShift`, `selectShift` / `setShiftHours` (preferred hours per kind in device storage),
-    `checkinToRequest`. Pattern notice: `sleepStressNotice`.
-  - Live session: in `useTrainingActions` (`startProgram`, `startLive`, `repeat`) pass the new session
-    through `adjustSessionForReadiness(session, readiness, today)`; `ReadinessBanner` shows
-    `session.readiness.headline` and, when `canTrainNormally`, "Entrenar normal" → dispatch
-    `{ type: 'trainNormally' }`.
-  - Week view and day screen: pass `checkins` to `weekRows` (rows get `shift`); `dayWorkBlock` and
-    `dayNotices` for the day screen and Today; `dayAccess` gives the 27-day edit window (AC5).
-  - Device storage (try/catch, per user): "Hoy no" day, preferred shift hours, pattern notice dismissed
-    day.
+      (b5f6c2b, review fixes 7383475, require cycle 31aba1e) · [x] api (5746775) · [x] client (51bb9db) ·
+      [x] ui (a6a1828, a6ba24f) · [x] e2e (752f49d), all on 2026-11-23.
+- Left for the human:
+  - Phone check in Expo Go (360–430 px, light and dark): the card on Today (five sleep chips wrap to two
+    rows), "Cambiar hora" with the native time pickers (iOS inline, Android dialog), the check-in screen
+    as a sheet, the readiness line and its pattern notice, the live session banner and "Entrenar
+    normal", the shift in the week view and "Cómo estaba" on the day screen.
+  - Read the copy of `checkin.*` and `readiness.*` (es and en), mainly the five reason lines
+    ("Has dormido poco y el estrés está alto", "El estrés está alto"...).
+  - The professional review of the Open questions (thresholds, adjustment, pattern notice, shift hours).
 - Decisions taken during implementation (plan approved by the human on 2026-11-23):
   - **a) Pattern notice (AC13)** shows under the readiness line with "Entendido", which hides it until
     the next local day (device storage).
@@ -301,3 +293,18 @@ today)`, `checkinPrefill(checkins, today)`, `checkinDue(input)`, `SHIFT_DEFAULT_
     when there is no data.
   - The account deletion integration test now takes about 30 s on the dev pooler; its timeout went
     from 30 s to 60 s.
+  - UI (2026-11-23): tapping the selected chip clears it (sleep, stress, shift), so any answer can stay
+    empty (AC2); a hint under the questions says so. The check-in screen `checkin/[date]` is a modal
+    route (a sheet on phones, a page on web), opened from the readiness line and the day screen;
+    "Borrar" deletes at once (no confirmation: a check-in is cheap to add again) and closes it. The
+    hours of a working shift are remembered for its kind when the check-in is saved, not on each change.
+  - UI: the card and the line wait until the cached check-ins are known (nothing rather than a card
+    that disappears a moment later). The readiness of a session started live is computed from the same
+    cached list (`useTodayReadiness`), so it works offline.
+  - UI: a gym activity without days counts as today's training in the readiness line too (the card
+    already showed for it through `routineDueOn`): without a routine the line says "Todo en orden para
+    entrenar" or the activity advice instead of only "Check-in de hoy".
+  - Day screen: the shift replaces the empty work line ("Turno de noche 22:00–06:00"); the shift
+    overlap notice of another day reads "Tu gimnasio del lunes (22:30) coincide con tu turno."
+  - E2E: the mock database key went to `pt.mock-db.v9` in the client step; three older tests still
+    wrote `v8` by hand and are fixed in the E2E commit.
