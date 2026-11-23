@@ -1,7 +1,7 @@
 # Personal Trainer: AI nutrition & fitness app (freemium)
 
 Mobile-first, touch-first, with AI where it is faster. One Expo universal app (iOS, Android, web) plus a
-Hono API. Full plan: `docs/BLUEPRINT.md` (v5, see ADR 002 to 006). Current stage: see "Status" at the
+Hono API. Full plan: `docs/BLUEPRINT.md` (v6, see ADR 002 to 007). Current stage: see "Status" at the
 bottom of this file.
 
 **Language: always answer the human in Spanish** (explanations, summaries, questions), even after
@@ -111,6 +111,8 @@ pnpm format
 - Spec 010 (E5 b: "Mi semana", week view and day screen, starter routine): every step implemented
   with E2E on 2026-11-20; migration `0010` applied on dev; consent `2026-11-v8`. Left: the phone check
   in Expo Go (time pickers, chips at 360 px, wizard, editor), the professional review (Open questions).
-- Next (ADR 003, ADR 006): E5 spec 011 (daily check-in) →
-  E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
-  premium AI → E6 payments.
+- Spec 011 (E5 c: daily check-in, day readiness, today's shift) approved on 2026-11-23, not started.
+- Next (ADR 003, ADR 006, ADR 007): implement spec 011 → spec 012 (workout sentence shortcut and its
+  eval, the E5 exit criterion) → E5c weekly planner (meals and sessions planned by hand) → E5b adaptive
+  loop → beta without paywall → E7 premium AI → E6 payments → E8 → E9 launch (with the Apple Health and
+  Health Connect import) → E10 (watch APIs such as Garmin).

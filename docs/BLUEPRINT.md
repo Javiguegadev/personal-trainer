@@ -9,6 +9,8 @@
 > the beta, voice messages. See ADR 004.
 > v5 (2026-11-16): a week view in E5 and manual planning of meals and sessions (E5c) before the beta.
 > See ADR 006.
+> v6 (2026-11-23): Apple Health and Health Connect import with the store apps (E9), watch APIs such as
+> Garmin later (E10). See ADR 007.
 
 ## 0. Product principles
 
@@ -102,6 +104,7 @@ Dependency rules are unchanged and enforced by ESLint: `core` is pure, `contract
 | **Meal plans**          | Weekly plan tailored to goals, allergies and taste, plus shopping list                              | Opus            | Preview      | ✅        |
 | **Workout programs**    | Program built from goal, days, equipment and experience, scheduled around work and sport            | Opus            | Preview      | ✅        |
 | Daily readiness         | Two-tap check-in (sleep, stress); today's session adjusts and shows the reason                      | none (`core`)   | §10          | §10       |
+| Health & watches        | Apple Health / Health Connect fill sleep, weight and workouts (E9); watch APIs later (E10, ADR 007) | none            | ✅           | ✅        |
 | Weekly review           | Weight trend and adherence → proposed target change (accept/reject)                                 | none (`core`)   | §10          | §10       |
 | **Questions assistant** | Chat about your targets, today's session and adjustments, by text or voice message, with citations  | Eval decides    | §10          | §10       |
 | AI memory               | The AI proposes facts worth remembering; the user confirms, edits or deletes them                   | Calling feature | §10          | §10       |
@@ -286,22 +289,22 @@ typed tables ─► @pt/core context functions (pure) ─► ContextSnapshot (Zo
 
 ## 7. Stages (no dates: done when the criteria pass)
 
-| Stage                                     | Scope                                                                                                     | Done when                                                                                  |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **E0 Accounts** ✅                        | Supabase (EU), Vercel, Expo, Anthropic (dev/prod keys with spend limits), Sentry                          | Accounts exist; secrets in a password manager                                              |
-| **E1 Foundation** ✅                      | Monorepo, CI, Expo universal app, typed API                                                               | CI green; the app shows "API: online" on web                                               |
-| **E2 Auth & AI onboarding**               | Supabase Auth (email, Google, Apple), conversational onboarding, targets, GDPR consent/export/delete      | Targets match a hand calculation; deleting the account removes all data                    |
-| **E2b Logging & context foundations**     | "Today" hub, offline-safe writes, weight series, `targets-v2`, `ContextSnapshot` v1, onboarding by form   | Changing the job type changes the previewed targets; an offline weight entry syncs once    |
-| **E4 AI food logging**                    | Food catalog and Spanish search, recents and favourites, barcode and label, then photo and text shortcuts | A full day is logged in under 1 minute; text and barcode totals within ±5% of a reference  |
-| **E5 AI workout logging & daily context** | Training profile, typical week, week view, exercise library, live session, set logging, PRs, check-in     | Free-text sessions parse correctly in ≥ 95% of eval cases                                  |
-| **E5c Weekly planner**                    | Meals and sessions planned by hand for the days ahead, shown on the week view, logged in one tap          | A planned week shows on the week view; a planned item never counts as eaten or done        |
-| **E5b Adaptive loop**                     | Weekly review, streaks, "What I know about you" screen, questions assistant, one beta plan with AI caps   | A simulated four-week history gives the expected proposals; the assistant passes its evals |
-| **— Beta (no paywall) —**                 | E2–E5b (E5c included)                                                                                     |                                                                                            |
-| **E7 Premium AI**                         | Workout programs, meal plans, adaptive training, coach chat with citations, AI-learned memory             | Evals ≥ 95% valid, 0 allergen violations, hard constraints respected, cost target met      |
-| **E6 Payments & limits**                  | RevenueCat + Paddle, entitlements, paywall, plan-based AI caps                                            | Buy on web → Premium in the app and vice versa (sandbox)                                   |
-| **E8 Insights & engagement**              | Weekly insights, challenges, notifications                                                                | Weekly summary generated for all test users                                                |
-| **E9 Launch**                             | Astro landing, legal pages, Sentry, store listings, TestFlight / Play testing → public                    | `release-check` green; apps approved                                                       |
-| **E10 Later**                             | Leaderboards and leagues, HealthKit / Health Connect import, wearables, social                            | —                                                                                          |
+| Stage                                     | Scope                                                                                                                                    | Done when                                                                                    |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **E0 Accounts** ✅                        | Supabase (EU), Vercel, Expo, Anthropic (dev/prod keys with spend limits), Sentry                                                         | Accounts exist; secrets in a password manager                                                |
+| **E1 Foundation** ✅                      | Monorepo, CI, Expo universal app, typed API                                                                                              | CI green; the app shows "API: online" on web                                                 |
+| **E2 Auth & AI onboarding**               | Supabase Auth (email, Google, Apple), conversational onboarding, targets, GDPR consent/export/delete                                     | Targets match a hand calculation; deleting the account removes all data                      |
+| **E2b Logging & context foundations**     | "Today" hub, offline-safe writes, weight series, `targets-v2`, `ContextSnapshot` v1, onboarding by form                                  | Changing the job type changes the previewed targets; an offline weight entry syncs once      |
+| **E4 AI food logging**                    | Food catalog and Spanish search, recents and favourites, barcode and label, then photo and text shortcuts                                | A full day is logged in under 1 minute; text and barcode totals within ±5% of a reference    |
+| **E5 AI workout logging & daily context** | Training profile, typical week, week view, exercise library, live session, set logging, PRs, check-in                                    | Free-text sessions parse correctly in ≥ 95% of eval cases                                    |
+| **E5c Weekly planner**                    | Meals and sessions planned by hand for the days ahead, shown on the week view, logged in one tap                                         | A planned week shows on the week view; a planned item never counts as eaten or done          |
+| **E5b Adaptive loop**                     | Weekly review, streaks, "What I know about you" screen, questions assistant, one beta plan with AI caps                                  | A simulated four-week history gives the expected proposals; the assistant passes its evals   |
+| **— Beta (no paywall) —**                 | E2–E5b (E5c included)                                                                                                                    |                                                                                              |
+| **E7 Premium AI**                         | Workout programs, meal plans, adaptive training, coach chat with citations, AI-learned memory                                            | Evals ≥ 95% valid, 0 allergen violations, hard constraints respected, cost target met        |
+| **E6 Payments & limits**                  | RevenueCat + Paddle, entitlements, paywall, plan-based AI caps                                                                           | Buy on web → Premium in the app and vice versa (sandbox)                                     |
+| **E8 Insights & engagement**              | Weekly insights, challenges, notifications                                                                                               | Weekly summary generated for all test users                                                  |
+| **E9 Launch**                             | Astro landing, legal pages, Sentry, store listings, TestFlight / Play testing → public; Apple Health and Health Connect import (ADR 007) | `release-check` green; apps approved; imported sleep prefills the check-in on both platforms |
+| **E10 Later**                             | Leaderboards and leagues, watch APIs (Garmin and others) or an aggregator (ADR 007), social                                              | —                                                                                            |
 
 - **Order.** The table is in execution order. Stage IDs keep their meaning, so E7 (Premium AI) runs before
   E6 (payments): the beta has no paywall, and payments arrive once there is something to sell.
@@ -309,7 +312,9 @@ typed tables ─► @pt/core context functions (pure) ─► ContextSnapshot (Zo
   it: foods in E4, exercises and MET values in E5, a first slice of the guidelines in E5b (for the
   questions assistant), the rest and the study summaries in E7.
 - **Start now, because they have lead times:** Apple Developer and Google Play accounts, Paddle
-  verification, the license review for BEDCA, CIQUAL and wger, and finding the professional reviewer.
+  verification, the license review for BEDCA, CIQUAL and wger, finding the professional reviewer, and the
+  Garmin Connect Developer Program application (new requests reportedly paused since September 2026:
+  apply and watch it; ADR 007).
 
 Stage details (ADR 003):
 
@@ -343,6 +348,13 @@ Stage details (ADR 003):
   injuries, allergies). A planned meal is logged in one tap. AI-learned memories need visible
   confirmation. Long tasks run on a job queue (§10).
 - **E8.** Weekly insights include sleep, stress and adherence patterns.
+- **E9 (ADR 007).** Read-only import from Apple Health (HealthKit) and Health Connect in the native apps:
+  sleep prefills the check-in, weight goes to the weight log, workouts are imported without duplicating
+  the ones logged by hand. Apple Watch and the brands that sync to these stores come with it. No steps
+  or active energy (exercise would count twice). Needs EAS development builds, the Play Console health
+  declaration and the HealthKit entitlement.
+- **E10.** Watch APIs (Garmin, Polar, Suunto, Coros…) directly or through one aggregator, chosen in its
+  own ADR from what layer 1 does not cover, Garmin's access status, cost and the DPA.
 
 **E9 option, store and landing videos:** [HyperFrames](https://github.com/heygen-com/hyperframes)
 (HeyGen, Apache 2.0) renders MP4 from HTML/CSS animations, with a Claude Code plugin
@@ -373,6 +385,9 @@ knowledge-base images).
   pregnancy, injuries) and gives no medical advice. Until it exists, a form-only onboarding has no
   eating-disorder soft stop (ADR 004).
 - Voice messages are transcribed on the device: the audio is never uploaded or stored.
+- Apple Health and Health Connect (ADR 007): read only the data types a visible feature uses, never use
+  them for advertising, never store them in iCloud; a value the user types wins over an imported one;
+  disconnecting stops reading. The consent text names each imported type.
 
 ## 9. Working with Claude Code
 
