@@ -6,8 +6,9 @@ import {
   type WorkPattern,
   type WorkShift,
 } from '@pt/contracts';
-import { addDays, daysBetween, isoWeekday } from '../dates';
-import { checkClientDates } from '../profile/evaluate';
+// Not `checkClientDates` of profile/evaluate: that module reads the context snapshot, which reads
+// this one (a require cycle in Metro).
+import { addDays, daysBetween, isPlausibleClientDate, isoWeekday } from '../dates';
 import { routineDueOn } from '../training/routine';
 
 /**
@@ -253,8 +254,7 @@ export function checkCheckinWrite(
   write: { localDate: string; today: string; recordedAt: string },
   now: Date,
 ): Record<string, string> | null {
-  const invalid = checkClientDates({ today: write.today }, now);
-  if (invalid) return invalid;
+  if (!isPlausibleClientDate(write.today, now.toISOString())) return { today: 'implausible' };
   if (write.localDate > write.today) return { localDate: 'in_future' };
   if (daysBetween(write.localDate, write.today) > CHECKIN_LIMITS.historyDays) {
     return { localDate: 'too_old' };
