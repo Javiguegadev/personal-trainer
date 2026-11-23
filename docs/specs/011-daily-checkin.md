@@ -253,5 +253,31 @@ today)`, `checkinPrefill(checkins, today)`, `checkinDue(input)`, `SHIFT_DEFAULT_
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
-- Decisions taken during implementation:
+- [x] contracts (7436bfb) · [x] db (688160d, migration `0011` applied on dev 2026-11-23) · [x] core
+      (b5f6c2b, review fixes 7383475) · [x] api (5746775) · [ ] client · [ ] ui · [ ] e2e
+- Decisions taken during implementation (plan approved by the human on 2026-11-23):
+  - **a) Pattern notice (AC13)** shows under the readiness line with "Entendido", which hides it until
+    the next local day (device storage).
+  - **b) Days without a routine to cut.** On a day without training, `reduced` / `low` show only the
+    reason ("Has dormido poco"), and `normal` shows "Check-in de hoy · Cambiar" (no "Todo en orden para
+    entrenar" on a rest day). A free or repeated session shows the reason without "Entrenar normal".
+    "Todo en orden para entrenar" also needs a sleep answer: stress alone does not clear the day
+    (domain review).
+  - **c) One reason per line**, by priority: under 5 h > 5–6 h with high stress (own copy) > 5–6 h >
+    90 min under the usual > high stress (`readinessHeadline`).
+  - **d) The adjustment lives on the `LiveSession`** in device storage (`readiness`: what was removed,
+    to put back), so "Entrenar normal" survives a restart; nothing reaches the API. It is applied once:
+    a session already evaluated (`readiness` present, `null` on a normal day) or with a completed set
+    is never cut (AC10).
+  - `DELETE /me/checkins/{localDate}` also takes `today` (as the weight log), to check the day (AC15).
+    A delete with no row stores a tombstone, so an older write arriving later cannot create it.
+  - Usual sleep uses the 14 days **before** today (today's night never compares with itself).
+  - The shift overlap notice (AC12) fires when the planned session **overlaps** the shift, not only
+    when it starts inside (same rule as spec 010 AC5).
+  - Known limit: the shift timeline uses calendar midnight; a shift that starts between 00:00 and a
+    later day start (e.g. 03:00 with a 04:00 day start) gets its overlap notice on the wrong day. Rare;
+    left as is.
+  - Sleep 0 is a valid answer and gives `low`. A future health import (E9) must store `null`, not 0,
+    when there is no data.
+  - The account deletion integration test now takes about 30 s on the dev pooler; its timeout went
+    from 30 s to 60 s.
