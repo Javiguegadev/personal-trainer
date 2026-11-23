@@ -104,6 +104,9 @@ export function buildContextSnapshot(sources: ContextSources, today: string): Co
         };
       }),
     },
+    // Filled from the check-ins in the core step of spec 011 (AC17).
+    today: { checkin: null, readiness: { level: 'unknown', reasons: [] } },
+    sleep: { usualMinutes: null },
     weight: {
       lastKg: trend.last?.weightKg ?? null,
       lastDate: trend.last?.localDate ?? null,

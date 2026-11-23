@@ -552,6 +552,8 @@ export function createDrizzleStore(db: Db): Store {
         weights: weights.map(toWeight),
         ...(await exportFoodLog(db, userId)),
         ...(await exportTrainingLog(db, userId)),
+        // The `daily_checkins` table arrives with the db step of spec 011 (AC16).
+        checkins: [],
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

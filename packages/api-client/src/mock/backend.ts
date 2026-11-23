@@ -1306,6 +1306,8 @@ export function createMockApiClient({
         })),
         // Deleted ones too, with `deletedAt` (spec 010 AC24).
         programs: record.programs,
+        // The check-ins arrive with the client step of spec 011 (AC16).
+        checkins: [],
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

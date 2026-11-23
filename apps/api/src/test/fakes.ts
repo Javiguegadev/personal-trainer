@@ -630,6 +630,8 @@ export class FakeStore implements Store {
     const rows = this.rows(userId);
     return {
       programs: structuredClone(rows.programs),
+      // The check-ins arrive with the api step of spec 011 (AC16).
+      checkins: [],
       profile: rows.profile,
       dietaryPrefs: rows.dietaryPrefs,
       targets: rows.targets,

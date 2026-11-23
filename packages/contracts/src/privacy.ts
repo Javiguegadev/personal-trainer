@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ExportedCheckinSchema } from './checkin';
 import { DietaryPrefsSchema, ProfileSchema, StoredTargetsSchema } from './profile';
 import { WeightEntrySchema } from './weight';
 import { FoodSchema, MealItemSchema } from './food';
@@ -43,6 +44,8 @@ export const ExportResponseSchema = z.object({
   customExercises: z.array(ExerciseSchema.extend({ deletedAt: datetime.nullable() })),
   /** The user's routines, deleted ones included with their date (spec 010 AC24). */
   programs: z.array(ProgramSchema.extend({ deletedAt: datetime.nullable() })),
+  /** The daily check-ins, oldest first, deleted ones included with their date (spec 011 AC16). */
+  checkins: z.array(ExportedCheckinSchema),
   consents: z.array(
     z.object({
       kind: ConsentKindSchema,
