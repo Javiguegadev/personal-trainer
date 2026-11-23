@@ -63,10 +63,14 @@ export function useTodayPlan(profile: Profile): ReadinessPlan {
       ? nextProgramSession(routine, log.data ?? [])
       : null;
   const slots = typicalDay({ workBlocks: [], plannedActivities: activities }, weekday).training;
-  return {
-    session: next ? readinessPlanSession(next) : null,
-    activities: slots.map((slot) => ({ isMatch: slot.isMatch })),
-  };
+  const planned = slots.map((slot) => ({ isMatch: slot.isMatch }));
+  // A gym activity without days may fall on any day (spec 010 AC17): without a routine it still counts
+  // as today's training, as it does for the card (AC1).
+  const undatedGym = activities.some((a) => a.kind === 'strength' && a.days.length === 0);
+  if (!next && undatedGym && !slots.some((slot) => slot.kind === 'strength')) {
+    planned.push({ isMatch: false });
+  }
+  return { session: next ? readinessPlanSession(next) : null, activities: planned };
 }
 
 /** Saving and deleting a check-in: optimistic, queued offline in its own scope (AC14). */
