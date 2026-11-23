@@ -5,6 +5,7 @@ import {
   SHIFT_DEFAULT_HOURS,
   SLEEP_CHIPS,
   asksShift,
+  checkCheckinWrite,
   checkinDue,
   checkinPrefill,
   checkinToRequest,
@@ -278,5 +279,34 @@ describe('trainingPlannedOn and asksShift', () => {
     expect(
       ['fixed', 'shifts', 'irregular', 'none', null].map((p) => asksShift(p as never)),
     ).toEqual([false, true, true, false, false]);
+  });
+});
+
+describe('checkCheckinWrite (spec 011 AC15)', () => {
+  const now = new Date('2026-11-23T10:00:00Z');
+  const write = { localDate: TODAY, today: TODAY, recordedAt: '2026-11-23T09:00:00.000Z' };
+
+  it('accepts today and up to a year back', () => {
+    expect(checkCheckinWrite(write, now)).toBeNull();
+    expect(checkCheckinWrite({ ...write, localDate: addDays(TODAY, -366) }, now)).toBeNull();
+  });
+
+  it('rejects a day in the future or more than a year back', () => {
+    expect(checkCheckinWrite({ ...write, localDate: addDays(TODAY, 1) }, now)).toEqual({
+      localDate: 'in_future',
+    });
+    expect(checkCheckinWrite({ ...write, localDate: addDays(TODAY, -367) }, now)).toEqual({
+      localDate: 'too_old',
+    });
+  });
+
+  it('rejects a device clock more than a day ahead, and an implausible local date', () => {
+    expect(checkCheckinWrite({ ...write, recordedAt: '2026-11-24T10:00:01.000Z' }, now)).toEqual({
+      recordedAt: 'in_future',
+    });
+    expect(checkCheckinWrite({ ...write, recordedAt: '2026-11-24T10:00:00.000Z' }, now)).toBeNull();
+    expect(
+      checkCheckinWrite({ ...write, today: '2026-11-26', localDate: '2026-11-26' }, now),
+    ).toEqual({ today: 'implausible' });
   });
 });

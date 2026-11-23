@@ -1,11 +1,13 @@
-import type {
-  CheckinUpsertRequest,
-  DailyCheckin,
-  PlannedActivity,
-  WorkPattern,
-  WorkShift,
+import {
+  CHECKIN_LIMITS,
+  type CheckinUpsertRequest,
+  type DailyCheckin,
+  type PlannedActivity,
+  type WorkPattern,
+  type WorkShift,
 } from '@pt/contracts';
 import { addDays, daysBetween, isoWeekday } from '../dates';
+import { checkClientDates } from '../profile/evaluate';
 import { routineDueOn } from '../training/routine';
 
 /**
@@ -213,4 +215,25 @@ export function checkinDue(input: {
   return (
     asksShift(input.workPattern) || trainingPlannedOn(input.activities, isoWeekday(input.today))
   );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Request-level checks of a check-in write that need the server clock (AC15): the client's day must be
+ * plausible, the check-in's day neither in the future nor more than a year back, and the device clock
+ * not more than a day ahead (it would win every later conflict). Returns the field errors, or null.
+ */
+export function checkCheckinWrite(
+  write: { localDate: string; today: string; recordedAt: string },
+  now: Date,
+): Record<string, string> | null {
+  const invalid = checkClientDates({ today: write.today }, now);
+  if (invalid) return invalid;
+  if (write.localDate > write.today) return { localDate: 'in_future' };
+  if (daysBetween(write.localDate, write.today) > CHECKIN_LIMITS.historyDays) {
+    return { localDate: 'too_old' };
+  }
+  if (Date.parse(write.recordedAt) > now.getTime() + DAY_MS) return { recordedAt: 'in_future' };
+  return null;
 }
