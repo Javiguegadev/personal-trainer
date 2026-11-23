@@ -210,3 +210,55 @@ describe('buildContextSnapshot — context-v5 (spec 002 AC12, spec 003 AC25, spe
     expect(sources).toEqual(frozen);
   });
 });
+
+describe('buildContextSnapshot — check-ins (spec 011 AC17)', () => {
+  const night = (localDate: string, sleepMinutes: number | null) => ({
+    localDate,
+    sleepMinutes,
+    stress: null,
+    workShift: null,
+    shiftStartMinute: null,
+    shiftEndMinute: null,
+  });
+  const usualNights = ['2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10'].map(
+    (date) => night(date, 450),
+  );
+
+  it("adds today's check-in, its readiness and the usual sleep", () => {
+    const today = {
+      localDate: TODAY,
+      sleepMinutes: 330,
+      stress: 'high' as const,
+      workShift: 'night' as const,
+      shiftStartMinute: 1320,
+      shiftEndMinute: 360,
+    };
+    const snapshot = buildContextSnapshot({ ...sources, checkins: [...usualNights, today] }, TODAY);
+    expect(snapshot.today).toEqual({
+      checkin: {
+        sleepMinutes: 330,
+        stress: 'high',
+        shift: { kind: 'night', startMinute: 1320, endMinute: 360 },
+      },
+      readiness: { level: 'low', reasons: ['short_sleep', 'below_usual_sleep', 'high_stress'] },
+    });
+    expect(snapshot.sleep).toEqual({ usualMinutes: 450 });
+    expect(ContextSnapshotSchema.safeParse(snapshot).success).toBe(true);
+  });
+
+  it('has no check-in and an unknown readiness when today has none', () => {
+    const snapshot = buildContextSnapshot({ ...sources, checkins: usualNights }, TODAY);
+    expect(snapshot.today).toEqual({ checkin: null, readiness: { level: 'unknown', reasons: [] } });
+    expect(snapshot.sleep.usualMinutes).toBe(450);
+  });
+
+  it('keeps a day off without hours', () => {
+    const off = { ...night(TODAY, null), workShift: 'off' as const };
+    const snapshot = buildContextSnapshot({ ...sources, checkins: [off] }, TODAY);
+    expect(snapshot.today.checkin?.shift).toEqual({
+      kind: 'off',
+      startMinute: null,
+      endMinute: null,
+    });
+  });
+});

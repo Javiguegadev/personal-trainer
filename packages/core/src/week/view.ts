@@ -9,6 +9,8 @@ import {
 } from '@pt/contracts';
 import { addDays, daysBetween, isoWeekday, weekDays, weekStartOf } from '../dates';
 import { dailyTotals, showsFoodNumbers } from '../food/nutrition';
+import type { WorkingShift } from '../checkin/checkin';
+import { dayWorkBlock, type ShiftCheckin } from './day';
 import { typicalDay, type PlannedSlot, type TypicalWeek } from './typical';
 
 /** Limits of the week view (spec 010 Assumptions, AC10, AC12). */
@@ -62,8 +64,10 @@ export interface WeekDayRow<W extends WeekWorkout = WeekWorkout> {
   weekday: Weekday;
   isToday: boolean;
   isFuture: boolean;
-  /** From the typical week (AC8). */
+  /** From the typical week (AC8), or the shift of the day's check-in (spec 011 AC11). */
   work: WorkBlock | null;
+  /** The shift kind when `work` comes from the check-in. */
+  shift: WorkingShift | null;
   planned: PlannedSlot[];
   /** Logged, by start time; none on future days. */
   workouts: W[];
@@ -86,12 +90,21 @@ export function weekRows<W extends WeekWorkout>(input: {
   items: readonly WeekMealItem[];
   workouts: readonly W[];
   flags: readonly SafetyFlag[];
+  /** The check-ins of the week, for the shifts (spec 011 AC11). */
+  checkins?: readonly ShiftCheckin[];
 }): WeekDayRow<W>[] {
   const numbers = showsFoodNumbers(input.flags);
   return weekDays(input.weekStart).map((date) => {
     const weekday = isoWeekday(date) as Weekday;
     const isFuture = daysBetween(input.today, date) > 0;
     const typical = typicalDay(input.week, weekday);
+    const checkin = input.checkins?.find((c) => c.localDate === date) ?? null;
+    const dayWork = dayWorkBlock(input.week, checkin, date);
+    const work = dayWork && {
+      weekday: dayWork.weekday,
+      startMinute: dayWork.startMinute,
+      endMinute: dayWork.endMinute,
+    };
     const items = isFuture ? [] : input.items.filter((i) => i.localDate === date);
     const workouts = isFuture
       ? []
@@ -105,13 +118,14 @@ export function weekRows<W extends WeekWorkout>(input: {
       weekday,
       isToday: date === input.today,
       isFuture,
-      work: typical.work,
+      work,
+      shift: dayWork?.shift ?? null,
       planned: typical.training,
       workouts,
       meals,
       kcal,
       isEmpty:
-        typical.work === null &&
+        work === null &&
         typical.training.length === 0 &&
         workouts.length === 0 &&
         meals.length === 0,
