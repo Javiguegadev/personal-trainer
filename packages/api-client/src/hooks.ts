@@ -3,6 +3,7 @@
  * `createApiHooks(api)` binds them to one client so every screen and platform reuses them.
  */
 import type {
+  CheckinSaveResponse,
   ConsentRequest,
   CustomExerciseSaveResponse,
   WorkoutSaveResponse,
@@ -79,6 +80,14 @@ import {
   type RejectedWeightWrite,
   type SaveWeightVariables,
 } from './weights';
+import {
+  checkinKeys,
+  checkinsQueryOptions,
+  dismissCheckinRejection,
+  type DeleteCheckinVariables,
+  type RejectedCheckinWrite,
+  type SaveCheckinVariables,
+} from './checkins';
 
 export const queryKeys = {
   me: meKey,
@@ -207,6 +216,43 @@ export function createApiHooks(api: ApiClient) {
         rejected: data,
         dismiss: () => dismissWeightNotice(queryClient, weightKeys.rejected),
       };
+    },
+
+    /** The check-ins from 12 weeks back to today, oldest first (spec 011). Cached offline. */
+    useCheckins: (today: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...checkinsQueryOptions(api, today), enabled: options.enabled ?? true }),
+
+    /**
+     * Optimistic and offline-safe (AC14): the functions come from the defaults registered with
+     * `registerCheckinMutations`, found by key, so a queued write survives a restart.
+     */
+    useSaveCheckin: () =>
+      useMutation<CheckinSaveResponse, unknown, SaveCheckinVariables>({
+        mutationKey: checkinKeys.save,
+      }),
+
+    useDeleteCheckin: () =>
+      useMutation<CheckinSaveResponse, unknown, DeleteCheckinVariables>({
+        mutationKey: checkinKeys.remove,
+      }),
+
+    /** Days with a check-in write that has not reached the server yet (AC14). */
+    usePendingCheckinDates: (): string[] =>
+      useMutationState({
+        filters: { mutationKey: checkinKeys.mutations, status: 'pending' },
+        select: (mutation) => (mutation.state.variables as { localDate: string }).localDate,
+      }),
+
+    /** The last check-in write the API rejected, and how to dismiss it. */
+    useRejectedCheckinWrite: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<RejectedCheckinWrite | null>({
+        queryKey: checkinKeys.rejected,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return { rejected: data, dismiss: () => dismissCheckinRejection(queryClient) };
     },
 
     /** The food log of the last 8 days (spec 005 AC15, AC13). */

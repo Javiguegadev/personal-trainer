@@ -3,6 +3,7 @@
  * Every response is validated against @pt/contracts at runtime; errors carry the API's
  * `{ code, fields }` body. TanStack Query hooks live in `./hooks`.
  */
+export * from './checkins';
 export * from './client';
 export * from './feedback';
 export * from './foods';

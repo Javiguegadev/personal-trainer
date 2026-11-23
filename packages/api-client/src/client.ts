@@ -1,5 +1,7 @@
 import {
   ApiErrorSchema,
+  CheckinListResponseSchema,
+  CheckinSaveResponseSchema,
   CustomExerciseSaveResponseSchema,
   CustomFoodsResponseSchema,
   DailyFeedbackResponseSchema,
@@ -25,6 +27,11 @@ import {
   WorkoutLogResponseSchema,
   WorkoutSaveResponseSchema,
   type ApiErrorCode,
+  type CheckinDeleteQuery,
+  type CheckinListQuery,
+  type CheckinListResponse,
+  type CheckinSaveResponse,
+  type CheckinUpsertRequest,
   type ConsentRequest,
   type CustomExerciseDeleteQuery,
   type CustomExerciseSaveResponse,
@@ -192,6 +199,28 @@ export function createApiClient({
       request(`/me/weights/${localDate}?today=${query.today}`, WeightSaveResponseSchema, {
         method: 'DELETE',
       }),
+
+    /** `GET /me/checkins`: the check-ins of a range of at most 92 days, oldest first (spec 011). */
+    listCheckins: ({ from, to }: CheckinListQuery): Promise<CheckinListResponse> =>
+      request(`/me/checkins?from=${from}&to=${to}`, CheckinListResponseSchema),
+
+    /** `PUT /me/checkins/:localDate`: one check-in per day; the later `recordedAt` wins (AC15). */
+    saveCheckin: (localDate: string, body: CheckinUpsertRequest): Promise<CheckinSaveResponse> =>
+      request(`/me/checkins/${localDate}`, CheckinSaveResponseSchema, {
+        method: 'PUT',
+        json: body,
+      }),
+
+    /** `DELETE /me/checkins/:localDate`: a tombstone that an older write cannot undo (AC15). */
+    deleteCheckin: (
+      localDate: string,
+      { recordedAt, today }: CheckinDeleteQuery,
+    ): Promise<CheckinSaveResponse> =>
+      request(
+        `/me/checkins/${localDate}?recordedAt=${encodeURIComponent(recordedAt)}&today=${today}`,
+        CheckinSaveResponseSchema,
+        { method: 'DELETE' },
+      ),
 
     /** `GET /foods/search`: at most 25 foods, best first (spec 005 AC4). */
     searchFoods: (q: string, locale: Locale): Promise<FoodSearchResponse> =>
