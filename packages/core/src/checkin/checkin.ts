@@ -76,16 +76,40 @@ export type CheckinAnswers = Pick<
 >;
 
 /** A stored check-in as the helpers read it. */
-export type CheckinPoint = CheckinAnswers & Pick<DailyCheckin, 'localDate'>;
+export type CheckinPoint = CheckinAnswers &
+  Pick<DailyCheckin, 'localDate'> & {
+    /** When present, the newer of two rows of the same day wins (AC15). */
+    recordedAt?: string;
+  };
+
+/**
+ * One check-in per day (AC15): a merged cache may briefly hold two rows of a day (an optimistic write
+ * and the server copy). The later `recordedAt` wins; without it, the later row in the list.
+ */
+export function latestPerDay<C extends { localDate: string; recordedAt?: string }>(
+  checkins: readonly C[],
+): C[] {
+  const byDay = new Map<string, C>();
+  for (const checkin of checkins) {
+    const kept = byDay.get(checkin.localDate);
+    const newer =
+      !kept ||
+      kept.recordedAt === undefined ||
+      checkin.recordedAt === undefined ||
+      Date.parse(checkin.recordedAt) >= Date.parse(kept.recordedAt);
+    if (newer) byDay.set(checkin.localDate, checkin);
+  }
+  return [...byDay.values()];
+}
 
 /** Usual sleep: the median of the 14 days before today, once there are 5 nights (Assumptions). */
 export const USUAL_SLEEP = { days: 14, minNights: 5 } as const;
 
 export function usualSleep(
-  checkins: readonly Pick<CheckinPoint, 'localDate' | 'sleepMinutes'>[],
+  checkins: readonly Pick<CheckinPoint, 'localDate' | 'sleepMinutes' | 'recordedAt'>[],
   today: string,
 ): number | null {
-  const nights = checkins
+  const nights = latestPerDay(checkins)
     .filter((c) => {
       const age = daysBetween(c.localDate, today);
       return c.sleepMinutes !== null && age >= 1 && age <= USUAL_SLEEP.days;
@@ -111,7 +135,8 @@ export function checkinPrefill(input: {
   today: string;
   asksShift: boolean;
 }): CheckinAnswers {
-  const { checkins, today } = input;
+  const { today } = input;
+  const checkins = latestPerDay(input.checkins);
   const own = checkins.find((c) => c.localDate === today);
   if (own) {
     return {

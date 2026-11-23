@@ -9,6 +9,7 @@ import {
   checkinDue,
   checkinPrefill,
   checkinToRequest,
+  latestPerDay,
   selectShift,
   setShiftHours,
   sleepChipOf,
@@ -308,5 +309,27 @@ describe('checkCheckinWrite (spec 011 AC15)', () => {
     expect(
       checkCheckinWrite({ ...write, today: '2026-11-26', localDate: '2026-11-26' }, now),
     ).toEqual({ today: 'implausible' });
+  });
+});
+
+describe('latestPerDay (spec 011 AC15)', () => {
+  it('keeps one check-in per day, the later recordedAt winning in any order', () => {
+    const a = { ...point(1, { sleepMinutes: 330 }), recordedAt: '2026-11-22T07:00:00Z' };
+    const b = { ...point(1, { sleepMinutes: 450 }), recordedAt: '2026-11-22T08:00:00Z' };
+    const c = point(2, { sleepMinutes: 390 });
+    expect(latestPerDay([a, b, c])).toEqual([b, c]);
+    expect(latestPerDay([b, a, c])).toEqual([b, c]);
+  });
+
+  it('keeps the later row of a day without recordedAt', () => {
+    const a = point(1, { sleepMinutes: 330 });
+    const b = point(1, { sleepMinutes: 450 });
+    expect(latestPerDay([a, b])).toEqual([b]);
+  });
+
+  it('makes the usual sleep count each night once', () => {
+    const nights = [1, 2, 3, 4].map((d) => point(d, { sleepMinutes: 450 }));
+    const duplicate = { ...point(4, { sleepMinutes: 450 }), recordedAt: '2026-11-19T09:00:00Z' };
+    expect(usualSleep([...nights, duplicate], TODAY)).toBeNull();
   });
 });

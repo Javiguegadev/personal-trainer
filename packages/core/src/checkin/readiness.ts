@@ -1,6 +1,12 @@
-import type { DailyCheckin, Readiness, ReadinessLevel, ReadinessReason } from '@pt/contracts';
+import type {
+  DailyCheckin,
+  ProgramSession,
+  Readiness,
+  ReadinessLevel,
+  ReadinessReason,
+} from '@pt/contracts';
 import { daysBetween } from '../dates';
-import { MIN_ROUTINE_EXERCISES } from '../training/routine';
+import { latestPerDay } from './checkin';
 
 /**
  * The day's readiness (spec 011 AC6–AC9, AC13), computed on the device from the check-in and the
@@ -16,6 +22,8 @@ export const READINESS_RULES = {
   belowUsualMinutes: 90,
   /** The routine adjustment never leaves an exercise under this many sets (Safety). */
   minSetsPerExercise: 2,
+  /** …nor a session under this many exercises (Safety). */
+  minExercises: 4,
   /** Pattern notice (AC13): short nights out of the last 7 days. */
   patternShortNights: 4,
   /** Pattern notice (AC13): high-stress days out of the last 7 days. */
@@ -88,11 +96,25 @@ export interface SessionCut {
 /** `setCounts`: the sets of each exercise, in session order. */
 export function sessionCut(setCounts: readonly number[], level: ReadinessLevel): SessionCut {
   if (level !== 'reduced' && level !== 'low') return { sets: false, exercise: false };
-  const exercise = level === 'low' && setCounts.length > MIN_ROUTINE_EXERCISES;
+  const exercise = level === 'low' && setCounts.length > READINESS_RULES.minExercises;
   const kept = exercise ? setCounts.slice(0, -1) : setCounts;
   return {
     sets: kept.some((sets) => sets > READINESS_RULES.minSetsPerExercise),
     exercise,
+  };
+}
+
+/**
+ * A routine session as the live session will start it (`sessionFromProgram` leaves out the exercises
+ * that lost their catalog entry), so the line says what the adjustment will really remove.
+ */
+export function readinessPlanSession(session: Pick<ProgramSession, 'exercises'>): {
+  exercises: { sets: number }[];
+} {
+  return {
+    exercises: session.exercises
+      .filter((e) => e.exerciseId !== null)
+      .map((e) => ({ sets: e.sets })),
   };
 }
 
@@ -106,7 +128,8 @@ export interface ReadinessPlan {
 
 /**
  * The line on Today once the check-in is saved (AC4, AC9), as keys for the copy:
- * - `checkin`: "Check-in de hoy · Cambiar" (unknown readiness, or a normal day without training);
+ * - `checkin`: "Check-in de hoy · Cambiar" (unknown readiness, a normal day without training, or a
+ *   normal day without a sleep answer: stress alone does not say all is fine);
  * - `ready`: "Todo en orden para entrenar";
  * - `routine`: the reason and what the routine session loses;
  * - `activity`: the reason and "Hoy, mejor a ritmo suave" (or the match warm-up line);
@@ -119,11 +142,18 @@ export type ReadinessLine =
   | { type: 'activity'; headline: ReadinessHeadline; match: boolean }
   | { type: 'reason'; headline: ReadinessHeadline };
 
-export function readinessLine(readiness: Readiness, plan: ReadinessPlan): ReadinessLine {
+export function readinessLine(
+  readiness: Readiness,
+  plan: ReadinessPlan,
+  /** Whether the check-in has a sleep answer. */
+  sleepAnswered: boolean,
+): ReadinessLine {
   const trains = plan.session !== null || plan.activities.length > 0;
   const headline = readinessHeadline(readiness);
   if (headline === null) {
-    return readiness.level === 'normal' && trains ? { type: 'ready' } : { type: 'checkin' };
+    return readiness.level === 'normal' && trains && sleepAnswered
+      ? { type: 'ready' }
+      : { type: 'checkin' };
   }
   if (plan.session) {
     const cut = sessionCut(
@@ -144,10 +174,10 @@ export function readinessLine(readiness: Readiness, plan: ReadinessPlan): Readin
  * them, today included. Sleep first when both fire. It never names a condition.
  */
 export function sleepStressNotice(
-  checkins: readonly (SleepAndStress & Pick<DailyCheckin, 'localDate'>)[],
+  checkins: readonly (SleepAndStress & Pick<DailyCheckin, 'localDate'> & { recordedAt?: string })[],
   today: string,
 ): 'short_sleep' | 'high_stress' | null {
-  const recent = checkins.filter((c) => {
+  const recent = latestPerDay(checkins).filter((c) => {
     const age = daysBetween(c.localDate, today);
     return age >= 0 && age < READINESS_RULES.patternDays;
   });

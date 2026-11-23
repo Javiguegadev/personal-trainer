@@ -13,7 +13,7 @@ import {
   type Week,
   type Weekday,
 } from '@pt/contracts';
-import { usualSleep, type CheckinPoint } from '../checkin/checkin';
+import { latestPerDay, usualSleep, type CheckinPoint } from '../checkin/checkin';
 import { dayReadiness } from '../checkin/readiness';
 import { typicalDay } from '../week/typical';
 import { computeAge } from '../dates';
@@ -67,7 +67,7 @@ export function buildContextSnapshot(sources: ContextSources, today: string): Co
   const trendHidden = isWeightTrendHidden(sources.safetyFlags);
   const week = sources.week ?? EMPTY_WEEK;
   const typical = { workBlocks: week.workBlocks, plannedActivities };
-  const checkins = sources.checkins ?? [];
+  const checkins = latestPerDay(sources.checkins ?? []);
   const checkin = checkins.find((c) => c.localDate === today) ?? null;
   const usual = usualSleep(checkins, today);
   return {

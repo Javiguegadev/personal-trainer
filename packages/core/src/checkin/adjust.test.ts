@@ -1,5 +1,6 @@
 import type { SetValues, StressLevel } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
+import { sessionFromProgram } from '../training/program';
 import {
   newLiveExercise,
   sessionReducer,
@@ -79,8 +80,12 @@ describe('adjustSessionForReadiness (spec 011 AC7)', () => {
 
   it('changes nothing on a normal or unknown day', () => {
     const session = routineSession([4, 4, 4, 4, 4]);
-    expect(adjustSessionForReadiness(session, NORMAL, TODAY)).toBe(session);
-    expect(adjustSessionForReadiness(session, UNKNOWN, TODAY)).toBe(session);
+    for (const readiness of [NORMAL, UNKNOWN]) {
+      const evaluated = adjustSessionForReadiness(session, readiness, TODAY);
+      expect(evaluated.exercises).toBe(session.exercises);
+      // Marked as evaluated, so a later readiness cannot cut it (AC10).
+      expect(evaluated.readiness).toBeNull();
+    }
   });
 
   it('never adjusts a past session or one on another day', () => {
@@ -197,16 +202,114 @@ describe('restoreSessionVolume — "Entrenar normal" (spec 011 AC8)', () => {
 });
 
 describe('a check-in saved after the session started (spec 011 AC10)', () => {
-  it('leaves the started session alone: the adjustment happens only at start', () => {
+  it('does not cut a session started on a normal day when a low check-in arrives later', () => {
     const started = adjustSessionForReadiness(routineSession([3, 3, 3, 3, 3]), NORMAL, TODAY);
-    // A later check-in gives a low readiness; the running session keeps its exercises and sets…
-    const later = LOW;
-    expect(later.level).toBe('low');
-    expect(setCounts(started)).toEqual([3, 3, 3, 3, 3]);
-    expect(started.readiness).toBeUndefined();
-    // …while the next session started today uses it.
+    expect(adjustSessionForReadiness(started, LOW, TODAY)).toBe(started);
+    // The next session started today uses the new readiness.
     expect(
-      setCounts(adjustSessionForReadiness(routineSession([3, 3, 3, 3, 3]), later, TODAY)),
+      setCounts(adjustSessionForReadiness(routineSession([3, 3, 3, 3, 3]), LOW, TODAY)),
     ).toEqual([2, 2, 2, 2]);
+  });
+
+  it('cuts a session only once', () => {
+    const once = adjustSessionForReadiness(routineSession([4, 4, 4, 4, 5]), LOW, TODAY);
+    expect(adjustSessionForReadiness(once, LOW, TODAY)).toBe(once);
+    expect(adjustSessionForReadiness(once, REDUCED, TODAY)).toBe(once);
+  });
+
+  it('never cuts a session with a completed set, even one started before spec 011', () => {
+    const session = routineSession([4, 4, 4, 4, 5]);
+    const first = session.exercises[0]!;
+    const done = sessionReducer(session, {
+      type: 'completeSet',
+      uid: first.uid,
+      setId: first.sets[0]!.id,
+      at: '2026-11-23T17:05:00.000Z',
+    });
+    expect(adjustSessionForReadiness(done, LOW, TODAY)).toBe(done);
+  });
+});
+
+describe('restoreSessionVolume limits (domain review of spec 011)', () => {
+  it('does not double an exercise the user added again from the picker', () => {
+    const adjusted = adjustSessionForReadiness(routineSession([3, 3, 3, 3, 3]), LOW, TODAY);
+    const dropped = adjusted.readiness!.removedExercise!.exercise;
+    const again = newLiveExercise({
+      exercise: { id: dropped.exerciseId, label: dropped.label, tracking: dropped.tracking },
+      stats: null,
+      newId,
+    });
+    const live = sessionReducer(adjusted, { type: 'addExercises', exercises: [again] });
+    const restored = restoreSessionVolume(live);
+    expect(restored.exercises.filter((e) => e.exerciseId === dropped.exerciseId)).toHaveLength(1);
+  });
+
+  it('keeps the sets of an exercise within the workout limit', () => {
+    const adjusted = adjustSessionForReadiness(routineSession([3, 3, 3, 3]), REDUCED, TODAY);
+    const first = adjusted.exercises[0]!;
+    let live = adjusted;
+    for (let i = first.sets.length; i < 20; i++) {
+      live = sessionReducer(live, { type: 'addSet', uid: first.uid, setId: `extra-${i}` });
+    }
+    expect(live.exercises[0]!.sets).toHaveLength(20);
+    expect(restoreSessionVolume(live).exercises[0]!.sets).toHaveLength(20);
+  });
+});
+
+describe('the adjustment only ever removes (spec 011 Safety "Never more", "Minimum session")', () => {
+  it('keeps every exercise at min(sets, 2) or more and the session at min(exercises, 4) or more', () => {
+    const levels = [LOW, REDUCED, NORMAL, UNKNOWN];
+    for (let count = 0; count <= 8; count++) {
+      for (let sets = 1; sets <= 6; sets++) {
+        const counts = Array.from({ length: count }, (_, i) => ((sets + i) % 6) + 1);
+        for (const readiness of levels) {
+          const before = routineSession(counts);
+          const after = adjustSessionForReadiness(before, readiness, TODAY);
+          const total = (s: LiveSession) => setCounts(s).reduce((a, b) => a + b, 0);
+          expect(total(after)).toBeLessThanOrEqual(total(before));
+          expect(after.exercises.length).toBeGreaterThanOrEqual(Math.min(count, 4));
+          after.exercises.forEach((exercise, i) => {
+            expect(exercise.sets.length).toBeGreaterThanOrEqual(Math.min(counts[i]!, 2));
+          });
+          // "Entrenar normal" gives back exactly the session it started from.
+          expect(restoreSessionVolume(after).exercises).toEqual(before.exercises);
+        }
+      }
+    }
+  });
+
+  it('handles a routine session without exercises', () => {
+    const empty = routineSession([]);
+    const adjusted = adjustSessionForReadiness(empty, LOW, TODAY);
+    expect(adjusted.exercises).toEqual([]);
+    expect(canTrainNormally(adjusted)).toBe(false);
+  });
+
+  it('works on the session sessionFromProgram builds, without the exercises that left the catalog', () => {
+    const program = {
+      id: 'session-a',
+      name: 'Rutina A',
+      exercises: [0, 1, 2, 3, 4].map((i) => ({
+        exerciseId: i === 2 ? null : `exercise-${i}`,
+        label: `Ejercicio ${i}`,
+        tracking: 'weight_reps' as const,
+        sets: 3,
+        repsMin: 8,
+        repsMax: 12,
+        restS: null,
+        weightKg: null,
+        durationS: null,
+      })),
+    };
+    const live = sessionFromProgram(program as never, {
+      id: newId(),
+      localDate: TODAY,
+      startedAt: STARTED,
+      stats: new Map(),
+      newId,
+    });
+    expect(live.exercises).toHaveLength(4);
+    // Four exercises left: a low day removes a set from each and keeps them all.
+    expect(setCounts(adjustSessionForReadiness(live, LOW, TODAY))).toEqual([2, 2, 2, 2]);
   });
 });

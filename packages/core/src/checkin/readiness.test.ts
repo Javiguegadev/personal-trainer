@@ -5,6 +5,7 @@ import {
   dayReadiness,
   readinessHeadline,
   readinessLine,
+  readinessPlanSession,
   sessionCut,
   sleepStressNotice,
 } from './readiness';
@@ -58,6 +59,13 @@ describe('dayReadiness (spec 011 AC6)', () => {
     expect(dayReadiness(answers(390, 'normal'), null)).toEqual({ level: 'normal', reasons: [] });
     expect(dayReadiness(answers(null, 'low'), 450)).toEqual({ level: 'normal', reasons: [] });
     expect(dayReadiness(answers(400, null), 480)).toEqual({ level: 'normal', reasons: [] });
+  });
+
+  it('treats 0 minutes of sleep as a very short night', () => {
+    expect(dayReadiness(answers(0), 450)).toEqual({
+      level: 'low',
+      reasons: ['very_short_sleep', 'below_usual_sleep'],
+    });
   });
 
   it('puts sleep exactly on a threshold on the better side', () => {
@@ -129,17 +137,17 @@ describe('readinessLine (spec 011 AC4, AC9, decision b)', () => {
   const unknown = dayReadiness(null, null);
 
   it('shows only "Check-in de hoy" with an unknown readiness', () => {
-    expect(readinessLine(unknown, routine)).toEqual({ type: 'checkin' });
+    expect(readinessLine(unknown, routine, false)).toEqual({ type: 'checkin' });
   });
 
   it('says all is fine on a normal training day, and nothing more on a rest day', () => {
-    expect(readinessLine(normal, routine)).toEqual({ type: 'ready' });
-    expect(readinessLine(normal, football)).toEqual({ type: 'ready' });
-    expect(readinessLine(normal, rest)).toEqual({ type: 'checkin' });
+    expect(readinessLine(normal, routine, true)).toEqual({ type: 'ready' });
+    expect(readinessLine(normal, football, true)).toEqual({ type: 'ready' });
+    expect(readinessLine(normal, rest, true)).toEqual({ type: 'checkin' });
   });
 
   it('says what the routine session loses on a reduced or low day', () => {
-    expect(readinessLine(reduced, routine)).toEqual({
+    expect(readinessLine(reduced, routine, true)).toEqual({
       type: 'routine',
       headline: 'short_sleep',
       cut: { sets: true, exercise: false },
@@ -148,7 +156,7 @@ describe('readinessLine (spec 011 AC4, AC9, decision b)', () => {
       session: { exercises: [3, 3, 3, 3, 3].map((sets) => ({ sets })) },
       activities: [],
     };
-    expect(readinessLine(low, five)).toEqual({
+    expect(readinessLine(low, five, true)).toEqual({
       type: 'routine',
       headline: 'very_short_sleep',
       cut: { sets: true, exercise: true },
@@ -157,16 +165,19 @@ describe('readinessLine (spec 011 AC4, AC9, decision b)', () => {
 
   it('shows only the reason when the routine has nothing to remove', () => {
     const light = { session: { exercises: [{ sets: 2 }, { sets: 2 }] }, activities: [] };
-    expect(readinessLine(reduced, light)).toEqual({ type: 'reason', headline: 'short_sleep' });
+    expect(readinessLine(reduced, light, true)).toEqual({
+      type: 'reason',
+      headline: 'short_sleep',
+    });
   });
 
   it('suggests an easy pace for an activity and a good warm-up for a match (AC9)', () => {
-    expect(readinessLine(reduced, football)).toEqual({
+    expect(readinessLine(reduced, football, true)).toEqual({
       type: 'activity',
       headline: 'short_sleep',
       match: false,
     });
-    expect(readinessLine(low, match)).toEqual({
+    expect(readinessLine(low, match, true)).toEqual({
       type: 'activity',
       headline: 'very_short_sleep',
       match: true,
@@ -175,11 +186,14 @@ describe('readinessLine (spec 011 AC4, AC9, decision b)', () => {
 
   it('prefers the routine session over an activity of the same day', () => {
     const both = { ...routine, activities: [{ isMatch: true }] };
-    expect(readinessLine(reduced, both).type).toBe('routine');
+    expect(readinessLine(reduced, both, true).type).toBe('routine');
   });
 
   it('shows only the reason on a day without training', () => {
-    expect(readinessLine(low, rest)).toEqual({ type: 'reason', headline: 'very_short_sleep' });
+    expect(readinessLine(low, rest, true)).toEqual({
+      type: 'reason',
+      headline: 'very_short_sleep',
+    });
   });
 });
 
@@ -223,5 +237,56 @@ describe('sleepStressNotice (spec 011 AC13)', () => {
   it('shows the sleep notice when both fire', () => {
     const days = [0, 1, 2, 3, 4].map((d) => day(d, 300, 'high'));
     expect(sleepStressNotice(days, TODAY)).toBe('short_sleep');
+  });
+});
+
+describe('readinessLine without a sleep answer (domain review of spec 011)', () => {
+  it('does not say all is fine from the stress answer alone', () => {
+    const stressOnly = dayReadiness(answers(null, 'normal'), null);
+    expect(stressOnly.level).toBe('normal');
+    const plan = { session: null, activities: [{ isMatch: false }] };
+    expect(readinessLine(stressOnly, plan, false)).toEqual({ type: 'checkin' });
+  });
+
+  it('still gives the reason of a high stress without sleep', () => {
+    const stressHigh = dayReadiness(answers(null, 'high'), null);
+    const plan = { session: null, activities: [{ isMatch: false }] };
+    expect(readinessLine(stressHigh, plan, false)).toEqual({
+      type: 'activity',
+      headline: 'high_stress',
+      match: false,
+    });
+  });
+});
+
+describe('readinessPlanSession', () => {
+  it('counts only the exercises the live session will have', () => {
+    const exercise = (exerciseId: string | null, sets: number) => ({ exerciseId, sets });
+    expect(
+      readinessPlanSession({
+        exercises: [exercise('a', 3), exercise(null, 4), exercise('b', 2)] as never,
+      }),
+    ).toEqual({ exercises: [{ sets: 3 }, { sets: 2 }] });
+  });
+});
+
+describe('sleepStressNotice with two rows of one day (AC15)', () => {
+  it('counts each day once, the later write winning', () => {
+    const row = (daysAgo: number, sleepMinutes: number, recordedAt: string) => ({
+      localDate: addDays(TODAY, -daysAgo),
+      sleepMinutes,
+      stress: null,
+      recordedAt,
+    });
+    const rows = [
+      row(0, 330, '2026-11-23T07:00:00Z'),
+      row(0, 450, '2026-11-23T08:00:00Z'),
+      row(1, 330, '2026-11-22T07:00:00Z'),
+      row(1, 330, '2026-11-22T06:00:00Z'),
+      row(2, 330, '2026-11-21T07:00:00Z'),
+      row(3, 330, '2026-11-20T07:00:00Z'),
+    ];
+    // Three short nights, not five rows.
+    expect(sleepStressNotice(rows, TODAY)).toBeNull();
   });
 });
