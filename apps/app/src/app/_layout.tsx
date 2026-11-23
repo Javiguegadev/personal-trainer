@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useMe } from '@/lib/api';
+import { setCheckinPrefsUser } from '@/lib/checkinPrefs';
 import { errorMessage } from '@/lib/errors';
 import { setSessionUser } from '@/lib/liveSession';
 import { startOfflineCache, useOfflineCacheRestored } from '@/lib/offline';
@@ -21,6 +22,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (userId) startOfflineCache(userId);
     setSessionUser(userId);
+    setCheckinPrefsUser(userId);
   }, [userId]);
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = {
@@ -103,6 +105,7 @@ function RootNavigator() {
           <Stack.Screen name="training/routine/new" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="day/[date]" />
+          <Stack.Screen name="checkin/[date]" options={{ presentation: 'modal' }} />
         </Stack.Protected>
       </Stack>
       {loading ? <BlockingState /> : null}

@@ -2,6 +2,8 @@ import { IsoDateSchema, type Profile, type Weekday } from '@pt/contracts';
 import {
   dayAccess,
   dayMeals,
+  dayNotices,
+  dayWorkBlock,
   daysBetween,
   formatLongDate,
   isoWeekday,
@@ -20,11 +22,14 @@ import { BackLink } from '@/components/BackLink';
 import { BlockingState } from '@/components/BlockingState';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DayCheckin } from '@/components/DayCheckin';
+import { DayNotices } from '@/components/DayNotices';
 import { MealSection } from '@/components/MealSection';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { WorkoutRow } from '@/components/WorkoutRow';
+import { useCheckinList } from '@/hooks/useCheckin';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
@@ -37,7 +42,9 @@ import { profileActivities, profileWeek } from '@/lib/week';
 /**
  * A day of the week view (spec 010 AC11, AC12): its work hours, planned training, meals by meal type
  * and workouts, each opening its edit screen. Today and the 27 days before can add a meal or a
- * workout; older days are read-only; future days show only their typical week.
+ * workout; older days are read-only; future days show only their typical week. The day's check-in
+ * ("Cómo estaba"), the shift it tells and the shift overlap notices come from spec 011 (AC5, AC11,
+ * AC12).
  */
 export default function DayRoute() {
   const { t } = useI18n();
@@ -73,16 +80,22 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
   const pendingItems = usePendingMealItemIds();
   const pendingWorkouts = usePendingTrainingIds();
   const [choosing, setChoosing] = useState(false);
+  const { checkins } = useCheckinList();
   const access = dayAccess(date, today);
   const monday = weekStartOf(date);
   const log = useWeekLog(monday, { enabled: access !== 'future' });
   const d = t.week.day;
   const flags = profile.safetyFlags;
 
-  const typical = typicalDay(
-    { workBlocks: profileWeek(profile).workBlocks, plannedActivities: profileActivities(profile) },
-    isoWeekday(date) as Weekday,
-  );
+  const week = {
+    workBlocks: profileWeek(profile).workBlocks,
+    plannedActivities: profileActivities(profile),
+  };
+  const typical = typicalDay(week, isoWeekday(date) as Weekday);
+  const checkin = checkins.find((c) => c.localDate === date) ?? null;
+  // The typical work block, or the shift told in the day's check-in (spec 011 AC11).
+  const work = dayWorkBlock(week, checkin, date);
+  const notices = dayNotices({ date, plannedActivities: week.plannedActivities, checkins });
   const meals = dayMeals(log.data?.mealItems ?? [], date, flags);
   const workouts = (log.data?.workouts ?? [])
     .filter((w) => w.localDate === date)
@@ -187,10 +200,12 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
         {formatLongDate(date, locale)}
       </AppText>
       <OfflineBanner />
-      {typical.work || typical.training.length > 0 ? (
+      {work || typical.training.length > 0 ? (
         <Card title={typical.training.length > 0 ? d.planned : d.work} testID="day-typical">
-          {typical.work ? (
-            <AppText testID="day-work">{`${d.work}: ${text.work(typical.work)}`}</AppText>
+          {work ? (
+            <AppText testID="day-work">
+              {work.shift ? text.shift(work.shift, work) : `${d.work}: ${text.work(work)}`}
+            </AppText>
           ) : null}
           {typical.training.map((slot) => (
             <AppText key={slot.activityIndex} testID={`day-planned-${slot.activityIndex}`}>
@@ -199,6 +214,8 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
           ))}
         </Card>
       ) : null}
+      <DayNotices notices={notices} activities={week.plannedActivities} date={date} today={today} />
+      {access === 'future' ? null : <DayCheckin checkin={checkin} date={date} access={access} />}
       {logged}
       {access === 'read_only' ? (
         <Notice tone="info" message={d.readOnly} testID="day-read-only" />

@@ -1,6 +1,7 @@
 import {
   createApiClient,
   createApiHooks,
+  registerCheckinMutations,
   registerCustomFoodMutations,
   registerFoodMutations,
   registerTrainingMutations,
@@ -38,6 +39,7 @@ registerWeightMutations(queryClient, api);
 registerFoodMutations(queryClient, api);
 registerCustomFoodMutations(queryClient, api);
 registerTrainingMutations(queryClient, api);
+registerCheckinMutations(queryClient, api);
 setupOnlineManager();
 
 export const {
@@ -84,6 +86,11 @@ export const {
   useSaveProgram,
   useDeleteProgram,
   useSaveTrainingProfile,
+  useCheckins,
+  useSaveCheckin,
+  useDeleteCheckin,
+  usePendingCheckinDates,
+  useRejectedCheckinWrite,
   useWeekLog,
   useSaveWeek,
   useExportData,
