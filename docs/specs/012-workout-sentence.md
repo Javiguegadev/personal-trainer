@@ -1,6 +1,6 @@
 # 012 — Workout sentence shortcut
 
-- Status: draft
+- Status: approved (2026-11-24)
 - Phase: E5, last piece (after specs 009, 010 and 011). Its eval is the E5 exit criterion: "free-text
   sessions parse correctly in ≥ 95 % of eval cases" (BLUEPRINT §7).
 - Tier: free with an abuse cap per day (BLUEPRINT §3: workout logging is free; plans and `canUse()`

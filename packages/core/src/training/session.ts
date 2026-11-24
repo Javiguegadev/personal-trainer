@@ -60,7 +60,8 @@ export interface LiveSession {
   /** The workout id, generated on the device. */
   id: string;
   mode: SessionMode;
-  inputMethod: 'live' | 'manual' | 'repeat' | 'program';
+  /** `text`: a draft of the sentence shortcut (spec 012). */
+  inputMethod: 'live' | 'manual' | 'repeat' | 'program' | 'text';
   /** The routine session it was started from (spec 010 AC18); absent in sessions saved before it. */
   programSessionId?: string | null;
   localDate: string;

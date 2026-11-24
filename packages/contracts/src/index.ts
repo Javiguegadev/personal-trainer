@@ -14,3 +14,4 @@ export * from './privacy';
 export * from './profile';
 export * from './training';
 export * from './weight';
+export * from './workout-draft';

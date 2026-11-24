@@ -50,6 +50,17 @@ describe('WorkoutUpsertRequestSchema', () => {
     expect(WorkoutUpsertRequestSchema.parse(activity)).toEqual(activity);
   });
 
+  it('accepts a draft of the sentence shortcut, with a routine session (spec 012 AC13, AC14)', () => {
+    const fromText = {
+      ...gym,
+      inputMethod: 'text',
+      programSessionId: '00000000-0000-4000-8000-000000000009',
+    } as const;
+    expect(WorkoutUpsertRequestSchema.parse(fromText)).toEqual(fromText);
+    const activityFromText = { ...activity, inputMethod: 'text' } as const;
+    expect(WorkoutUpsertRequestSchema.parse(activityFromText)).toEqual(activityFromText);
+  });
+
   it('rejects a gym session without exercises or with an empty exercise', () => {
     expect(WorkoutUpsertRequestSchema.safeParse({ ...gym, exercises: [] }).success).toBe(false);
     const empty = { ...gym, exercises: [{ exerciseId: gym.exercises[0]?.exerciseId, sets: [] }] };
