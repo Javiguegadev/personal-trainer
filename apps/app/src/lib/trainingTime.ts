@@ -19,3 +19,30 @@ export function localDateTime(day: string, time: string): string | null {
 export function moveToDay(startedAt: string, day: string): string {
   return localDateTime(day, toLocalTime(new Date(startedAt))) ?? startedAt;
 }
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * The default start of a past session (spec 009 AC17, spec 010 AC12): an hour ago, on `day` at that
+ * hour when it is not today.
+ */
+export function pastSessionStart(day: string, today: string, now: Date): string {
+  const hourAgo = new Date(now.getTime() - HOUR_MS);
+  if (day === today) return hourAgo.toISOString();
+  return localDateTime(day, toLocalTime(hourAgo)) ?? hourAgo.toISOString();
+}
+
+/**
+ * The start of a sentence draft (spec 012 AC4): the time said on the draft's day, unless it has not
+ * come yet ("a las 7 de la tarde" said at noon); otherwise the default start of a past session.
+ */
+export function draftStart(
+  day: string,
+  startTime: string | null,
+  today: string,
+  now: Date,
+): string {
+  const said = startTime ? localDateTime(day, startTime) : null;
+  if (said && Date.parse(said) <= now.getTime()) return said;
+  return pastSessionStart(day, today, now);
+}

@@ -15,6 +15,7 @@ import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DescribeWorkoutButton } from '@/components/DescribeWorkoutButton';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { RoutineCard } from '@/components/RoutineCard';
@@ -24,6 +25,7 @@ import { TrainingNotes } from '@/components/TrainingNotes';
 import { TrainingRejectedNotice } from '@/components/TrainingRejectedNotice';
 import { UndoToast } from '@/components/UndoToast';
 import { WorkoutRow } from '@/components/WorkoutRow';
+import { useDraftGuard } from '@/hooks/useDraftGuard';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
@@ -57,6 +59,7 @@ function TrainingTab({ profile }: { profile: Profile }) {
   const actions = useTrainingActions();
   const undo = useWorkoutUndo();
   const text = useWorkoutText();
+  const draftGuard = useDraftGuard();
   const [days, setDays] = useState(HISTORY_DAYS);
   const tr = t.training;
   const flags = profile.safetyFlags;
@@ -168,13 +171,28 @@ function TrainingTab({ profile }: { profile: Profile }) {
           testID="training-start"
         />
       )}
+      <View style={styles.pair}>
+        <View style={styles.pairItem}>
+          <Button
+            variant="secondary"
+            label={tr.logActivity}
+            onPress={() => router.push('/training/activity')}
+            testID="training-log-activity"
+          />
+        </View>
+        <DescribeWorkoutButton
+          label={tr.describe.button}
+          accessibilityLabel={tr.describe.a11y}
+          testID="training-describe"
+        />
+      </View>
+      {draftGuard.notice}
       <Button
-        variant="secondary"
-        label={tr.logActivity}
-        onPress={() => router.push('/training/activity')}
-        testID="training-log-activity"
+        variant="ghost"
+        label={tr.logPast}
+        onPress={() => draftGuard.guard(startPast)}
+        testID="training-log-past"
       />
-      <Button variant="ghost" label={tr.logPast} onPress={startPast} testID="training-log-past" />
       {shortcuts.length ? (
         <Card title={tr.repeatTitle} testID="training-repeat">
           {shortcuts.map((workout, index) => (
@@ -222,5 +240,7 @@ const styles = StyleSheet.create({
   loading: { marginVertical: tokens.space.xl },
   gap: { gap: tokens.space.sm },
   repeat: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm },
+  pair: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
+  pairItem: { flexGrow: 1 },
   repeatText: { flex: 1, gap: 2 },
 });

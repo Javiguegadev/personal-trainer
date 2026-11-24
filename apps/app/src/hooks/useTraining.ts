@@ -3,14 +3,18 @@ import type {
   ActivityKindForLog,
   ActivityType,
   Exercise,
+  Program,
   ProgramSession,
   Workout,
+  WorkoutDraft,
 } from '@pt/contracts';
 import {
   adjustSessionForReadiness,
   canRewriteWorkout,
+  draftToSession,
   editWorkout,
   exerciseName,
+  liveExerciseFromDraft,
   newLiveExercise,
   repeatWorkout,
   sessionFromProgram,
@@ -101,6 +105,60 @@ export function useTrainingActions() {
       setSession('draft', session);
       return session;
     },
+    /**
+     * The gym draft of a sentence (spec 012 AC10, AC13): a past session in the `draft` slot, its sets
+     * completed or marked, linked to the routine session it matches.
+     */
+    startFromDraft(
+      draft: WorkoutDraft,
+      startedAt: string,
+      routine: { program: Pick<Program, 'sessions'>; nextSessionId: string | null } | null,
+    ): LiveSession {
+      const session = draftToSession(draft, {
+        id: newId(),
+        startedAt,
+        stats: statsById,
+        newId,
+        locale,
+        ...(routine ? { routine } : {}),
+      });
+      setSession('draft', session);
+      return session;
+    },
+    /** An exercise picked for a mention the catalog lacked (spec 012 AC7): the sets said move to it. */
+    resolveMention(index: number, exercise: Exercise) {
+      const session = readSession('draft');
+      const mention = session?.textDraft?.unresolved[index];
+      if (!session || !mention) return;
+      dispatchSession('draft', {
+        type: 'resolveMention',
+        index,
+        exercise: liveExerciseFromDraft({
+          exercise: {
+            id: exercise.id,
+            label: exerciseName(exercise, locale),
+            tracking: exercise.tracking,
+          },
+          sets: mention.sets,
+          stats: statsById.get(exercise.id) ?? null,
+          newId,
+          completedAt: session.startedAt,
+        }),
+      });
+    },
+    /** "Cambiar ejercicio" (spec 012 AC12). */
+    replaceExercise(slot: SessionSlot, uid: string, exercise: Exercise) {
+      dispatchSession(slot, {
+        type: 'replaceExercise',
+        uid,
+        exercise: {
+          id: exercise.id,
+          label: exerciseName(exercise, locale),
+          tracking: exercise.tracking,
+        },
+        stats: statsById.get(exercise.id) ?? null,
+      });
+    },
     /** "Repetir" (AC18): a live session with the exercises and sets of a past one. */
     repeat(workout: Workout): LiveSession {
       const session = fit(
@@ -158,8 +216,9 @@ export function useTrainingActions() {
     discard(slot: SessionSlot) {
       setSession(slot, null);
     },
-    /** AC16: an activity with one tap. */
+    /** AC16: an activity with one tap; `text` when it came from a sentence (spec 012 AC14). */
     saveActivity(input: {
+      inputMethod: 'activity' | 'text';
       kind: ActivityKindForLog;
       activity: ActivityType | null;
       name: string | null;
@@ -168,7 +227,7 @@ export function useTrainingActions() {
       minutes: number;
       sessionRpe: number | null;
     }) {
-      write(newId(), { ...input, inputMethod: 'activity', ...placement() }, null);
+      write(newId(), { ...input, ...placement() }, null);
     },
     /** AC19: the day, duration, effort or name of a saved workout. */
     update(workout: Workout, changes: Parameters<typeof workoutToRequest>[2]) {

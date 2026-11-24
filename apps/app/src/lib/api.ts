@@ -72,6 +72,7 @@ export const {
   useBarcodeLookup,
   useScanLabel,
   useMealDraft,
+  useWorkoutDraft,
   useExerciseCatalog,
   useWorkouts,
   useExerciseStats,
