@@ -3,6 +3,7 @@ import type {
   ActivityKindForLog,
   ActivityType,
   Exercise,
+  ExerciseTracking,
   Program,
   ProgramSession,
   Workout,
@@ -31,6 +32,13 @@ import { offerWorkoutUndo } from '@/lib/workoutUndo';
 import { useTodayReadiness } from './useCheckin';
 import { useI18n } from './useI18n';
 import { useToday } from './useToday';
+
+/** An exercise chosen for a card: from the catalog, or created a moment ago (spec 012 AC7, AC12). */
+export interface PickedExercise {
+  id: string;
+  label: string;
+  tracking: ExerciseTracking;
+}
 
 /** The catalog and the stats, as lookups by id. Both are cached offline (spec 009 AC22). */
 export function useExerciseLookups() {
@@ -125,8 +133,11 @@ export function useTrainingActions() {
       setSession('draft', session);
       return session;
     },
-    /** An exercise picked for a mention the catalog lacked (spec 012 AC7): the sets said move to it. */
-    resolveMention(index: number, exercise: Exercise) {
+    /**
+     * An exercise picked or just created for a mention the catalog lacked (spec 012 AC7): the sets said
+     * move to it, checked against its tracking.
+     */
+    resolveMention(index: number, exercise: PickedExercise) {
       const session = readSession('draft');
       const mention = session?.textDraft?.unresolved[index];
       if (!session || !mention) return;
@@ -134,11 +145,7 @@ export function useTrainingActions() {
         type: 'resolveMention',
         index,
         exercise: liveExerciseFromDraft({
-          exercise: {
-            id: exercise.id,
-            label: exerciseName(exercise, locale),
-            tracking: exercise.tracking,
-          },
+          exercise,
           sets: mention.sets,
           stats: statsById.get(exercise.id) ?? null,
           newId,
@@ -147,17 +154,21 @@ export function useTrainingActions() {
       });
     },
     /** "Cambiar ejercicio" (spec 012 AC12). */
-    replaceExercise(slot: SessionSlot, uid: string, exercise: Exercise) {
+    replaceExercise(slot: SessionSlot, uid: string, exercise: PickedExercise) {
       dispatchSession(slot, {
         type: 'replaceExercise',
         uid,
-        exercise: {
-          id: exercise.id,
-          label: exerciseName(exercise, locale),
-          tracking: exercise.tracking,
-        },
+        exercise,
         stats: statsById.get(exercise.id) ?? null,
       });
+    },
+    /** The id, name and tracking of an exercise of the catalog, in the user's language. */
+    picked(exercise: Exercise): PickedExercise {
+      return {
+        id: exercise.id,
+        label: exerciseName(exercise, locale),
+        tracking: exercise.tracking,
+      };
     },
     /** "Repetir" (AC18): a live session with the exercises and sets of a past one. */
     repeat(workout: Workout): LiveSession {

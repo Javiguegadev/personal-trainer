@@ -340,6 +340,12 @@ export function SetRow({
         </Pressable>
         {fields}
       </View>
+      {!done && set.mark ? (
+        // A set of a sentence draft (spec 012 AC8, AC10): said without a value, or out of range.
+        <AppText variant="caption" tone="warning" testID={`${tid}-mark-${set.mark}`}>
+          {set.mark === 'review' ? s.markReview : s.markIncomplete}
+        </AppText>
+      ) : null}
       {confirmJump && effective.weightKg !== null ? (
         <Notice
           tone="warning"

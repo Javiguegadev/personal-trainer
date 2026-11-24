@@ -22,12 +22,15 @@ import { TextField } from './TextField';
  */
 export function CustomExerciseForm({
   initialName = '',
+  initialTracking = 'weight_reps',
   onCreated,
   onCancel,
 }: {
   initialName?: string;
-  /** The id of the new exercise, already in the cached catalog. */
-  onCreated: (id: string) => void;
+  /** How the sets said for it were tracked (spec 012 AC7), else weight and reps. */
+  initialTracking?: ExerciseTracking;
+  /** The id of the new exercise, about to reach the cached catalog, with its name and tracking. */
+  onCreated: (id: string, exercise: { name: string; tracking: ExerciseTracking }) => void;
   onCancel: () => void;
 }) {
   const { t } = useI18n();
@@ -35,7 +38,7 @@ export function CustomExerciseForm({
   const [name, setName] = useState(
     initialName.trim().slice(0, WORKOUT_LIMITS.customExerciseNameMax),
   );
-  const [tracking, setTracking] = useState<ExerciseTracking>('weight_reps');
+  const [tracking, setTracking] = useState<ExerciseTracking>(initialTracking);
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const c = t.training.custom;
@@ -91,7 +94,7 @@ export function CustomExerciseForm({
               recordedAt: new Date().toISOString(),
             },
           });
-          onCreated(id);
+          onCreated(id, { name: name.trim(), tracking });
         }}
         testID="custom-exercise-save"
       />

@@ -24,6 +24,8 @@ interface ExerciseCardProps {
   localDate: string;
   today: string;
   showRecords: boolean;
+  /** "Cambiar ejercicio" (spec 012 AC12): in past and edited sessions, not in the live one. */
+  canChange: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ export function ExerciseCard({
   localDate,
   today,
   showRecords,
+  canChange,
 }: ExerciseCardProps) {
   const { t, format, locale } = useI18n();
   const { colors } = useTheme();
@@ -181,6 +184,17 @@ export function ExerciseCard({
               dispatchSession(slot, { type: 'removeSet', uid, setId: exercise.sets.at(-1)!.id })
             }
             testID={`exercise-${position}-remove-set`}
+          />
+        ) : null}
+        {canChange ? (
+          <Button
+            variant="ghost"
+            label={t.training.changeExercise}
+            accessibilityLabel={format(t.training.changeExerciseA11y, { name })}
+            onPress={() =>
+              router.push({ pathname: '/training/picker', params: { slot, replace: uid } })
+            }
+            testID={`exercise-${position}-change`}
           />
         ) : null}
       </View>
