@@ -7,6 +7,8 @@ import {
   type PersonalBests,
   type SetValues,
   type Workout,
+  type WorkoutDraftActivity,
+  type WorkoutDraftUnresolved,
 } from '@pt/contracts';
 import { NO_BESTS, addToBests, lastRest, newBests, type NewRecord } from './bests';
 import { restoreSessionVolume, type SessionReadiness } from '../checkin/adjust';
@@ -28,6 +30,11 @@ export interface LiveSet {
   completedAt: string | null;
   /** Rest after this set (AC9). */
   restS: number | null;
+  /**
+   * A set of a sentence draft (spec 012 AC8, AC10): `incomplete` lacks a value its tracking needs
+   * ("Completa esta serie"), `review` had a value out of range ("Revisa"). Cleared when completed.
+   */
+  mark?: 'incomplete' | 'review' | null;
 }
 
 export interface LiveExercise {
@@ -52,6 +59,20 @@ export interface RestTimer {
   durationS: number;
 }
 
+/** What the editor shows of a sentence draft besides its exercises (spec 012). */
+export interface TextDraftState {
+  /** Exercises the catalog lacks (AC7): never saved until resolved. */
+  unresolved: WorkoutDraftUnresolved[];
+  /** Other activities said, each with "Registrar" (AC6). */
+  extraActivities: WorkoutDraftActivity[];
+  painMentioned: boolean;
+  ignored: number;
+  /** The day said was dropped: the day chip shows "Revisa el día" until the day changes (AC4). */
+  dayDropped: boolean;
+  /** The routine session the draft matched (AC13); `programSessionId` holds it while the chip is on. */
+  routineSessionId: string | null;
+}
+
 /** `live`: in the gym, with the rest timer. `manual`: a past session (AC17). `edit`: a saved one (AC19). */
 export type SessionMode = 'live' | 'manual' | 'edit';
 
@@ -74,6 +95,8 @@ export interface LiveSession {
   rest: RestTimer | null;
   /** The readiness adjustment made at start (spec 011 AC7); absent or null when there is none. */
   readiness?: SessionReadiness | null;
+  /** A draft of the sentence shortcut (spec 012); absent in every other session. */
+  textDraft?: TextDraftState | null;
 }
 
 export type SessionAction =
@@ -90,7 +113,20 @@ export type SessionAction =
   | { type: 'setStart'; localDate: string; startedAt: string }
   | { type: 'setName'; name: string | null }
   /** "Entrenar normal" (spec 011 AC8). */
-  | { type: 'trainNormally' };
+  | { type: 'trainNormally' }
+  /** "Cambiar ejercicio" (spec 012 AC12): the sets move to the exercise picked. */
+  | {
+      type: 'replaceExercise';
+      uid: string;
+      exercise: { id: string; label: string; tracking: ExerciseTracking };
+      stats: ExerciseStats | null;
+    }
+  /** An unresolved mention of a draft, resolved with `liveExerciseFromDraft` (spec 012 AC7). */
+  | { type: 'resolveMention'; index: number; exercise: LiveExercise }
+  | { type: 'removeMention'; index: number }
+  | { type: 'removeExtraActivity'; index: number }
+  /** "Cuenta como Rutina A" (spec 012 AC13). */
+  | { type: 'setRoutineLink'; on: boolean };
 
 export function startSession(input: {
   id: string;
@@ -132,17 +168,7 @@ export function newLiveExercise(input: {
       : Array<null>(WORKOUT_LIMITS.defaultSets).fill(null);
   return {
     uid: input.newId(),
-    exerciseId: input.exercise.id,
-    label: input.exercise.label,
-    tracking: input.exercise.tracking,
-    restS: lastRest(input.stats) ?? WORKOUT_LIMITS.defaultRestS,
-    bestsBefore: input.stats?.bests ?? NO_BESTS,
-    last: input.stats
-      ? {
-          localDate: input.stats.last.localDate,
-          sets: lastSets.map((s) => setForTracking(s, input.exercise.tracking)),
-        }
-      : null,
+    ...exerciseShell(input.exercise, input.stats),
     sets: placeholders.slice(0, WORKOUT_LIMITS.setsPerExerciseMax).map((placeholder) => ({
       id: input.newId(),
       values: EMPTY_SET,
@@ -150,6 +176,54 @@ export function newLiveExercise(input: {
       completedAt: null,
       restS: null,
     })),
+  };
+}
+
+/** What a card knows of its exercise, apart from the sets: names, rest, bests, last time. */
+function exerciseShell(
+  exercise: { id: string; label: string; tracking: ExerciseTracking },
+  stats: ExerciseStats | null,
+): Omit<LiveExercise, 'uid' | 'sets'> {
+  return {
+    exerciseId: exercise.id,
+    label: exercise.label,
+    tracking: exercise.tracking,
+    restS: lastRest(stats) ?? WORKOUT_LIMITS.defaultRestS,
+    bestsBefore: stats?.bests ?? NO_BESTS,
+    last: stats
+      ? {
+          localDate: stats.last.localDate,
+          sets: stats.last.sets.map((s) => setForTracking(s, exercise.tracking)),
+        }
+      : null,
+  };
+}
+
+/**
+ * "Cambiar ejercicio" (spec 012 AC12): the card takes the exercise picked, with its rest, bests and
+ * last time; each set keeps the values the new tracking uses, and goes back to uncompleted when one it
+ * needs is missing. Uncompleted sets take the new exercise's last time as placeholders.
+ */
+function replaceExercise(
+  exercise: LiveExercise,
+  to: { id: string; label: string; tracking: ExerciseTracking },
+  stats: ExerciseStats | null,
+): LiveExercise {
+  const shell = exerciseShell(to, stats);
+  const last = shell.last?.sets ?? [];
+  return {
+    ...exercise,
+    ...shell,
+    sets: exercise.sets.map((set, i) => {
+      const values = setForTracking(set.values, to.tracking);
+      const keep = set.completedAt !== null && setMatchesTracking(values, to.tracking);
+      return {
+        ...set,
+        values,
+        placeholder: last[i] ?? last.at(-1) ?? null,
+        completedAt: keep ? set.completedAt : null,
+      };
+    }),
   };
 }
 
@@ -225,6 +299,7 @@ export function sessionReducer(session: LiveSession, action: SessionAction): Liv
           values: setForTracking(withPlaceholder(s.values, s.placeholder), e.tracking),
           completedAt: action.at,
           restS: live ? e.restS : s.restS,
+          mark: null,
         })),
       );
       return live
@@ -264,11 +339,54 @@ export function sessionReducer(session: LiveSession, action: SessionAction): Liv
     case 'skipRest':
       return { ...session, rest: null };
     case 'setStart':
-      return { ...session, localDate: action.localDate, startedAt: action.startedAt };
+      return {
+        ...session,
+        localDate: action.localDate,
+        startedAt: action.startedAt,
+        ...(session.textDraft ? { textDraft: { ...session.textDraft, dayDropped: false } } : {}),
+      };
     case 'setName':
       return { ...session, name: action.name?.trim() || null };
     case 'trainNormally':
       return restoreSessionVolume(session);
+    case 'replaceExercise':
+      return mapExercise(session, action.uid, (e) =>
+        replaceExercise(e, action.exercise, action.stats),
+      );
+    case 'resolveMention': {
+      const draft = session.textDraft;
+      const mention = draft?.unresolved[action.index];
+      if (!draft || !mention) return session;
+      if (session.exercises.length >= WORKOUT_LIMITS.exercisesPerSessionMax) return session;
+      const at = Math.min(mention.position, session.exercises.length);
+      const exercises = [...session.exercises];
+      exercises.splice(at, 0, action.exercise);
+      // Mentions said after it move one place down; those said before it keep theirs.
+      const unresolved = draft.unresolved.flatMap((u, i) => {
+        if (i === action.index) return [];
+        return i > action.index && u.position >= mention.position
+          ? [{ ...u, position: u.position + 1 }]
+          : [u];
+      });
+      return { ...session, exercises, textDraft: { ...draft, unresolved } };
+    }
+    case 'removeMention': {
+      const draft = session.textDraft;
+      if (!draft) return session;
+      const unresolved = draft.unresolved.filter((_, i) => i !== action.index);
+      return { ...session, textDraft: { ...draft, unresolved } };
+    }
+    case 'removeExtraActivity': {
+      const draft = session.textDraft;
+      if (!draft) return session;
+      const extraActivities = draft.extraActivities.filter((_, i) => i !== action.index);
+      return { ...session, textDraft: { ...draft, extraActivities } };
+    }
+    case 'setRoutineLink': {
+      const linked = session.textDraft?.routineSessionId ?? null;
+      if (!linked) return session;
+      return { ...session, programSessionId: action.on ? linked : null };
+    }
   }
 }
 

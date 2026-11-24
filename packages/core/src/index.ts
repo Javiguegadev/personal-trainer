@@ -35,6 +35,7 @@ export * from './food/repeat';
 export * from './food/search';
 export * from './food/write';
 export * from './training/bests';
+export * from './training/draft';
 export * from './training/program';
 export * from './training/routine';
 export * from './training/search';
