@@ -304,5 +304,21 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e · [ ] eval
+- [x] contracts (56c5096) · [x] db (cb9a583, `0012` applied on dev) · [x] core (6b45e96) · [x] ai
+      (248a09a) · [x] api (4792e49) · [ ] client · [ ] ui · [ ] e2e · [ ] eval
 - Decisions taken during implementation:
+  - `WorkoutReadingSchema` is flat (`status`: `ok` | `not_workout` | `unclear`), like the meal reading,
+    and carries no number bounds: `core` clamps and marks instead of failing the call.
+  - The draft gives `startTime` (`HH:MM`), not `startedAt`: the API has no time zone, so the device builds
+    `startedAt`. `dayChecked` is named `dayDropped` (true when the day said was dropped).
+  - Unresolved mentions keep a `position` (resolved exercises said before them) and go back to that place
+    when resolved; mentions said after it move one place down.
+  - A clamped set is left uncompleted (mark "Revisa"), like a weight jump, so a wrong value never saves
+    without a tap. Minutes and RPE out of range become null (no mark).
+  - `LiveSession.textDraft` groups what the editor shows besides the exercises (unresolved, extra
+    activities, pain, ignored, day mark, matched routine session); `LiveSet.mark` is `incomplete` or
+    `review`, cleared when the set is completed.
+  - With the routine chip on, the workout keeps `inputMethod` `text` and stores `programSessionId`.
+  - `voice` never reached the database, so `0012` only adds `text`.
+  - The catalog refs follow the store order (most popular first); the user's own exercises are all sent
+    (a user has at most 200), in the store order.
