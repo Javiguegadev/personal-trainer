@@ -44,6 +44,12 @@ export const FEATURES = {
    * short wording. Provisional until the feedback eval runs.
    */
   daily_feedback: { model: MODELS.haiku, effort: 'low', maxTokens: 1024, maxToolRounds: 0 },
+  /**
+   * A workout from a sentence (spec 012): one call, no tools. The whole exercise catalog is in the
+   * cached system prompt, so the model picks refs and reads the numbers said; core checks them. Low
+   * effort: matching names and reading notations. Provisional until the workout eval runs.
+   */
+  workout_text: { model: MODELS.haiku, effort: 'low', maxTokens: 4096, maxToolRounds: 0 },
 } as const satisfies Record<string, FeatureConfig>;
 /** The name stored in `ai_usage.feature`. */
 export type AiFeature = keyof typeof FEATURES;
