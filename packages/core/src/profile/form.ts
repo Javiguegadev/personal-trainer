@@ -7,6 +7,7 @@ import {
   TRAINING_LIMITS,
   type ActivityKind,
   type DietaryPrefs,
+  type ActivityDay,
   type DietType,
   type Goal,
   type Intensity,
@@ -32,6 +33,8 @@ export interface PlannedActivityFormValue {
   sessionsPerWeek: number;
   minutesPerSession: number;
   intensity: Intensity;
+  /** The weekdays of "Mi semana" (spec 010 AC4); absent or empty means none. */
+  days?: ActivityDay[];
 }
 
 /** Duration chips of an activity card, in minutes. */
@@ -45,6 +48,7 @@ export function newPlannedActivity(): PlannedActivityFormValue {
     sessionsPerWeek: 3,
     minutesPerSession: 60,
     intensity: 'moderate',
+    days: [],
   };
 }
 
@@ -321,6 +325,7 @@ function parsePlannedActivities(
       sessionsPerWeek: item.sessionsPerWeek,
       minutesPerSession: item.minutesPerSession,
       intensity: item.intensity,
+      days: item.days ?? [],
     });
   }
   if (trainingMinutesPerWeek(activities) > minutesPerWeekMax) return { error: 'too_big' };

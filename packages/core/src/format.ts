@@ -66,3 +66,17 @@ export function formatList(items: readonly string[], locale: Locale): string {
   const conjunction = locale === 'es' ? (/^h?[ií](?![aeoáéó])/i.test(last) ? 'e' : 'y') : 'and';
   return `${items.slice(0, -1).join(', ')} ${conjunction} ${last}`;
 }
+
+/**
+ * A time of day (minutes after midnight) as the locale writes it (spec 010 Units): 24 h in Spanish
+ * ("08:00", "18:30"), 12 h in English ("8:00 AM", "6:30 PM"). Written by hand so Hermes and the
+ * browsers agree.
+ */
+export function formatMinuteOfDay(minute: number, locale: Locale): string {
+  const total = ((Math.round(minute) % 1440) + 1440) % 1440;
+  const hours = Math.floor(total / 60);
+  const minutes = String(total % 60).padStart(2, '0');
+  if (locale === 'es') return `${String(hours).padStart(2, '0')}:${minutes}`;
+  const hours12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${hours12}:${minutes} ${hours < 12 ? 'AM' : 'PM'}`;
+}

@@ -3,6 +3,7 @@ import {
   CONSENT_VERSION,
   ExportResponseSchema,
   MeResponseSchema,
+  type PlannedActivity,
 } from '@pt/contracts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { USER_ID, createTestApp, profileInput } from '../../test/fakes';
@@ -161,6 +162,7 @@ describe('PUT /me/profile', () => {
       sessionsPerWeek: 3,
       minutesPerSession: 90,
       intensity: 'moderate' as const,
+      days: [],
     };
     const noSport = await t.call(
       'PUT',
@@ -286,6 +288,7 @@ describe('PUT /me/profile', () => {
         sessionsPerWeek: 3,
         minutesPerSession: 60,
         intensity: 'moderate',
+        days: [] as PlannedActivity['days'],
       },
       {
         kind: 'sport',
@@ -293,6 +296,7 @@ describe('PUT /me/profile', () => {
         sessionsPerWeek: 2,
         minutesPerSession: 90,
         intensity: 'hard',
+        days: [] as PlannedActivity['days'],
       },
     ] as const;
     const res = await t.call(
@@ -325,6 +329,7 @@ describe('PUT /me/profile', () => {
           sessionsPerWeek: 4,
           minutesPerSession: 60,
           intensity: 'moderate',
+          days: [],
         },
       ],
     });
@@ -362,6 +367,7 @@ describe('PUT /me/profile', () => {
       sessionsPerWeek: 3,
       minutesPerSession: 60,
       intensity: 'moderate',
+      days: [],
     };
     const body = {
       ...profileInput(),
@@ -389,6 +395,7 @@ describe('PUT /me/profile', () => {
             sessionsPerWeek: 5,
             minutesPerSession: 120,
             intensity: 'moderate',
+            days: [],
           },
         ],
       }),
@@ -411,6 +418,7 @@ describe('PUT /me/profile', () => {
             sessionsPerWeek: 7,
             minutesPerSession: 120,
             intensity: 'hard',
+            days: [],
           },
         ],
       }),
@@ -479,6 +487,7 @@ describe('GET /me/export (AC23)', () => {
       sessionsPerWeek: 2,
       minutesPerSession: 90,
       intensity: 'moderate',
+      days: [] as PlannedActivity['days'],
     } as const;
     await t.call(
       'PUT',

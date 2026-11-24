@@ -1,4 +1,4 @@
-import type { Profile } from '@pt/contracts';
+import { EMPTY_WEEK, type Profile } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   SESSION_MINUTES_OPTIONS,
@@ -167,6 +167,7 @@ describe('profileFormFromProfile', () => {
           sessionsPerWeek: 2,
           minutesPerSession: 90,
           intensity: 'hard',
+          days: [],
         },
         {
           kind: 'strength',
@@ -174,6 +175,7 @@ describe('profileFormFromProfile', () => {
           sessionsPerWeek: 3,
           minutesPerSession: 60,
           intensity: 'moderate',
+          days: [],
         },
       ],
       requestedGoal: 'lose',
@@ -184,6 +186,9 @@ describe('profileFormFromProfile', () => {
       units: 'metric',
       locale: 'es',
       onboardingCompletedAt: '2026-11-11T10:00:00.000Z',
+      week: EMPTY_WEEK,
+      trainingExperience: null,
+      equipmentAccess: null,
     };
     expect(profileFormFromProfile(profile, null, 'es')).toMatchObject({
       goal: 'lose',
@@ -279,6 +284,7 @@ describe('job and weekly training (spec 002 AC1–AC4)', () => {
       sessionsPerWeek: 3,
       minutesPerSession: 60,
       intensity: 'moderate',
+      days: [],
     });
     expect(SESSION_MINUTES_OPTIONS).toContain(gym.minutesPerSession);
   });
@@ -311,6 +317,7 @@ describe('job and weekly training (spec 002 AC1–AC4)', () => {
         sessionsPerWeek: 3,
         minutesPerSession: 60,
         intensity: 'moderate',
+        days: [],
       },
       {
         kind: 'sport',
@@ -318,6 +325,7 @@ describe('job and weekly training (spec 002 AC1–AC4)', () => {
         sessionsPerWeek: 2,
         minutesPerSession: 90,
         intensity: 'moderate',
+        days: [],
       },
     ]);
   });

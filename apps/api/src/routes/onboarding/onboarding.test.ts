@@ -58,6 +58,7 @@ describe('POST /onboarding/targets-preview', () => {
           sessionsPerWeek: 4,
           minutesPerSession: 60,
           intensity: 'moderate',
+          days: [],
         },
       ],
     });
@@ -87,6 +88,7 @@ describe('POST /onboarding/targets-preview', () => {
             sessionsPerWeek: 6,
             minutesPerSession: 240,
             intensity: 'light',
+            days: [],
           },
         ],
       }),

@@ -7,7 +7,6 @@ import {
   groupSets,
   recentExerciseIds,
   showsRecordsFor,
-  weekStartOf,
   workoutHistoryWeeks,
   workoutRecordCount,
   workoutToRequest,
@@ -38,6 +37,7 @@ const gym = (
   minutes: 60,
   sessionRpe: null,
   inputMethod: 'live',
+  programSessionId: null,
   exercises,
   recordedAt: `${localDate}T20:00:00.000Z`,
 });
@@ -66,14 +66,6 @@ describe('groupSets', () => {
 
   it('is empty for no sets', () => {
     expect(groupSets([])).toEqual([]);
-  });
-});
-
-describe('weekStartOf', () => {
-  it('returns the Monday of the week', () => {
-    expect(weekStartOf('2026-11-18')).toBe('2026-11-16'); // Wednesday
-    expect(weekStartOf('2026-11-16')).toBe('2026-11-16'); // Monday
-    expect(weekStartOf('2026-11-22')).toBe('2026-11-16'); // Sunday
   });
 });
 
@@ -241,6 +233,7 @@ describe('workoutToRequest', () => {
         },
       ],
       inputMethod: 'live',
+      programSessionId: null,
       localDate: '2026-11-16',
       startedAt: workout.startedAt,
       sessionRpe: 7,

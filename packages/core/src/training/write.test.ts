@@ -73,6 +73,7 @@ const gym: WorkoutUpsertRequest = {
   name: null,
   minutes: 50,
   inputMethod: 'live',
+  programSessionId: null,
   exercises: [
     {
       exerciseId: 'bench',
@@ -184,6 +185,7 @@ const workout = (
   minutes: 45,
   sessionRpe: null,
   inputMethod: 'live',
+  programSessionId: null,
   recordedAt: startedAt,
   exercises: exerciseIds.map((exerciseId) => ({
     exerciseId,

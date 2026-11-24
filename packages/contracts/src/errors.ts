@@ -22,6 +22,8 @@ export const ApiErrorCodeSchema = z.enum([
   // Custom exercises (spec 009)
   'exercise_limit_reached',
   'id_taken',
+  // Routine (spec 010)
+  'program_exists',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;
 

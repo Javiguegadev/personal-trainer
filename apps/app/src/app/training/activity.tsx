@@ -1,6 +1,6 @@
-import { WORKOUT_LIMITS, type Profile } from '@pt/contracts';
-import { activityChoices, lastDays, toLocalTime, type ActivityChoice } from '@pt/core';
-import { useRouter } from 'expo-router';
+import { IsoDateSchema, WORKOUT_LIMITS, type Profile } from '@pt/contracts';
+import { activityChoices, dayAccess, lastDays, toLocalTime, type ActivityChoice } from '@pt/core';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
@@ -38,7 +38,16 @@ function ActivitySheet({ profile }: { profile: Profile }) {
   const actions = useTrainingActions();
   const choices = activityChoices(profile.plannedActivities);
   const [type, setType] = useState<string | null>(choices[0] ? keyOf(choices[0]) : null);
-  const [day, setDay] = useState(today);
+  // `?date=` from a day screen of the week view (spec 010 AC12): up to 27 days back.
+  const { date } = useLocalSearchParams<{ date?: string }>();
+  const requested =
+    date !== undefined && IsoDateSchema.safeParse(date).success && dayAccess(date, today) === 'add'
+      ? date
+      : null;
+  const [day, setDay] = useState(requested ?? today);
+  const recentDays = lastDays(today, WORKOUT_LIMITS.pastDaysUi);
+  const days =
+    requested && !recentDays.includes(requested) ? [...recentDays, requested] : recentDays;
   const [minutesText, setMinutesText] = useState('60');
   const [rpe, setRpe] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
@@ -94,7 +103,7 @@ function ActivitySheet({ profile }: { profile: Profile }) {
       />
       <DaySelector
         label={a.day}
-        days={lastDays(today, WORKOUT_LIMITS.pastDaysUi)}
+        days={days}
         today={today}
         value={day}
         onChange={setDay}

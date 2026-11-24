@@ -28,6 +28,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   feedback_unavailable: 'The daily feedback is not available for this profile',
   exercise_limit_reached: 'Too many exercises of your own',
   id_taken: 'This id is already used',
+  program_exists: 'Another routine is active: delete it first',
 };
 
 export function errorBody(code: ApiErrorCode, fields?: Record<string, string>): ApiErrorBody {

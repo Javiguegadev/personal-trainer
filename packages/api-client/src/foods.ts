@@ -17,6 +17,7 @@ import {
 import { addDays, customFoodAsFood, mealItemFromRequest } from '@pt/core';
 import { keepPreviousData, queryOptions, skipToken, type QueryClient } from '@tanstack/react-query';
 import { isApiError, type ApiClient } from './client';
+import { cachedWeekMealItem, cancelWeekLogs, invalidateWeekLogs, setWeekMealItem } from './week';
 import { isRejected } from './weights';
 
 /**
@@ -244,10 +245,13 @@ function rejection(id: string, error: unknown): RejectedFoodWrite {
  * resumed: a mutation restored from storage finds its function through its key.
  */
 export function registerFoodMutations(queryClient: QueryClient, api: ApiClient): void {
-  const setItem = (id: string, item: MealItem | null) =>
+  const setItem = (id: string, item: MealItem | null) => {
     queryClient.setQueryData<MealItem[]>(foodKeys.log, (items = []) =>
       withMealItem(items, id, item),
     );
+    // The week view and the day screens of older days (spec 010 AC11, AC12).
+    setWeekMealItem(queryClient, id, item);
+  };
 
   const queue = {
     // One write at a time, in the order they were made (a delete after its add, an undo after its delete).
@@ -261,9 +265,13 @@ export function registerFoodMutations(queryClient: QueryClient, api: ApiClient):
 
   const onItemMutate = async (id: string, item: MealItem | null) => {
     // A list request in flight would overwrite the optimistic item with older data.
-    await queryClient.cancelQueries({ queryKey: foodKeys.log });
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: foodKeys.log }),
+      cancelWeekLogs(queryClient),
+    ]);
     const previous =
-      queryClient.getQueryData<MealItem[]>(foodKeys.log)?.find((i) => i.id === id) ?? null;
+      queryClient.getQueryData<MealItem[]>(foodKeys.log)?.find((i) => i.id === id) ??
+      cachedWeekMealItem(queryClient, id);
     setItem(id, item);
     queryClient.setQueryData(foodKeys.rejected, null);
     return { previous };
@@ -289,6 +297,7 @@ export function registerFoodMutations(queryClient: QueryClient, api: ApiClient):
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: foodKeys.log }),
         queryClient.invalidateQueries({ queryKey: foodKeys.recentsAll }),
+        invalidateWeekLogs(queryClient),
       ]);
     },
   };

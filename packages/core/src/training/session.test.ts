@@ -293,6 +293,7 @@ describe('finishing (AC12)', () => {
       name: 'Pecho',
       minutes: 55,
       inputMethod: 'live',
+      programSessionId: null,
       startedAt: T0,
       exercises: [
         {
@@ -357,6 +358,7 @@ const savedWorkout: Workout = {
   minutes: 50,
   sessionRpe: 8,
   inputMethod: 'live',
+  programSessionId: null,
   recordedAt: '2026-11-10T19:00:00.000Z',
   exercises: [
     {

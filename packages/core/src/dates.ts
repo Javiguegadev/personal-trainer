@@ -54,6 +54,56 @@ export function toLocalIsoDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** The wall-clock date and minute of `date`, in `timeZone` (an IANA name) or the device's zone. */
+function wallClock(date: Date, timeZone?: string): { isoDate: string; minute: number } {
+  if (timeZone === undefined) {
+    return { isoDate: toLocalIsoDate(date), minute: date.getHours() * 60 + date.getMinutes() };
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  return {
+    isoDate: `${part('year')}-${part('month')}-${part('day')}`,
+    minute: Number(part('hour')) * 60 + Number(part('minute')),
+  };
+}
+
+/**
+ * The user's "today" (spec 010 AC6): the local calendar date, or the day before while the wall clock
+ * is earlier than "Mi día empieza a las" (`dayStartMinute`, minutes after midnight). It compares wall
+ * clock times, so a daylight-saving change moves nothing. `timeZone` is for tests and the server; the
+ * app omits it and uses the device's zone.
+ */
+export function localToday(now: Date, dayStartMinute: number, timeZone?: string): string {
+  const { isoDate, minute } = wallClock(now, timeZone);
+  return minute < dayStartMinute ? addDays(isoDate, -1) : isoDate;
+}
+
+/** ISO weekday of a date: Monday = 1 … Sunday = 7. */
+export function isoWeekday(isoDate: string): number {
+  const [y, m, d] = parts(isoDate);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = Sunday
+  return weekday === 0 ? 7 : weekday;
+}
+
+/** The Monday of the week of a day (the week starts on Monday in every locale, spec 010). */
+export function weekStartOf(isoDate: string): string {
+  return addDays(isoDate, 1 - isoWeekday(isoDate));
+}
+
+/** The seven dates of the week that starts on `weekStart`, Monday to Sunday. */
+export function weekDays(weekStart: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+}
+
 /** The time of `date` in the device's time zone, as `HH:mm` (spec 008: the state of the day). */
 export function toLocalTime(date: Date): string {
   const h = String(date.getHours()).padStart(2, '0');

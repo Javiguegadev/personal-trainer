@@ -108,6 +108,9 @@ pnpm format
   implemented with E2E on 2026-11-19; migration `0009` applied and the catalog imported on dev. Left:
   the phone check in Expo Go (rest haptic and chime, keep-awake, keyboard), the review of 50 exercise
   names and the search fixture, the professional review (see its Open questions).
-- Next (ADR 003, ADR 006): E5 spec 010 (training profile, week view) and spec 011 (daily check-in) →
+- Spec 010 (E5 b: "Mi semana", week view and day screen, starter routine): every step implemented
+  with E2E on 2026-11-20; migration `0010` applied on dev; consent `2026-11-v8`. Left: the phone check
+  in Expo Go (time pickers, chips at 360 px, wizard, editor), the professional review (Open questions).
+- Next (ADR 003, ADR 006): E5 spec 011 (daily check-in) →
   E5c weekly planner (meals and sessions planned by hand) → E5b adaptive loop → beta without paywall → E7
   premium AI → E6 payments.

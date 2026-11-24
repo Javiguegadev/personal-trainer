@@ -18,7 +18,8 @@ interface MealSectionProps {
   pendingIds: readonly string[];
   /** Yesterday's items of this meal, when it is empty today (AC13). */
   repeatable: { count: number; kcal: number } | null;
-  onAdd: () => void;
+  /** Absent on a day that only shows what was logged (spec 010 AC12). */
+  onAdd?: () => void;
   onRepeat: () => void;
   onOpenItem: (item: MealItem) => void;
 }
@@ -59,13 +60,15 @@ export function MealSection({
             </AppText>
           ) : null}
         </View>
-        <Button
-          variant="secondary"
-          label={f.meal.add}
-          accessibilityLabel={format(f.meal.addTo, { meal: name })}
-          onPress={onAdd}
-          testID={`meal-${meal}-add`}
-        />
+        {onAdd ? (
+          <Button
+            variant="secondary"
+            label={f.meal.add}
+            accessibilityLabel={format(f.meal.addTo, { meal: name })}
+            onPress={onAdd}
+            testID={`meal-${meal}-add`}
+          />
+        ) : null}
       </View>
 
       {items.map((item) => {

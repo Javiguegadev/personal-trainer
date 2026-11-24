@@ -32,24 +32,113 @@ export type ActivityKind = z.infer<typeof ActivityKindSchema>;
 export const IntensitySchema = z.enum(['light', 'moderate', 'hard']);
 export type Intensity = z.infer<typeof IntensitySchema>;
 
-/** One training or sport activity the user plans to do every week, outside work. */
-export const PlannedActivitySchema = z.object({
-  kind: ActivityKindSchema,
-  /** Optional name, e.g. "fútbol". */
-  label: z.string().trim().min(1).max(TRAINING_LIMITS.labelMax).nullable(),
-  sessionsPerWeek: z
-    .number()
-    .int()
-    .min(TRAINING_LIMITS.sessionsPerWeek.min)
-    .max(TRAINING_LIMITS.sessionsPerWeek.max),
-  minutesPerSession: z
-    .number()
-    .int()
-    .min(TRAINING_LIMITS.minutesPerSession.min)
-    .max(TRAINING_LIMITS.minutesPerSession.max),
-  intensity: IntensitySchema,
+/** Limits of the typical week (spec 010). Times are minutes after midnight. */
+export const WEEK_LIMITS = {
+  minuteOfDayMax: 1439,
+  /** "Mi día empieza a las" goes from 00:00 to 06:00 in steps of 30 min (AC6). */
+  dayStartMinuteMax: 360,
+  dayStartStep: 30,
+  /** Times are picked in steps of 15 min in the UI (AC2). */
+  timeStep: 15,
+} as const;
+
+/** ISO weekday: Monday = 1 … Sunday = 7. */
+export const WeekdaySchema = z.number().int().min(1).max(7);
+export type Weekday = z.infer<typeof WeekdaySchema>;
+
+/** A time of day as minutes after midnight (0–1439). */
+export const MinuteOfDaySchema = z.number().int().min(0).max(WEEK_LIMITS.minuteOfDayMax);
+
+/** One weekday of a planned activity (spec 010 AC2). `isMatch` is only for sport activities. */
+export const ActivityDaySchema = z.object({
+  weekday: WeekdaySchema,
+  startMinute: MinuteOfDaySchema.nullable(),
+  isMatch: z.boolean(),
 });
+export type ActivityDay = z.infer<typeof ActivityDaySchema>;
+
+/** One training or sport activity the user plans to do every week, outside work. */
+export const PlannedActivitySchema = z
+  .object({
+    kind: ActivityKindSchema,
+    /** Optional name, e.g. "fútbol". */
+    label: z.string().trim().min(1).max(TRAINING_LIMITS.labelMax).nullable(),
+    sessionsPerWeek: z
+      .number()
+      .int()
+      .min(TRAINING_LIMITS.sessionsPerWeek.min)
+      .max(TRAINING_LIMITS.sessionsPerWeek.max),
+    minutesPerSession: z
+      .number()
+      .int()
+      .min(TRAINING_LIMITS.minutesPerSession.min)
+      .max(TRAINING_LIMITS.minutesPerSession.max),
+    intensity: IntensitySchema,
+    /**
+     * The weekdays of the typical week (spec 010 AC2). Empty means "N times a week" without days; with
+     * days, `sessionsPerWeek` is their count.
+     */
+    days: z.array(ActivityDaySchema).max(7).default([]),
+  })
+  .superRefine((activity, ctx) => {
+    const { days } = activity;
+    if (days.length === 0) return;
+    if (days.length !== activity.sessionsPerWeek) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['days'],
+        message: 'The number of days must equal the sessions per week',
+      });
+    }
+    if (new Set(days.map((day) => day.weekday)).size !== days.length) {
+      ctx.addIssue({ code: 'custom', path: ['days'], message: 'Repeated weekday' });
+    }
+    if (activity.kind !== 'sport' && days.some((day) => day.isMatch)) {
+      ctx.addIssue({ code: 'custom', path: ['days'], message: 'Only a sport has match days' });
+    }
+  });
 export type PlannedActivity = z.infer<typeof PlannedActivitySchema>;
+
+/** How the user's job hours work (spec 010 AC3). Only `fixed` stores work blocks. */
+export const WorkPatternSchema = z.enum(['fixed', 'shifts', 'irregular', 'none']);
+export type WorkPattern = z.infer<typeof WorkPatternSchema>;
+
+/** The work hours of one weekday. An end before the start means the block ends the next day. */
+export const WorkBlockSchema = z
+  .object({
+    weekday: WeekdaySchema,
+    startMinute: MinuteOfDaySchema,
+    endMinute: MinuteOfDaySchema,
+  })
+  .refine((block) => block.startMinute !== block.endMinute, {
+    path: ['endMinute'],
+    message: 'The end must differ from the start',
+  });
+export type WorkBlock = z.infer<typeof WorkBlockSchema>;
+
+const WorkBlocksSchema = z
+  .array(WorkBlockSchema)
+  .max(7)
+  .refine((blocks) => new Set(blocks.map((block) => block.weekday)).size === blocks.length, {
+    message: 'Repeated weekday',
+  });
+
+export const DayStartMinuteSchema = z
+  .number()
+  .int()
+  .min(0)
+  .max(WEEK_LIMITS.dayStartMinuteMax)
+  .multipleOf(WEEK_LIMITS.dayStartStep);
+
+/** The stored typical week, without the activities (they live in `plannedActivities`). */
+export const WeekSchema = z.object({
+  /** Null until the user answers it in "Mi semana". */
+  workPattern: WorkPatternSchema.nullable(),
+  workBlocks: z.array(WorkBlockSchema),
+  /** When the user's day starts (AC6); 0 is midnight. */
+  dayStartMinute: z.number().int(),
+});
+export type Week = z.infer<typeof WeekSchema>;
 
 /** The weekly training list. Empty means "I don't train". */
 export const PlannedActivitiesSchema = z
@@ -81,6 +170,14 @@ export const TrainingFocusSchema = z.enum([
   'general_fitness',
 ]);
 export type TrainingFocus = z.infer<typeof TrainingFocusSchema>;
+
+/** How long the user has been training, asked by the routine wizard (spec 010 AC14). */
+export const TrainingExperienceSchema = z.enum(['beginner', 'intermediate', 'advanced']);
+export type TrainingExperience = z.infer<typeof TrainingExperienceSchema>;
+
+/** What the user can train with, asked by the routine wizard (spec 010 AC14). */
+export const EquipmentAccessSchema = z.enum(['full_gym', 'home_dumbbells', 'bodyweight']);
+export type EquipmentAccess = z.infer<typeof EquipmentAccessSchema>;
 
 export const DietTypeSchema = z.enum(['omnivore', 'vegetarian', 'vegan', 'pescatarian', 'other']);
 export type DietType = z.infer<typeof DietTypeSchema>;
@@ -271,8 +368,39 @@ export const ProfileSchema = z.object({
   units: UnitsSchema,
   locale: LocaleSchema,
   onboardingCompletedAt: z.iso.datetime({ offset: true }).nullable(),
+  /** Work pattern, work hours and day start (spec 010). */
+  week: WeekSchema,
+  /** Set by the routine wizard (spec 010 AC14); null until then. */
+  trainingExperience: TrainingExperienceSchema.nullable(),
+  equipmentAccess: EquipmentAccessSchema.nullable(),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
+
+/** The week before the user fills "Mi semana": no work hours, the day starts at midnight. */
+export const EMPTY_WEEK: Week = { workPattern: null, workBlocks: [], dayStartMinute: 0 };
+
+/** `PUT /me/week` (spec 010 AC4): the typical week and the activities with their days, in one write. */
+export const WeekRequestSchema = z
+  .object({
+    workPattern: WorkPatternSchema,
+    workBlocks: WorkBlocksSchema,
+    dayStartMinute: DayStartMinuteSchema,
+    plannedActivities: PlannedActivitiesSchema,
+    /** The user's local date. The API accepts it only within ±1 day of server UTC. */
+    today: IsoDateSchema,
+  })
+  .refine((week) => week.workPattern === 'fixed' || week.workBlocks.length === 0, {
+    path: ['workBlocks'],
+    message: 'Only fixed hours have work blocks',
+  });
+export type WeekRequest = z.infer<typeof WeekRequestSchema>;
+
+/** `PUT /me/training-profile` (spec 010 AC14): the wizard's answers. */
+export const TrainingProfileUpdateSchema = z.object({
+  experience: TrainingExperienceSchema,
+  equipment: EquipmentAccessSchema,
+});
+export type TrainingProfileUpdate = z.infer<typeof TrainingProfileUpdateSchema>;
 
 export const StoredTargetsSchema = TargetsSchema.extend({
   validFrom: z.iso.datetime({ offset: true }),

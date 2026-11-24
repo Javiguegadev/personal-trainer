@@ -4,6 +4,8 @@ import {
   ActivityTypeSchema,
   CustomExerciseUpsertRequestSchema,
   ExerciseHistoryQuerySchema,
+  PROGRAM_LIMITS,
+  ProgramUpsertRequestSchema,
   WORKOUT_LIMITS,
   WorkoutUpsertRequestSchema,
   type WorkoutUpsertRequest,
@@ -23,6 +25,7 @@ const gym: WorkoutUpsertRequest = {
   name: 'Pierna',
   minutes: 55,
   inputMethod: 'live',
+  programSessionId: null,
   exercises: [
     {
       exerciseId: '00000000-0000-4000-8000-000000000001',
@@ -139,5 +142,95 @@ describe('ExerciseHistoryQuerySchema', () => {
     expect(ExerciseHistoryQuerySchema.parse({}).limit).toBe(WORKOUT_LIMITS.historySessionsDefault);
     expect(ExerciseHistoryQuerySchema.parse({ limit: '30' }).limit).toBe(30);
     expect(ExerciseHistoryQuerySchema.safeParse({ limit: '101' }).success).toBe(false);
+  });
+});
+
+describe('ProgramUpsertRequestSchema (spec 010 AC16, AC22)', () => {
+  const sessionId = '00000000-0000-4000-8000-0000000000a1';
+  const program = {
+    name: 'Full body',
+    origin: 'template',
+    templateKey: 'full-body-ab',
+    sessions: [
+      {
+        id: sessionId,
+        name: 'Rutina A',
+        exercises: [
+          {
+            exerciseId: '00000000-0000-4000-8000-000000000001',
+            sets: 3,
+            repsMin: 8,
+            repsMax: 12,
+            durationS: null,
+            restS: 90,
+          },
+        ],
+      },
+    ],
+    recordedAt: '2026-11-19T10:00:00+01:00',
+  };
+  const withExercise = (patch: object) => ({
+    ...program,
+    sessions: [
+      { ...program.sessions[0], exercises: [{ ...program.sessions[0]!.exercises[0], ...patch }] },
+    ],
+  });
+
+  it('accepts a routine and defaults the locale', () => {
+    expect(ProgramUpsertRequestSchema.parse(program).locale).toBe('es');
+  });
+
+  it('accepts a session without exercises (a routine built by hand)', () => {
+    const empty = { ...program, sessions: [{ id: sessionId, name: 'A', exercises: [] }] };
+    expect(ProgramUpsertRequestSchema.safeParse(empty).success).toBe(true);
+  });
+
+  it('rejects no sessions, more than 7, and a repeated session id', () => {
+    expect(ProgramUpsertRequestSchema.safeParse({ ...program, sessions: [] }).success).toBe(false);
+    const eight = Array.from({ length: 8 }, (_, i) => ({
+      ...program.sessions[0],
+      id: `00000000-0000-4000-8000-00000000000${i}`,
+    }));
+    expect(ProgramUpsertRequestSchema.safeParse({ ...program, sessions: eight }).success).toBe(
+      false,
+    );
+    const twice = [program.sessions[0], program.sessions[0]];
+    expect(ProgramUpsertRequestSchema.safeParse({ ...program, sessions: twice }).success).toBe(
+      false,
+    );
+  });
+
+  it('checks the sets and the rep range', () => {
+    expect(ProgramUpsertRequestSchema.safeParse(withExercise({ sets: 0 })).success).toBe(false);
+    expect(ProgramUpsertRequestSchema.safeParse(withExercise({ sets: 11 })).success).toBe(false);
+    expect(
+      ProgramUpsertRequestSchema.safeParse(withExercise({ repsMin: 12, repsMax: 8 })).success,
+    ).toBe(false);
+    expect(ProgramUpsertRequestSchema.safeParse(withExercise({ repsMax: null })).success).toBe(
+      false,
+    );
+    const timed = withExercise({ repsMin: null, repsMax: null, durationS: 45 });
+    expect(ProgramUpsertRequestSchema.safeParse(timed).success).toBe(true);
+  });
+
+  it('caps the exercises per session', () => {
+    const exercise = program.sessions[0]!.exercises[0];
+    const many = Array.from({ length: PROGRAM_LIMITS.exercisesPerSessionMax + 1 }, () => exercise);
+    const tooMany = { ...program, sessions: [{ ...program.sessions[0], exercises: many }] };
+    expect(ProgramUpsertRequestSchema.safeParse(tooMany).success).toBe(false);
+  });
+});
+
+describe('WorkoutUpsertRequestSchema from a routine (spec 010 AC18)', () => {
+  it('defaults the routine session to none and accepts the program input method', () => {
+    const free: Partial<Extract<WorkoutUpsertRequest, { kind: 'gym' }>> = { ...gym };
+    delete free.programSessionId;
+    expect(WorkoutUpsertRequestSchema.parse(free)).toMatchObject({ programSessionId: null });
+    const fromRoutine = {
+      ...free,
+      inputMethod: 'program',
+      programSessionId: '00000000-0000-4000-8000-0000000000a1',
+    };
+    expect(WorkoutUpsertRequestSchema.safeParse(fromRoutine).success).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import {
   FoodInputMethodSchema,
   FoodOriginSchema,
   DietTypeSchema,
+  EquipmentAccessSchema,
   EquipmentSchema,
   ExerciseCategorySchema,
   ExerciseOriginSchema,
@@ -14,13 +15,16 @@ import {
   LocaleSchema,
   MealTypeSchema,
   MuscleGroupSchema,
+  ProgramOriginSchema,
   QuantityUnitSchema,
   SexSchema,
+  TrainingExperienceSchema,
   TrainingFocusSchema,
   UnitsSchema,
   ActivityTypeSchema,
   WorkoutInputMethodSchema,
   WorkoutKindSchema,
+  WorkPatternSchema,
 } from '@pt/contracts';
 import { pgEnum } from 'drizzle-orm/pg-core';
 
@@ -55,3 +59,10 @@ export const workoutInputMethodEnum = pgEnum(
   'workout_input_method',
   values(WorkoutInputMethodSchema),
 );
+export const workPatternEnum = pgEnum('work_pattern', values(WorkPatternSchema));
+export const trainingExperienceEnum = pgEnum(
+  'training_experience',
+  values(TrainingExperienceSchema),
+);
+export const equipmentAccessEnum = pgEnum('equipment_access', values(EquipmentAccessSchema));
+export const programOriginEnum = pgEnum('program_origin', values(ProgramOriginSchema));

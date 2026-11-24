@@ -52,6 +52,7 @@ describe('ProfileInputSchema: job and weekly training (spec 002 AC1–AC4)', () 
     sessionsPerWeek: 3,
     minutesPerSession: 60,
     intensity: 'moderate',
+    days: [],
   };
   const withTraining = (plannedActivities: unknown) =>
     ProfileInputSchema.safeParse({ ...valid, plannedActivities });
@@ -101,6 +102,7 @@ describe('ProfileInputSchema: training focus (spec 004 AC2, AC3)', () => {
     sessionsPerWeek: 3,
     minutesPerSession: 90,
     intensity: 'moderate',
+    days: [],
   };
   const gym: PlannedActivity = { ...football, kind: 'strength', label: null };
   const sport = (plannedActivities: PlannedActivity[]) =>

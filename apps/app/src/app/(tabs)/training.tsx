@@ -1,8 +1,8 @@
 import { WORKOUT_LIMITS, type Profile } from '@pt/contracts';
 import {
   formatShortDate,
+  localToday,
   repeatShortcuts,
-  toLocalIsoDate,
   weekStartOf,
   workoutHistoryWeeks,
   workoutRecordCount,
@@ -17,6 +17,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { RoutineCard } from '@/components/RoutineCard';
 import { Screen } from '@/components/Screen';
 import { SessionInProgress } from '@/components/SessionInProgress';
 import { TrainingNotes } from '@/components/TrainingNotes';
@@ -28,8 +29,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
 import { useExerciseLookups, useTrainingActions } from '@/hooks/useTraining';
 import { useWorkoutText } from '@/hooks/useWorkoutText';
-import { useMe, usePendingTrainingIds, useWorkouts } from '@/lib/api';
+import { useMe, usePendingTrainingIds, useProgram, useWorkouts } from '@/lib/api';
 import { useSession } from '@/lib/liveSession';
+import { profileWeek } from '@/lib/week';
 import { clearWorkoutUndo, useWorkoutUndo } from '@/lib/workoutUndo';
 
 /** Days of history shown before "Ver más" (AC20); the cache holds `WORKOUT_LIMITS.cacheDays`. */
@@ -48,6 +50,7 @@ function TrainingTab({ profile }: { profile: Profile }) {
   const router = useRouter();
   const today = useToday();
   const log = useWorkouts(today);
+  const program = useProgram();
   const live = useSession('live');
   const { statsList } = useExerciseLookups();
   const pendingIds = usePendingTrainingIds();
@@ -65,7 +68,10 @@ function TrainingTab({ profile }: { profile: Profile }) {
   const startPast = () => {
     // An hour ago by default; the day and the time are the first fields of the screen (AC17).
     const startedAt = new Date(Date.now() - 60 * 60 * 1000);
-    actions.startManual(toLocalIsoDate(startedAt), startedAt.toISOString());
+    actions.startManual(
+      localToday(startedAt, profileWeek(profile).dayStartMinute),
+      startedAt.toISOString(),
+    );
     router.push({ pathname: '/training/session', params: { slot: 'draft' } });
   };
 
@@ -150,10 +156,17 @@ function TrainingTab({ profile }: { profile: Profile }) {
       <OfflineBanner />
       <TrainingRejectedNotice />
       <TrainingNotes flags={flags} />
+      <RoutineCard profile={profile} />
       {live ? (
         <SessionInProgress session={live} label={tr.inProgress} />
       ) : (
-        <Button label={tr.start} onPress={start} testID="training-start" />
+        <Button
+          // With a routine, its "Empezar" is the main action (spec 010 AC17).
+          variant={program.data ? 'secondary' : 'primary'}
+          label={tr.start}
+          onPress={start}
+          testID="training-start"
+        />
       )}
       <Button
         variant="secondary"
@@ -189,6 +202,12 @@ function TrainingTab({ profile }: { profile: Profile }) {
         </Card>
       ) : null}
       {history}
+      <Button
+        variant="ghost"
+        label={`${t.week.link} ›`}
+        onPress={() => router.push('/settings/week')}
+        testID="training-week"
+      />
       <Button
         variant="ghost"
         label={`${tr.libraryLink} ›`}

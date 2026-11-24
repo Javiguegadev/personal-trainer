@@ -49,6 +49,7 @@ describe('profileNotices: what the user trains for (spec 004)', () => {
     sessionsPerWeek: 6,
     minutesPerSession: 120,
     intensity: 'moderate',
+    days: [],
   };
   /** 165 cm, 60 kg, 720 min a week: carbohydrate minimum 5 × 60 = 300 g. */
   const profile = {

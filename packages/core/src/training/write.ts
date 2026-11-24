@@ -74,6 +74,7 @@ export function workoutFromRequest(
     minutes: request.minutes,
     sessionRpe: request.sessionRpe,
     inputMethod: request.inputMethod,
+    programSessionId: request.kind === 'gym' ? request.programSessionId : null,
     recordedAt: request.recordedAt,
   };
   if (request.kind !== 'gym') {
@@ -104,7 +105,7 @@ export function workoutFromRequest(
   return { ...base, kind: 'gym', activity: null, exercises: out };
 }
 
-const labelFor = (exercise: LoggableExercise, locale: Locale) =>
+export const labelFor = (exercise: LoggableExercise, locale: Locale) =>
   locale === 'en' ? exercise.nameEn : exercise.nameEs;
 
 /**

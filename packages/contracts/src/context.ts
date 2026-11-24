@@ -1,15 +1,38 @@
 import { z } from 'zod';
 import {
+  ActivityKindSchema,
+  EquipmentAccessSchema,
   GoalSchema,
   IsoDateSchema,
   JobActivitySchema,
   PlannedActivitySchema,
   SafetyFlagSchema,
   SexSchema,
+  TrainingExperienceSchema,
   TrainingFocusSchema,
+  WeekdaySchema,
+  WorkPatternSchema,
 } from './profile';
 
-export const CONTEXT_VERSION = 'context-v3';
+export const CONTEXT_VERSION = 'context-v4';
+
+/** One weekday of the typical week in the context (spec 010 AC25). */
+const ContextWeekDaySchema = z.object({
+  weekday: WeekdaySchema,
+  /** The work block that starts on this weekday; an end before the start ends the next day. */
+  work: z.object({ startMinute: z.number().int(), endMinute: z.number().int() }).nullable(),
+  /** The planned activities of the weekday, by start time. */
+  training: z.array(
+    z.object({
+      /** Index in `training.activities`. */
+      activityIndex: z.number().int(),
+      kind: ActivityKindSchema,
+      minutes: z.number().int(),
+      startMinute: z.number().int().nullable(),
+      isMatch: z.boolean(),
+    }),
+  ),
+});
 
 /**
  * The user context (ADR 003): one versioned, read-only view of what the app knows about the user on a
@@ -42,6 +65,17 @@ export const ContextSnapshotSchema = z.object({
     factor: z.number(),
     /** What the user trains for (spec 004 AC11). Added by `context-v3`. */
     focus: TrainingFocusSchema,
+    /** The routine wizard's answers and whether a routine exists (spec 010 AC25). Added by `context-v4`. */
+    experience: TrainingExperienceSchema.nullable(),
+    equipment: EquipmentAccessSchema.nullable(),
+    hasRoutine: z.boolean(),
+  }),
+  /** The typical week (spec 010 AC25), Monday to Sunday. Added by `context-v4`; no AI reads it yet. */
+  week: z.object({
+    workPattern: WorkPatternSchema.nullable(),
+    /** When the user's day starts, in minutes after midnight (AC6). */
+    dayStartMinute: z.number().int(),
+    days: z.array(ContextWeekDaySchema).length(7),
   }),
   /** The weight log (spec 003 AC25). Added by `context-v2`. */
   weight: z.object({

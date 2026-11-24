@@ -80,6 +80,12 @@ export const {
   useDeleteCustomExercise,
   usePendingTrainingIds,
   useRejectedTrainingWrite,
+  useProgram,
+  useSaveProgram,
+  useDeleteProgram,
+  useSaveTrainingProfile,
+  useWeekLog,
+  useSaveWeek,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

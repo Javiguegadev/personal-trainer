@@ -6,6 +6,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="sources" />
+      <Stack.Screen name="week" />
     </Stack>
   );
 }

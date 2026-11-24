@@ -6,6 +6,7 @@ import {
 } from '@pt/contracts';
 import {
   SESSION_MINUTES_OPTIONS,
+  applyDaysToActivity,
   canAddPlannedActivity,
   newPlannedActivity,
   trainingMinutesPerWeek,
@@ -16,6 +17,7 @@ import { tokens } from '@pt/ui';
 import { StyleSheet, View } from 'react-native';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
+import { ActivityDaysRow } from './ActivityDaysRow';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { ChoiceGroup } from './ChoiceGroup';
@@ -39,7 +41,8 @@ const NAMED_KINDS: readonly ActivityKind[] = ['sport', 'other'];
 
 /**
  * The weekly training outside work (spec 002 AC2–AC4): a short list of activity cards, each edited with
- * taps. An empty list means "I don't train" and is valid.
+ * taps. An empty list means "I don't train" and is valid. An activity with days from "Mi semana" shows
+ * its day chips instead of the "times per week" stepper (spec 010 AC4).
  */
 export function PlannedActivitiesField({
   values,
@@ -106,10 +109,22 @@ export function PlannedActivitiesField({
               }))}
               value={activity.kind}
               onChange={(kind) =>
-                update(index, {
-                  kind,
-                  label: NAMED_KINDS.includes(kind) ? activity.label : '',
-                })
+                // Only a sport keeps its match days (spec 010 AC2).
+                onChange(
+                  values.map((item, i) =>
+                    i === index
+                      ? applyDaysToActivity(
+                          {
+                            ...item,
+                            kind,
+                            label: NAMED_KINDS.includes(kind) ? item.label : '',
+                            days: item.days ?? [],
+                          },
+                          item.days ?? [],
+                        )
+                      : item,
+                  ),
+                )
               }
               testID={`${id}-kind`}
             />
@@ -128,16 +143,25 @@ export function PlannedActivitiesField({
                 testID={`${id}-name`}
               />
             ) : null}
-            <Stepper
-              label={f.sessions}
-              value={activity.sessionsPerWeek}
-              min={TRAINING_LIMITS.sessionsPerWeek.min}
-              max={TRAINING_LIMITS.sessionsPerWeek.max}
-              onChange={(sessionsPerWeek) => update(index, { sessionsPerWeek })}
-              decreaseLabel={f.sessionsDecrease}
-              increaseLabel={f.sessionsIncrease}
-              testID={`${id}-sessions`}
-            />
+            {activity.days?.length ? (
+              <ActivityDaysRow
+                name={activity.label.trim() || t.week.kindName[activity.kind]}
+                activity={{ ...activity, days: activity.days }}
+                onChange={(next) => onChange(values.map((item, i) => (i === index ? next : item)))}
+                testID={`${id}-days`}
+              />
+            ) : (
+              <Stepper
+                label={f.sessions}
+                value={activity.sessionsPerWeek}
+                min={TRAINING_LIMITS.sessionsPerWeek.min}
+                max={TRAINING_LIMITS.sessionsPerWeek.max}
+                onChange={(sessionsPerWeek) => update(index, { sessionsPerWeek })}
+                decreaseLabel={f.sessionsDecrease}
+                increaseLabel={f.sessionsIncrease}
+                testID={`${id}-sessions`}
+              />
+            )}
             <ChoiceGroup
               label={f.duration}
               options={durations.map((value) => ({

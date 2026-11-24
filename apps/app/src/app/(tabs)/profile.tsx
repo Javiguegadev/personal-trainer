@@ -40,6 +40,12 @@ export default function ProfileTabScreen() {
       />
       <Button
         variant="secondary"
+        label={p.week}
+        onPress={() => router.push('/settings/week')}
+        testID="open-week"
+      />
+      <Button
+        variant="secondary"
         label={p.privacy}
         onPress={() => router.push('/settings/privacy')}
         testID="open-privacy"
