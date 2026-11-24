@@ -5,11 +5,13 @@ import {
   createFeedbackWriter,
   createLabelReader,
   createMealReader,
+  createWorkoutReader,
   createMessageFn,
   type AiFeature,
   type ReadLabel,
   type ReadMeal,
   type WordFeedback,
+  type ReadWorkout,
 } from '@pt/ai';
 import { createDb } from '@pt/db';
 import { createApp } from './app';
@@ -61,6 +63,14 @@ function createWordFeedback(apiKey: string | undefined): WordFeedback {
   };
 }
 
+/** Without an API key the workout sentence answers 503; logging by taps keeps working. */
+function createReadWorkout(apiKey: string | undefined): ReadWorkout {
+  if (apiKey) return createWorkoutReader(createMessageFn(apiKey));
+  return async () => {
+    throw noApiKey('workout_text');
+  };
+}
+
 /** Open Food Facts asks every app for `AppName/Version (ContactEmail)`. */
 function offUserAgent(env: NodeJS.ProcessEnv): string {
   const app = `PersonalTrainer/${env.APP_VERSION ?? '0.0.0'}`;
@@ -92,6 +102,7 @@ function createDeps(env: NodeJS.ProcessEnv): Deps | undefined {
     readLabel: createReadLabel(env.ANTHROPIC_API_KEY),
     readMeal: createReadMeal(env.ANTHROPIC_API_KEY),
     wordFeedback: createWordFeedback(env.ANTHROPIC_API_KEY),
+    readWorkout: createReadWorkout(env.ANTHROPIC_API_KEY),
     now: () => new Date(),
   };
 }

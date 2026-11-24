@@ -12,7 +12,7 @@ export const WORKOUT_DRAFT_LIMITS = {
   exercisesMax: WORKOUT_LIMITS.exercisesPerSessionMax,
   /** Other activities said in the sentence, shown as "También: …" lines (AC6). */
   extraActivitiesMax: 2,
-  /** The user's own exercises sent to the model (`u1`…), most recently done first. */
+  /** The user's own exercises sent to the model (`u1`…): all of them, as a user has at most 200. */
   ownExercisesMax: WORKOUT_LIMITS.customExercisesMax,
   /** Furthest day back the model may name; `core` keeps only today and the 6 days before (AC4). */
   daysAgoMax: 30,

@@ -28,6 +28,7 @@ import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { createExerciseCatalogCache, loggableExercises } from '../../services/training';
+import { workoutDraftRoutes } from './drafts';
 import { programRoutes } from './program';
 
 const error = (description: string) => ({
@@ -281,5 +282,6 @@ export function trainingRoutes(deps: Deps) {
       await deps.store.deleteWorkout(c.var.user.userId, id, recordedAt);
       return c.json({ workout: null }, 200);
     })
-    .route('/', programRoutes(deps));
+    .route('/', programRoutes(deps))
+    .route('/', workoutDraftRoutes(deps, getCatalog));
 }
