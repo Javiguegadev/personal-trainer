@@ -255,6 +255,13 @@ describe('PUT /me/workouts/:id (AC12, AC16, AC23)', () => {
     expect(en?.exercises.map((e) => e.label)).toEqual(['Bench press', 'Pull-up']);
   });
 
+  it('stores a draft of the sentence shortcut with the text input method (spec 012 AC14)', async () => {
+    const session = await saved(await put(WORKOUT, gym({ inputMethod: 'text' })));
+    expect(session?.inputMethod).toBe('text');
+    const activity = await saved(await put(WORKOUT_2, football({ inputMethod: 'text' })));
+    expect(activity).toMatchObject({ kind: 'sport', activity: 'football', inputMethod: 'text' });
+  });
+
   it('keeps only the values of the exercise’s tracking and rejects a set without them', async () => {
     const plank = {
       exerciseId: EXERCISE.plank,

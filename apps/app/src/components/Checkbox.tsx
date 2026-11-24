@@ -14,9 +14,11 @@ export function Checkbox({ label, checked, onChange, testID }: CheckboxProps) {
   const { colors } = useTheme();
   return (
     <Pressable
-      accessibilityRole="checkbox"
+      // `aria-checked`, not `accessibilityState`: react-native-web only renders the former, so a screen
+      // reader on the web knows whether it is ticked.
+      role="checkbox"
       accessibilityLabel={label}
-      accessibilityState={{ checked }}
+      aria-checked={checked}
       onPress={() => onChange(!checked)}
       testID={testID}
       style={styles.row}

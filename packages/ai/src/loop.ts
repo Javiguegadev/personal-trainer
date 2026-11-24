@@ -9,8 +9,12 @@ export type ToolHandler = (name: string, input: unknown) => Promise<string>;
 
 export interface StructuredToolLoop<T> {
   feature: AiFeature;
-  /** Stable: the cached prefix with the tools. */
-  system: string;
+  /**
+   * Stable: the cached prefix with the tools. A string is cached as one block; blocks are sent as
+   * given, so the caller places the breakpoints (spec 012: the instructions plus the catalog).
+   */
+  system: string | Anthropic.TextBlockParam[];
+  /** Empty for one call without tools (`maxToolRounds` 0). */
   tools: Anthropic.Tool[];
   /** The first user turn: the input of this request. */
   content: Anthropic.ContentBlockParam[];
@@ -70,8 +74,11 @@ export async function runStructuredToolLoop<T>(
             max_tokens: config.maxTokens,
             output_config: { effort: config.effort, format },
             // Tools render before the system prompt: one breakpoint here caches both.
-            system: [{ type: 'text', text: loop.system, cache_control: { type: 'ephemeral' } }],
-            tools: loop.tools,
+            system:
+              typeof loop.system === 'string'
+                ? [{ type: 'text', text: loop.system, cache_control: { type: 'ephemeral' } }]
+                : loop.system,
+            ...(loop.tools.length ? { tools: loop.tools } : {}),
             messages,
           },
           { signal: controller.signal },

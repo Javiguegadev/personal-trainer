@@ -53,8 +53,16 @@ export function FinishSheet({
   const { colors } = useTheme();
   const summary = sessionSummary(session, endedAt);
   const f = t.training.finish;
-  // A past session has no clock to go by: an hour is the usual length (editable).
-  const [minutesText, setMinutesText] = useState(String(summary.minutes ?? 60));
+  // A past session has no clock to go by: an hour is the usual length (editable). A sentence draft
+  // keeps the duration said, or an empty field: its sets carry no times (spec 012 AC14).
+  const draft = session.textDraft ?? null;
+  const [minutesText, setMinutesText] = useState(
+    draft
+      ? session.minutes === null
+        ? ''
+        : String(session.minutes)
+      : String(summary.minutes ?? 60),
+  );
   const [rpe, setRpe] = useState<string | null>(
     session.sessionRpe === null ? null : String(session.sessionRpe),
   );
@@ -122,6 +130,13 @@ export function FinishSheet({
         testID="finish-name"
       />
       {canSave ? null : <Notice tone="info" message={f.noSets} testID="finish-no-sets" />}
+      {draft && draft.unresolved.length > 0 ? (
+        <Notice
+          tone="warning"
+          message={t.training.draft.unresolvedLeft}
+          testID="finish-unresolved"
+        />
+      ) : null}
       <Button
         label={f.save}
         disabled={!canSave}

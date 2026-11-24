@@ -34,6 +34,8 @@ import {
   ProfileInputSchema,
   WEIGHT_LIMITS,
   WORKOUT_LIMITS,
+  WORKOUT_DRAFT_LIMITS,
+  WorkoutTextDraftRequestSchema,
   CustomExerciseDeleteQuerySchema,
   CustomExerciseUpsertRequestSchema,
   ExerciseHistoryQuerySchema,
@@ -104,7 +106,10 @@ import {
   targetsOnly,
   writeWins,
   buildExerciseStats,
+  checkClientDates,
   checkWorkoutRange,
+  searchExercises,
+  workoutDraft,
   checkWorkoutWrite,
   customExercise,
   exerciseHistory,
@@ -120,6 +125,7 @@ import { ApiError, type ApiClient } from '../client';
 import { MOCK_EXERCISE_CATALOG_VERSION, MOCK_EXERCISES } from './exercises';
 import { MOCK_CATALOG, MOCK_SOURCE, toMockFood } from './foods';
 import { mockPhotoReading, mockTextReading } from './drafts';
+import { mockWorkoutReading } from './workout-drafts';
 import { mockFeedbackReading } from './feedback';
 import { mockProduct, mockProductById } from './products';
 import { parseMockToken, type MockUser } from './identity';
@@ -382,7 +388,11 @@ export function createMockApiClient({
   };
 
   /** The daily cap of one AI feature (spec 006 AC18, spec 007 AC12), then its metering. */
-  function useAi(record: UserRecord, feature: 'meal_text' | 'meal_photo', perDay: number) {
+  function useAi(
+    record: UserRecord,
+    feature: 'meal_text' | 'meal_photo' | 'workout_text',
+    perDay: number,
+  ) {
     const today = now().toISOString().slice(0, 10);
     const used = record.aiUsage.filter(
       (u) => u.feature === feature && u.createdAt.slice(0, 10) === today,
@@ -949,6 +959,28 @@ export function createMockApiClient({
         version: MOCK_EXERCISE_CATALOG_VERSION,
         exercises: [...MOCK_EXERCISES, ...ownExercises(record)],
       };
+    },
+
+    draftWorkoutFromText: async (body) => {
+      const { record } = await authenticateWithConsent();
+      const request = parse(WorkoutTextDraftRequestSchema, body);
+      const invalid = checkClientDates({ today: request.today }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      if (
+        request.localDate > request.today ||
+        request.localDate < addDays(request.today, -WORKOUT_LIMITS.pastDaysUi)
+      ) {
+        throw fail('validation_error', { localDate: 'out_of_range' });
+      }
+      useAi(record, 'workout_text', WORKOUT_DRAFT_LIMITS.textsPerDay);
+      const exercises = [...MOCK_EXERCISES, ...ownExercises(record)];
+      const refs = new Map(exercises.map((e) => [e.id, e]));
+      const reading = mockWorkoutReading(request.text, (query) => {
+        const [id] = searchExercises(exercises, query, request.locale, 1);
+        return id ?? null;
+      });
+      // The sentence is read and dropped: nothing of it is stored (AC20).
+      return workoutDraft(reading, refs, request.today, request.localDate);
     },
 
     saveCustomExercise: async (exerciseId, body) => {

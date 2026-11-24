@@ -36,3 +36,6 @@ CLAUDE.local.md
 
 # knowledge-base raw downloads (spec 005: only the curated catalog is committed)
 .cache/
+
+# Eval reports (local runs; the numbers that matter go in each spec Progress)
+apps/api/evals/*/reports/

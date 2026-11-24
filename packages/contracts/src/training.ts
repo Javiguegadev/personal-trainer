@@ -215,10 +215,17 @@ export const ActivityTypeSchema = z.enum([
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 
 /**
- * How a workout reached the log. `program`: started from a routine session (spec 010 AC18). Spec 011
- * adds `text` and `voice`.
+ * How a workout reached the log. `program`: started from a routine session (spec 010 AC18). `text`:
+ * a draft of the sentence shortcut (spec 012), typed or dictated: the app cannot tell them apart.
  */
-export const WorkoutInputMethodSchema = z.enum(['live', 'manual', 'repeat', 'activity', 'program']);
+export const WorkoutInputMethodSchema = z.enum([
+  'live',
+  'manual',
+  'repeat',
+  'activity',
+  'program',
+  'text',
+]);
 export type WorkoutInputMethod = z.infer<typeof WorkoutInputMethodSchema>;
 
 const reps = z.number().int().min(WORKOUT_LIMITS.repsMin).max(WORKOUT_LIMITS.repsMax);
@@ -282,7 +289,7 @@ export const WorkoutUpsertRequestSchema = z.discriminatedUnion('kind', [
       .array(WorkoutExerciseInputSchema)
       .min(1)
       .max(WORKOUT_LIMITS.exercisesPerSessionMax),
-    inputMethod: z.enum(['live', 'manual', 'repeat', 'program']),
+    inputMethod: z.enum(['live', 'manual', 'repeat', 'program', 'text']),
     /** The routine session it was started from (spec 010 AC18); it moves the rotation (AC19). */
     programSessionId: z.uuid().nullable().default(null),
     ...workoutPlacement,
@@ -293,7 +300,7 @@ export const WorkoutUpsertRequestSchema = z.discriminatedUnion('kind', [
     activity: ActivityTypeSchema.nullable(),
     name: z.string().trim().min(1).max(WORKOUT_LIMITS.nameMax).nullable(),
     minutes: z.number().int().min(WORKOUT_LIMITS.activityMinutesMin).max(WORKOUT_LIMITS.minutesMax),
-    inputMethod: z.literal('activity'),
+    inputMethod: z.enum(['activity', 'text']),
     ...workoutPlacement,
   }),
 ]);

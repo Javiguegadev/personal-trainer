@@ -60,5 +60,10 @@ describe('consent text', () => {
   it('names the label photo, the plate photo and the sentence in both locales', () => {
     expect(messages.es.consent.points.use).toMatch(/etiqueta.*plato.*frase.*Anthropic/);
     expect(messages.en.consent.points.use).toMatch(/label.*plate.*sentence.*Anthropic/);
+    // Spec 012 AC21: workout sentences and the names of the user's own exercises.
+    expect(messages.es.consent.points.use).toMatch(
+      /entreno.*Anthropic.*ejercicios que hayas creado/,
+    );
+    expect(messages.en.consent.points.use).toMatch(/workout.*Anthropic.*exercises you created/);
   });
 });

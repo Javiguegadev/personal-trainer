@@ -97,6 +97,7 @@ function RootNavigator() {
           <Stack.Screen name="training/session" options={{ gestureEnabled: false }} />
           <Stack.Screen name="training/picker" options={{ presentation: 'modal' }} />
           <Stack.Screen name="training/activity" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="training/describe" />
           <Stack.Screen name="training/workout/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="training/exercises/index" />
           <Stack.Screen name="training/exercises/[id]" />

@@ -26,6 +26,7 @@ import {
   WeightSaveResponseSchema,
   WorkoutLogResponseSchema,
   WorkoutSaveResponseSchema,
+  WorkoutDraftResponseSchema,
   type ApiErrorCode,
   type CheckinDeleteQuery,
   type CheckinListQuery,
@@ -74,6 +75,8 @@ import {
   type WorkoutLogResponse,
   type WorkoutSaveResponse,
   type WorkoutUpsertRequest,
+  type WorkoutDraftResponse,
+  type WorkoutTextDraftRequest,
   type ProgramDeleteQuery,
   type ProgramResponse,
   type ProgramUpsertRequest,
@@ -352,6 +355,16 @@ export function createApiClient({
     /** `PUT /me/workouts/:id`: replaces the whole workout; the later `recordedAt` wins (spec 009 AC23). */
     saveWorkout: (id: string, body: WorkoutUpsertRequest): Promise<WorkoutSaveResponse> =>
       request(`/me/workouts/${id}`, WorkoutSaveResponseSchema, { method: 'PUT', json: body }),
+
+    /**
+     * `POST /me/workouts/drafts/text`: the editable draft of a typed or dictated workout, or why it
+     * gives none (spec 012). 429 `ai_cap_reached`, 503 `ai_unavailable`.
+     */
+    draftWorkoutFromText: (body: WorkoutTextDraftRequest): Promise<WorkoutDraftResponse> =>
+      request('/me/workouts/drafts/text', WorkoutDraftResponseSchema, {
+        method: 'POST',
+        json: body,
+      }),
 
     /** `DELETE /me/workouts/:id`: succeeds when it does not exist; leaves a tombstone (AC19, AC23). */
     deleteWorkout: (id: string, { recordedAt }: WorkoutDeleteQuery): Promise<WorkoutSaveResponse> =>

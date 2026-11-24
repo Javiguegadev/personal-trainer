@@ -13,27 +13,31 @@ import {
 import { tokens } from '@pt/ui';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
 import { Button } from '@/components/Button';
 import { DaySelector } from '@/components/DaySelector';
+import { DraftBanner } from '@/components/DraftBanner';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { FinishSheet } from '@/components/FinishSheet';
 import { Notice } from '@/components/Notice';
 import { ReadinessBanner } from '@/components/ReadinessBanner';
 import { RestTimerBar } from '@/components/RestTimerBar';
+import { RoutineLinkChip } from '@/components/RoutineLinkChip';
 import { Screen } from '@/components/Screen';
 import { StaleSessionNotice } from '@/components/StaleSessionNotice';
 import { TextField } from '@/components/TextField';
 import { TrainingNotes } from '@/components/TrainingNotes';
+import { UnresolvedExerciseRow } from '@/components/UnresolvedExerciseRow';
 import { useI18n } from '@/hooks/useI18n';
 import { useNow } from '@/hooks/useNow';
 import { useRestFeedback } from '@/hooks/useRestFeedback';
 import { useSetFormat } from '@/hooks/useSetFormat';
 import { useToday } from '@/hooks/useToday';
 import { useTrainingActions } from '@/hooks/useTraining';
+import { activityDraftParams } from '@/lib/activityDraft';
 import { useMe, useWorkouts } from '@/lib/api';
 import {
   dispatchSession,
@@ -52,7 +56,9 @@ export default function SessionRoute() {
   const { t } = useI18n();
   const router = useRouter();
   const me = useMe();
-  const params = useLocalSearchParams<{ slot?: string; finish?: string }>();
+  // `from=describe`: a sentence draft opened from "Describir entreno", which "Cambiar la frase" goes
+  // back to (spec 012 AC2).
+  const params = useLocalSearchParams<{ slot?: string; finish?: string; from?: string }>();
   const slot: SessionSlot = params.slot === 'draft' ? 'draft' : 'live';
   const session = useSession(slot);
   const close = () => (router.canGoBack() ? router.back() : router.replace('/training'));
@@ -73,6 +79,7 @@ export default function SessionRoute() {
       session={session}
       profile={me.data.profile}
       finishStale={params.finish === 'stale'}
+      fromDescribe={params.from === 'describe'}
     />
   );
 }
@@ -100,11 +107,13 @@ function SessionEditor({
   session,
   profile,
   finishStale,
+  fromDescribe,
 }: {
   slot: SessionSlot;
   session: LiveSession;
   profile: Profile;
   finishStale: boolean;
+  fromDescribe: boolean;
 }) {
   const { t, format } = useI18n();
   const router = useRouter();
@@ -169,6 +178,20 @@ function SessionEditor({
 
   const title =
     session.mode === 'live' ? s.title : session.mode === 'manual' ? s.manualTitle : s.editTitle;
+  // Exercises of a sentence the catalog lacked (spec 012 AC7), each at the place it was said; those
+  // said after the last exercise go at the end.
+  const draft = session.textDraft ?? null;
+  const unresolvedAt = (position: number) =>
+    draft?.unresolved.map((mention, index) =>
+      position === Math.min(mention.position, session.exercises.length) ? (
+        <UnresolvedExerciseRow
+          key={`unresolved-${index}`}
+          mention={mention}
+          index={index}
+          fmt={fmt}
+        />
+      ) : null,
+    );
   const elapsed = formatDuration((Date.parse(nowIso) - Date.parse(session.startedAt)) / 1000);
 
   return (
@@ -206,28 +229,55 @@ function SessionEditor({
       {stale ? (
         <StaleSessionNotice session={session} onFinish={() => setFinishing('stale')} />
       ) : null}
+      {draft ? (
+        <DraftBanner
+          painMentioned={draft.painMentioned}
+          extraActivities={draft.extraActivities}
+          ignored={draft.ignored}
+          onRegister={(index, activity) =>
+            router.push({
+              pathname: '/training/activity',
+              params: {
+                ...activityDraftParams(activity, session.localDate, null),
+                extra: String(index),
+                extraOf: 'session',
+              },
+            })
+          }
+          onChangeSentence={
+            fromDescribe
+              ? () => (router.canGoBack() ? router.back() : router.replace('/training/describe'))
+              : undefined
+          }
+        />
+      ) : null}
       {session.mode === 'manual' ? (
         <ManualStart slot={slot} session={session} today={today} />
       ) : null}
-      {session.exercises.length === 0 ? (
+      {draft ? <RoutineLinkChip slot={slot} session={session} /> : null}
+      {session.exercises.length === 0 && !draft?.unresolved.length ? (
         <AppText tone="muted" testID="session-empty">
           {s.empty}
         </AppText>
       ) : null}
       {session.exercises.map((exercise, index) => (
-        <ExerciseCard
-          key={exercise.uid}
-          slot={slot}
-          exercise={exercise}
-          position={index}
-          count={session.exercises.length}
-          units={profile.units}
-          fmt={fmt}
-          localDate={session.localDate}
-          today={today}
-          showRecords={showsRecordsFor(exercise.tracking, flags)}
-        />
+        <Fragment key={exercise.uid}>
+          {unresolvedAt(index)}
+          <ExerciseCard
+            slot={slot}
+            exercise={exercise}
+            position={index}
+            count={session.exercises.length}
+            units={profile.units}
+            fmt={fmt}
+            localDate={session.localDate}
+            today={today}
+            showRecords={showsRecordsFor(exercise.tracking, flags)}
+            canChange={!live}
+          />
+        </Fragment>
       ))}
+      {unresolvedAt(session.exercises.length)}
       <Button
         variant="secondary"
         label={`+ ${s.addExercise}`}
@@ -283,6 +333,10 @@ function ManualStart({
         layout="scroll"
         testID="session-day"
       />
+      {session.textDraft?.dayDropped ? (
+        // The day said was not today or one of the 6 days before (spec 012 AC4).
+        <Notice tone="warning" message={t.training.draft.dayDropped} testID="session-day-dropped" />
+      ) : null}
       <TextField
         label={s.startTime}
         hint={s.startTimeHint}

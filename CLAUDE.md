@@ -114,7 +114,11 @@ pnpm format
 - Spec 011 (E5 c: daily check-in, day readiness, today's shift): every step implemented with E2E on
   2026-11-23; migration `0011` applied on dev. Left: the phone check in Expo Go (card, time pickers,
   check-in sheet, session banner), a read of the readiness copy, the professional review (Open questions).
-- Next (ADR 003, ADR 006, ADR 007): spec 012 (workout sentence shortcut and its
-  eval, the E5 exit criterion) → E5c weekly planner (meals and sessions planned by hand) → E5b adaptive
+- Spec 012 (workout sentence shortcut, E5 exit criterion): every step implemented with E2E on
+  2026-11-24; migration `0012` applied on dev; consent `2026-11-v9`. The eval passed on 2026-11-24
+  (177 of 178 sentences, 99.4 %, after a prompt fix). Left: the phone check in Expo Go (describe screen, keyboard
+  dictation, draft editor), a review of a sample of the eval cases, the professional review (Open
+  questions). E5 is complete.
+- Next (ADR 003, ADR 006, ADR 007): E5c weekly planner (meals and sessions planned by hand) → E5b adaptive
   loop → beta without paywall → E7 premium AI → E6 payments → E8 → E9 launch (with the Apple Health and
   Health Connect import) → E10 (watch APIs such as Garmin).

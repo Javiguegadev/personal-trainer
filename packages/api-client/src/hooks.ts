@@ -13,6 +13,7 @@ import type {
   LabelScanRequest,
   MealPhotoDraftRequest,
   MealTextDraftRequest,
+  WorkoutTextDraftRequest,
   Locale,
   MealItemSaveResponse,
   MeResponse,
@@ -329,6 +330,16 @@ export function createApiHooks(api: ApiClient) {
       useMutation({
         mutationFn: (input: MealDraftInput) =>
           input.kind === 'photo' ? api.draftFromPhoto(input.body) : api.draftFromText(input.body),
+        retry: false,
+      }),
+
+    /**
+     * The draft of a workout sentence (spec 012). Never retried and never queued: it needs a connection
+     * and costs a call to the model. Saving the draft is an ordinary `useSaveWorkout`.
+     */
+    useWorkoutDraft: () =>
+      useMutation({
+        mutationFn: (body: WorkoutTextDraftRequest) => api.draftWorkoutFromText(body),
         retry: false,
       }),
 

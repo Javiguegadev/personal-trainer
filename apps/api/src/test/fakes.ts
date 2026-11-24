@@ -7,6 +7,8 @@ import {
   type ReadLabel,
   type ReadMeal,
   type WordFeedback,
+  type ReadWorkout,
+  type WorkoutReadInput,
 } from '@pt/ai';
 import { EMPTY_WEEK } from '@pt/contracts';
 import type {
@@ -16,6 +18,7 @@ import type {
   FeedbackReading,
   LabelReading,
   MealReading,
+  WorkoutReading,
   MealItem,
   ProfileInput,
   WeightEntry,
@@ -811,6 +814,24 @@ export function feedbackUsage(status: AiUsage['status'] = 'ok'): AiUsage {
   };
 }
 
+/** The workout model (spec 012): its answer, built from the input, and the inputs it received. */
+export interface FakeWorkoutModel {
+  answer: ((input: WorkoutReadInput) => WorkoutReading) | AiUnavailableError | null;
+  calls: WorkoutReadInput[];
+}
+
+export function workoutUsage(status: AiUsage['status'] = 'ok'): AiUsage {
+  return {
+    feature: 'workout_text',
+    model: 'claude-haiku-5-5',
+    inputTokens: status === 'error' ? 0 : 5200,
+    outputTokens: status === 'error' ? 0 : 300,
+    costUsd: status === 'error' ? 0 : 0.00067,
+    latencyMs: 1500,
+    status,
+  };
+}
+
 export async function createTestApp() {
   const store = new FakeStore();
   const deleted: string[] = [];
@@ -856,6 +877,14 @@ export async function createTestApp() {
     if (feedback.answer instanceof AiUnavailableError) throw feedback.answer;
     return { reading: feedback.answer(input), usage: feedbackUsage() };
   };
+  /** The workout model: what it answers next and the inputs it received (spec 012). */
+  const workout: FakeWorkoutModel = { answer: null, calls: [] };
+  const readWorkout: ReadWorkout = async (input) => {
+    workout.calls.push(input);
+    if (workout.answer === null) throw new Error('no fake workout answer set');
+    if (workout.answer instanceof AiUnavailableError) throw workout.answer;
+    return { reading: workout.answer(input), usage: workoutUsage() };
+  };
   const clock = { now: NOW };
   const deps: Deps = {
     verifyToken: tokens.verifyToken,
@@ -868,6 +897,7 @@ export async function createTestApp() {
     readLabel,
     readMeal,
     wordFeedback,
+    readWorkout,
     now: () => clock.now,
   };
   const app = createApp({ webOrigins: ['http://localhost:8081'], version: 'test', deps });
@@ -884,7 +914,7 @@ export async function createTestApp() {
     });
   }
 
-  return { app, store, deleted, tokens, token, call, off, label, meal, feedback, clock };
+  return { app, store, deleted, tokens, token, call, off, label, meal, feedback, workout, clock };
 }
 
 /** A valid adult profile (35-year-old woman, 165 cm, 70 kg, seated, no training, lose). */

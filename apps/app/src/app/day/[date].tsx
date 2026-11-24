@@ -1,4 +1,4 @@
-import { IsoDateSchema, type Profile, type Weekday } from '@pt/contracts';
+import { IsoDateSchema, WORKOUT_LIMITS, type Profile, type Weekday } from '@pt/contracts';
 import {
   dayAccess,
   dayMeals,
@@ -7,8 +7,8 @@ import {
   daysBetween,
   formatLongDate,
   isoWeekday,
+  lastDays,
   showsFoodNumbers,
-  toLocalTime,
   typicalDay,
   WEEK_VIEW,
   weekStartOf,
@@ -24,19 +24,21 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { DayCheckin } from '@/components/DayCheckin';
 import { DayNotices } from '@/components/DayNotices';
+import { DescribeWorkoutButton } from '@/components/DescribeWorkoutButton';
 import { MealSection } from '@/components/MealSection';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { WorkoutRow } from '@/components/WorkoutRow';
 import { useCheckinList } from '@/hooks/useCheckin';
+import { useDraftGuard } from '@/hooks/useDraftGuard';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
 import { useTrainingActions } from '@/hooks/useTraining';
 import { useWeekText } from '@/hooks/useWeekText';
 import { useMe, usePendingMealItemIds, usePendingTrainingIds, useWeekLog } from '@/lib/api';
-import { localDateTime } from '@/lib/trainingTime';
+import { pastSessionStart } from '@/lib/trainingTime';
 import { profileActivities, profileWeek } from '@/lib/week';
 
 /**
@@ -80,6 +82,7 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
   const pendingItems = usePendingMealItemIds();
   const pendingWorkouts = usePendingTrainingIds();
   const [choosing, setChoosing] = useState(false);
+  const draftGuard = useDraftGuard();
   const { checkins } = useCheckinList();
   const access = dayAccess(date, today);
   const monday = weekStartOf(date);
@@ -104,14 +107,11 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
 
   const startGym = () => {
     // An hour ago on that day; the day and the time can still be changed on the next screen.
-    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const startedAt =
-      date === today
-        ? hourAgo.toISOString()
-        : (localDateTime(date, toLocalTime(hourAgo)) ?? hourAgo.toISOString());
-    actions.startManual(date, startedAt);
+    actions.startManual(date, pastSessionStart(date, today, new Date()));
     router.push({ pathname: '/training/session', params: { slot: 'draft' } });
   };
+  // The sentence shortcut reads today and the 6 days before only (spec 012 AC1, AC4).
+  const canDescribe = lastDays(today, WORKOUT_LIMITS.pastDaysUi).includes(date);
 
   let logged;
   if (access === 'future') logged = null;
@@ -227,12 +227,13 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
             onPress={() => router.push({ pathname: '/food/add', params: { date } })}
             testID="day-add-meal"
           />
+          {draftGuard.notice}
           {choosing ? (
             <View style={styles.choice} testID="day-workout-choice">
               <Button
                 variant="secondary"
                 label={d.logGym}
-                onPress={startGym}
+                onPress={() => draftGuard.guard(startGym)}
                 testID="day-log-gym"
               />
               <Button
@@ -241,6 +242,14 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
                 onPress={() => router.push({ pathname: '/training/activity', params: { date } })}
                 testID="day-log-activity"
               />
+              {canDescribe ? (
+                <DescribeWorkoutButton
+                  date={date}
+                  label={d.describe}
+                  accessibilityLabel={d.describeA11y}
+                  testID="day-describe"
+                />
+              ) : null}
             </View>
           ) : (
             <Button
