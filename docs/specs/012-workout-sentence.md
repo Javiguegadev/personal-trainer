@@ -304,8 +304,9 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
 
 ## Progress
 
-- [x] contracts (56c5096) · [x] db (cb9a583, `0012` applied on dev) · [x] core (6b45e96) · [x] ai
-      (248a09a) · [x] api (4792e49) · [x] client (559fdea) · [ ] ui · [ ] e2e · [ ] eval
+- [x] contracts (56c5096) · [x] db (cb9a583, `0012` applied on dev) · [x] core (6b45e96, helpers
+      a821b49) · [x] ai (248a09a) · [x] api (4792e49) · [x] client (559fdea) · [x] ui (40c7214,
+      de1054b; checked on web at 390 and 1280 px, light and dark) · [ ] e2e · [ ] eval
 - Decisions taken during implementation:
   - `WorkoutReadingSchema` is flat (`status`: `ok` | `not_workout` | `unclear`), like the meal reading,
     and carries no number bounds: `core` clamps and marks instead of failing the call.
@@ -322,3 +323,19 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
   - `voice` never reached the database, so `0012` only adds `text`.
   - The catalog refs follow the store order (most popular first); the user's own exercises are all sent
     (a user has at most 200), in the store order.
+  - UI decisions approved on 2026-11-24: (a) the AC2 question did not exist for "Registrar entreno
+    pasado"; it now guards all three ways into the `draft` slot (Describir, Registrar entreno pasado,
+    a day's "Sesión de gimnasio") with "Descartar y seguir", "Abrir el que tengo" and "Cancelar", and
+    discards at once; an empty past session is replaced without asking (`sessionHasContent`). (b)
+    "Describir" shows on day screens of today and the 6 days before only (the API limit). (c) The
+    finish sheet of a draft keeps the duration said, else an empty field (its sets carry no times).
+    (d) An activity saved from a sentence goes to the Training tab; a "También" activity goes back to
+    the draft it came from. (e) "Cambiar ejercicio" shows in past and edited sessions, not live ones.
+  - `training/describe` is a card screen, not a modal, so the editor is pushed on top of it and going
+    back (or "Cambiar la frase" in the banner) finds the sentence as typed.
+  - The activity sheet takes `source=text`, `type`, `minutes`, `rpe`, `time`, `date`, `pain`,
+    `distance`, `dayDropped`, and `extra`/`extraOf` for a "También" line; the other activities of an
+    activity draft live in memory (`lib/activityDraft.ts`). Without minutes said, the field is empty.
+  - "Buscar" and "Crear ejercicio" use `mentionName` (the words without the sets) and
+    `trackingFromSets` (the tracking the form starts with); the picker has a one-exercise mode for
+    `replace` and `resolve`.
