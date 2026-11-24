@@ -480,6 +480,13 @@ export const hasCompletedSet = (session: LiveSession) =>
   session.exercises.some((e) => e.sets.some((s) => s.completedAt !== null));
 
 /**
+ * Whether replacing this session loses something (spec 012 AC2): an exercise, or an exercise of a
+ * sentence still unresolved. An empty past session is replaced without asking.
+ */
+export const sessionHasContent = (session: LiveSession) =>
+  session.exercises.length > 0 || (session.textDraft?.unresolved.length ?? 0) > 0;
+
+/**
  * The `PUT` of a finished session (AC12): only the completed sets, exercises without one left out.
  * Null when nothing was completed.
  */

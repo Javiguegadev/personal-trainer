@@ -12,6 +12,7 @@ import {
   newLiveExercise,
   repeatWorkout,
   restRemaining,
+  sessionHasContent,
   sessionReducer,
   sessionSummary,
   sessionToRequest,
@@ -102,6 +103,25 @@ describe('starting and adding exercises (AC6, AC7)', () => {
     );
     session = sessionReducer(session, { type: 'removeExercise', uid: first!.uid });
     expect(session.exercises.map((e) => e.exerciseId)).toEqual(['plank']);
+  });
+
+  it('knows whether a session holds something to lose (spec 012 AC2)', () => {
+    const empty = startSession({ id: 'w', localDate: '2026-11-18', startedAt: T0, mode: 'manual' });
+    expect(sessionHasContent(empty)).toBe(false);
+    expect(sessionHasContent(liveWithBench())).toBe(true);
+    const mention = { mention: 'press Larsen', sets: [], position: 0 };
+    const textDraft = {
+      unresolved: [mention],
+      extraActivities: [],
+      painMentioned: false,
+      ignored: 0,
+      dayDropped: false,
+      routineSessionId: null,
+    };
+    expect(sessionHasContent({ ...empty, textDraft })).toBe(true);
+    expect(sessionHasContent({ ...empty, textDraft: { ...textDraft, unresolved: [] } })).toBe(
+      false,
+    );
   });
 });
 
