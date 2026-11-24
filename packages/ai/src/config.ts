@@ -47,7 +47,8 @@ export const FEATURES = {
   /**
    * A workout from a sentence (spec 012): one call, no tools. The whole exercise catalog is in the
    * cached system prompt, so the model picks refs and reads the numbers said; core checks them. Low
-   * effort: matching names and reading notations. Provisional until the workout eval runs.
+   * effort: matching names and reading notations. The workout eval passed with these settings on
+   * 2026-11-24 (174 of 178 sentences, `apps/api/evals/workout-text/`).
    */
   workout_text: { model: MODELS.haiku, effort: 'low', maxTokens: 4096, maxToolRounds: 0 },
 } as const satisfies Record<string, FeatureConfig>;

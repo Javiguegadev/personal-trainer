@@ -3,8 +3,8 @@
 Sentences about a workout already done, as people type or dictate them, with the draft a right
 reading gives. It is the exit criterion of stage E5: at least 95 % of the sentences parse correctly.
 Run it with `pnpm --filter @pt/api eval:workout-text`. It calls the real model and reads the exercise
-catalog of the dev database, so it spends API money (about 0.001 USD per sentence): ask before
-running it. Run it before the feature ships and on every change of the prompt, the model or its
+catalog of the dev database, so it spends API money (about 0.0015 USD per sentence, 0.27 USD for the
+set on 2026-11-24): ask before running it. Run it before the feature ships and on every change of the prompt, the model or its
 settings, or the exercise catalog.
 
 The cases (`cases.jsonl`) were written by an agent that saw only the exercise catalog

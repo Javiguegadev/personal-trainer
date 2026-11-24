@@ -307,7 +307,18 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
 - [x] contracts (56c5096) · [x] db (cb9a583, `0012` applied on dev) · [x] core (6b45e96, helpers
       a821b49) · [x] ai (248a09a) · [x] api (4792e49) · [x] client (559fdea) · [x] ui (40c7214,
       de1054b; checked on web at 390 and 1280 px, light and dark) · [x] e2e (5e68d7d, 6 journeys,
-      full suite 52/52 green) · [ ] eval (`apps/api/evals/workout-text/` not written yet)
+      full suite 52/52 green) · [x] eval (44a4e61)
+- Eval run on 2026-11-24 (Haiku 5.5, effort `low`): **PASS**, 174 of 178 sentences parse correctly
+  (97.8 %; 161 es + 17 en, written by an agent that saw only the catalog); 0 of 16 sentences without a
+  workout gave a draft; exercise match 273/276 (98.9 %); set values 898/903 (99.4 %); 0.0015 USD per
+  call at most (cache reads counted at the input price); latency median 1.6 s, p90 2.0 s. The four
+  failures:
+  - es-085, es-092: a cardio machine said first ("bici estatica 15 km en 30 minutos y…", "cinta
+    inclinada 30 minutos, …") is missing from the draft, with no notice.
+  - es-119: "hace dos semanas" gives no day, so the draft goes to the screen's day without "Revisa el
+    día" (AC4).
+  - en-013: "chin ups 3x8 with 25 lbs added" is read as weighted pull-ups (`dominadas-lastradas`); the
+    values are right.
 - Decisions taken during implementation:
   - `WorkoutReadingSchema` is flat (`status`: `ok` | `not_workout` | `unclear`), like the meal reading,
     and carries no number bounds: `core` clamps and marks instead of failing the call.

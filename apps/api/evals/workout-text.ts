@@ -4,7 +4,7 @@
  *
  *   pnpm --filter @pt/api eval:workout-text
  *
- * It spends API money (about 0.001 USD per sentence): ask before running it. It runs the same code as
+ * It spends API money (about 0.0015 USD per sentence): ask before running it. It runs the same code as
  * the API (`createWorkoutDrafter`: refs, the reader, `workoutDraft`) for a user without exercises of
  * their own, on a fixed day (Wednesday 2026-11-25), so "el lunes" has one answer. Run it before the
  * feature ships and on every change of the prompt, the model or its settings, or the exercise catalog.
