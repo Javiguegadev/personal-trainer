@@ -1,6 +1,7 @@
 import type { AiFeature, AiUsage, ReadLabel, ReadMeal, WordFeedback } from '@pt/ai';
 import type {
   ConsentKind,
+  DailyCheckin,
   DietaryPrefs,
   ExportResponse,
   JobActivity,
@@ -304,6 +305,25 @@ export interface Store {
   upsertProgram(userId: string, program: Program): Promise<Program | null | ProgramWriteConflict>;
   /** Marks the routine deleted (a tombstone) unless it was recorded after `recordedAt` (AC20, AC22). */
   deleteProgram(userId: string, id: string, recordedAt: string): Promise<void>;
+
+  // Daily check-in (spec 011)
+  /** Live check-ins dated from `from` to `to` (inclusive), oldest first. */
+  listCheckins(userId: string, from: string, to: string): Promise<DailyCheckin[]>;
+  /**
+   * Stores the check-in of its day unless the stored row (live or deleted) was recorded later (AC15).
+   * Returns the live check-in of that day after the write, or null when a later delete won.
+   */
+  upsertCheckin(userId: string, checkin: DailyCheckin): Promise<DailyCheckin | null>;
+  /**
+   * Marks the day's check-in deleted unless it was recorded after `recordedAt` (AC15). With no row yet,
+   * stores a tombstone, so an older write arriving later cannot create it. Returns the live check-in
+   * after the write (a newer one that won), or null.
+   */
+  deleteCheckin(
+    userId: string,
+    localDate: string,
+    recordedAt: string,
+  ): Promise<DailyCheckin | null>;
   /** Who owns a routine session (AC18): the user (live or deleted routine), someone else, or nobody. */
   programSessionOwner(userId: string, sessionId: string): Promise<'own' | 'other' | 'missing'>;
 }

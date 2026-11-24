@@ -1,5 +1,6 @@
 import {
   ActivityKindSchema,
+  CheckinSourceSchema,
   ConsentKindSchema,
   FoodInputMethodSchema,
   FoodOriginSchema,
@@ -18,6 +19,7 @@ import {
   ProgramOriginSchema,
   QuantityUnitSchema,
   SexSchema,
+  StressLevelSchema,
   TrainingExperienceSchema,
   TrainingFocusSchema,
   UnitsSchema,
@@ -25,6 +27,7 @@ import {
   WorkoutInputMethodSchema,
   WorkoutKindSchema,
   WorkPatternSchema,
+  WorkShiftSchema,
 } from '@pt/contracts';
 import { pgEnum } from 'drizzle-orm/pg-core';
 
@@ -66,3 +69,6 @@ export const trainingExperienceEnum = pgEnum(
 );
 export const equipmentAccessEnum = pgEnum('equipment_access', values(EquipmentAccessSchema));
 export const programOriginEnum = pgEnum('program_origin', values(ProgramOriginSchema));
+export const stressLevelEnum = pgEnum('stress_level', values(StressLevelSchema));
+export const workShiftEnum = pgEnum('work_shift', values(WorkShiftSchema));
+export const checkinSourceEnum = pgEnum('checkin_source', values(CheckinSourceSchema));

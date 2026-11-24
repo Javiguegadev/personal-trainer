@@ -8,6 +8,7 @@ import {
 } from '@pt/contracts';
 import { addDays, evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
+import { checkinRoutes } from './checkins';
 import { weekRoutes } from './week';
 import { weightRoutes } from './weights';
 import { apiError, createRouter } from '../../http';
@@ -133,5 +134,6 @@ export function meRoutes(deps: Deps) {
       return c.body(null, 204);
     })
     .route('/', weightRoutes(deps))
-    .route('/', weekRoutes(deps));
+    .route('/', weekRoutes(deps))
+    .route('/', checkinRoutes(deps));
 }

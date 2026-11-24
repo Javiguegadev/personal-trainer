@@ -11,6 +11,7 @@ import { tokens } from '@pt/ui';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useCheckinList } from '@/hooks/useCheckin';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
@@ -42,6 +43,7 @@ export function TodayWeek({
   const nav = weekNavigation(weekStart, today);
   const future = weekStart > current;
   const log = useWeekLog(weekStart, { enabled: !future });
+  const { checkins } = useCheckinList();
   const v = t.week.view;
 
   const week = {
@@ -55,6 +57,8 @@ export function TodayWeek({
     items: log.data?.mealItems ?? [],
     workouts: log.data?.workouts ?? [],
     flags: profile.safetyFlags,
+    // The shifts of the check-ins fill the days without a typical work block (spec 011 AC11).
+    checkins,
   });
   const noTypicalWeek =
     week.workBlocks.length === 0 && week.plannedActivities.every((a) => a.days.length === 0);

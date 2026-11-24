@@ -2,11 +2,13 @@ import { formatLongDate, profileNotices } from '@pt/core';
 import { View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
+import { CheckinRejectedNotice } from '@/components/CheckinRejectedNotice';
 import { FoodRejectedNotice } from '@/components/FoodRejectedNotice';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SafetyNotices } from '@/components/SafetyNotices';
 import { Screen } from '@/components/Screen';
 import { SegmentedControl } from '@/components/SegmentedControl';
+import { TodayCheckin } from '@/components/TodayCheckin';
 import { TodayFoodCard } from '@/components/TodayFoodCard';
 import { TodayWeek } from '@/components/TodayWeek';
 import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
@@ -22,7 +24,8 @@ import { setTodayView, useTodayView, type TodayView } from '@/lib/todayView';
 /**
  * "Today" (spec 003 AC3–AC5): the date, what was eaten against the daily targets (spec 005 AC17), the
  * weight, the workouts of the day (spec 009 AC21) and the planned training. Offline it shows the last
- * data received. "Día" / "Semana" switches to the week view (spec 010 AC7), remembered on the device.
+ * data received. The daily check-in sits above the workouts (spec 011 AC1, AC4). "Día" / "Semana"
+ * switches to the week view (spec 010 AC7), remembered on the device.
  */
 export default function TodayScreen() {
   const { t, locale } = useI18n();
@@ -57,6 +60,7 @@ export default function TodayScreen() {
       <TargetsChangeNotice />
       <FoodRejectedNotice />
       <TrainingRejectedNotice />
+      <CheckinRejectedNotice />
       {view === 'week' ? (
         <TodayWeek profile={profile} targets={targets} />
       ) : (
@@ -68,6 +72,7 @@ export default function TodayScreen() {
             floorKcal={targets?.clampedReason === 'calorie_floor' ? targets.kcal : undefined}
           />
           <WeightCard profile={profile} />
+          <TodayCheckin profile={profile} />
           <TodayWorkoutCard profile={profile} />
           <TrainingLine activities={profile.plannedActivities} focus={profile.trainingFocus} />
         </>

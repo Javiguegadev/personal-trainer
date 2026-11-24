@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ReadinessSchema, StressLevelSchema, WorkShiftSchema } from './checkin';
 import {
   ActivityKindSchema,
   EquipmentAccessSchema,
@@ -14,7 +15,7 @@ import {
   WorkPatternSchema,
 } from './profile';
 
-export const CONTEXT_VERSION = 'context-v4';
+export const CONTEXT_VERSION = 'context-v5';
 
 /** One weekday of the typical week in the context (spec 010 AC25). */
 const ContextWeekDaySchema = z.object({
@@ -77,6 +78,27 @@ export const ContextSnapshotSchema = z.object({
     dayStartMinute: z.number().int(),
     days: z.array(ContextWeekDaySchema).length(7),
   }),
+  /** Today's check-in and readiness (spec 011 AC17). Added by `context-v5`; no AI reads it yet. */
+  today: z.object({
+    /** Null when there is no check-in for the snapshot's date. */
+    checkin: z
+      .object({
+        sleepMinutes: z.number().int().nullable(),
+        stress: StressLevelSchema.nullable(),
+        /** Null without a shift answer; the hours are null for `off`. */
+        shift: z
+          .object({
+            kind: WorkShiftSchema,
+            startMinute: z.number().int().nullable(),
+            endMinute: z.number().int().nullable(),
+          })
+          .nullable(),
+      })
+      .nullable(),
+    readiness: ReadinessSchema,
+  }),
+  /** The user's usual sleep (spec 011): the median of the last 14 days, from 5 nights. */
+  sleep: z.object({ usualMinutes: z.number().int().nullable() }),
   /** The weight log (spec 003 AC25). Added by `context-v2`. */
   weight: z.object({
     lastKg: z.number().nullable(),

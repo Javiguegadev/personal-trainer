@@ -8,6 +8,7 @@
  * are set. Never point it at production.
  */
 import { CONSENT_VERSION } from '@pt/contracts';
+import { addDays } from '@pt/core';
 import { createDb, eq, schema, sql } from '@pt/db';
 import { afterAll, describe, expect, it } from 'vitest';
 import { profileInput } from '../test/fakes';
@@ -43,6 +44,8 @@ const COVERED_USER_TABLES = [
   'workout_programs',
   'program_sessions',
   'program_exercises',
+  // Spec 011: the daily check-in.
+  'daily_checkins',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -564,6 +567,46 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       [second.id, false],
     ]);
 
+    // Spec 011: the daily check-in on the real SQL, with the write rules of AC15.
+    const checkin = {
+      localDate: TODAY,
+      sleepMinutes: 330,
+      stress: 'high' as const,
+      workShift: 'night' as const,
+      shiftStartMinute: 1320,
+      shiftEndMinute: 360,
+      source: 'manual' as const,
+      recordedAt: iso(8000),
+    };
+    expect(await store.upsertCheckin(id, checkin)).toEqual(checkin);
+    expect(
+      await store.upsertCheckin(id, { ...checkin, sleepMinutes: 510, recordedAt: iso(7900) }),
+    ).toEqual(checkin);
+    expect(await store.deleteCheckin(id, TODAY, iso(8100))).toBeNull();
+    expect(await store.upsertCheckin(id, { ...checkin, recordedAt: iso(8050) })).toBeNull();
+    // A delete with no row stores a tombstone; a newer delete moves it forward.
+    const yesterday = addDays(TODAY, -1);
+    expect(await store.deleteCheckin(id, yesterday, iso(8100))).toBeNull();
+    expect(await store.deleteCheckin(id, yesterday, iso(8300))).toBeNull();
+    expect(
+      await store.upsertCheckin(id, { ...checkin, localDate: yesterday, recordedAt: iso(8200) }),
+    ).toBeNull();
+    const dayOff = {
+      ...checkin,
+      workShift: 'off' as const,
+      shiftStartMinute: null,
+      shiftEndMinute: null,
+      recordedAt: iso(8400),
+    };
+    expect(await store.upsertCheckin(id, dayOff)).toEqual(dayOff);
+    expect(await store.listCheckins(id, yesterday, TODAY)).toEqual([dayOff]);
+    expect(
+      (await store.exportUser(id)).checkins.map((c) => [c.localDate, c.deletedAt !== null]),
+    ).toEqual([
+      [yesterday, true],
+      [TODAY, false],
+    ]);
+
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.
     const userTables = await db.execute<{ table_name: string; column_name: string }>(sql`
@@ -597,5 +640,5 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       .where(eq(schema.aiUsage.id, (usageRow as { id: string }).id));
     expect(kept).toEqual({ userId: null });
     await db.delete(schema.aiUsage).where(eq(schema.aiUsage.id, (usageRow as { id: string }).id));
-  }, 30_000);
+  }, 60_000); // About 30 s on the dev pooler since spec 011.
 });

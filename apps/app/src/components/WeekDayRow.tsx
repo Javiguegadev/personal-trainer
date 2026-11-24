@@ -11,7 +11,8 @@ import { AppText } from './AppText';
 
 /**
  * One day of the week view (spec 010 AC8, AC9): date, work hours, planned training, workouts logged,
- * one dot per meal with items and the kcal as plain text. Nothing judges the day: no colour, icon or
+ * one dot per meal with items and the kcal as plain text. A shift told in the check-in shows in the
+ * work slot (spec 011 AC11). Nothing judges the day: no colour, icon or
  * word says it went well or badly. Opens the day screen (AC11).
  */
 export function WeekDayRow({ row, targetKcal }: { row: Row<Workout>; targetKcal: number | null }) {
@@ -37,9 +38,15 @@ export function WeekDayRow({ row, targetKcal }: { row: Row<Workout>; targetKcal:
             target: formatNumber(targetKcal, locale),
           });
   const meals = row.meals.map((meal) => t.food.meals[meal]).join(', ');
+  // A shift told in the check-in names itself (spec 011 AC11); a typical work block shows its hours.
+  const work = row.work
+    ? row.shift
+      ? text.shift(row.shift, row.work)
+      : text.work(row.work)
+    : null;
   const summary = [
     row.isToday ? `${date}, ${v.today}` : date,
-    row.work ? `${t.week.day.work} ${text.work(row.work)}` : null,
+    row.work && !row.shift ? `${t.week.day.work} ${work}` : work,
     planned || null,
     done || null,
     meals ? format(v.meals, { meals }) : null,
@@ -70,9 +77,9 @@ export function WeekDayRow({ row, targetKcal }: { row: Row<Workout>; targetKcal:
           {date}
           {row.isToday ? ` · ${v.today}` : ''}
         </AppText>
-        {row.work ? (
+        {work ? (
           <AppText variant="caption" tone="muted" testID={`week-day-${row.date}-work`}>
-            {text.work(row.work)}
+            {work}
           </AppText>
         ) : null}
         {planned ? (

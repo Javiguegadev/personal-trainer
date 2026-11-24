@@ -6,6 +6,7 @@ export * from './enums';
 export * from './profiles';
 export * from './lifestyle';
 export * from './body';
+export * from './checkin';
 export * from './nutrition';
 export * from './food';
 export * from './training';

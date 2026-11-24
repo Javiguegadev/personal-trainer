@@ -8,6 +8,7 @@ import type {
 import { SafetyFlagSchema } from '@pt/contracts';
 import { and, asc, count, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
+import { createCheckinStore, exportCheckins } from './checkin-store';
 import { createFoodStore, exportFoodLog } from './food-store';
 import { createTrainingStore, exportTrainingLog } from './training-store';
 
@@ -198,6 +199,7 @@ export function createDrizzleStore(db: Db): Store {
   return {
     ...createFoodStore(db),
     ...createTrainingStore(db),
+    ...createCheckinStore(db),
 
     async getMe(userId) {
       const [[consent], [profile], profileRows, [prefs], [targets]] = await Promise.all([
@@ -552,6 +554,7 @@ export function createDrizzleStore(db: Db): Store {
         weights: weights.map(toWeight),
         ...(await exportFoodLog(db, userId)),
         ...(await exportTrainingLog(db, userId)),
+        checkins: await exportCheckins(db, userId),
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

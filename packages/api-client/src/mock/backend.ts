@@ -6,7 +6,12 @@
  */
 import {
   BarcodeParamSchema,
+  CHECKIN_LIMITS,
   CONSENT_VERSION,
+  CheckinDateParamSchema,
+  CheckinDeleteQuerySchema,
+  CheckinListQuerySchema,
+  CheckinUpsertRequestSchema,
   CUSTOM_FOOD_LIMITS,
   ConsentRequestSchema,
   CustomFoodUpsertRequestSchema,
@@ -61,6 +66,7 @@ import {
   type Portion,
   type Profile,
   type RecentFood,
+  type DailyCheckin,
   type WeightEntry,
   type WeightSaveResponse,
 } from '@pt/contracts';
@@ -84,6 +90,7 @@ import {
   checkFoodLogRange,
   checkFoodLogWrite,
   checkWeightWrite,
+  checkCheckinWrite,
   customFoodAsFood,
   daysBetween,
   evaluateProfileInput,
@@ -154,7 +161,11 @@ interface UserRecord {
   customExercises: StoredCustomExercise[];
   /** Routines, oldest first, deletes kept as tombstones (spec 010 AC22). */
   programs: StoredProgram[];
+  /** Daily check-ins, deletes kept as tombstones (spec 011 AC15). */
+  checkins: StoredCheckin[];
 }
+
+type StoredCheckin = DailyCheckin & { deletedAt: string | null };
 
 type StoredProgram = Program & { deletedAt: string | null };
 
@@ -168,8 +179,8 @@ interface StoredCustomExercise {
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v8: spec 010). */
-export const MOCK_DB_KEY = 'pt.mock-db.v8';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v9: spec 011). */
+export const MOCK_DB_KEY = 'pt.mock-db.v9';
 
 const exerciseById = new Map(MOCK_EXERCISES.map((e) => [e.id, e]));
 
@@ -323,6 +334,7 @@ const emptyUser = (email: string | null): UserRecord => ({
   workouts: [],
   customExercises: [],
   programs: [],
+  checkins: [],
 });
 
 export function createMockApiClient({
@@ -440,6 +452,12 @@ export function createMockApiClient({
       ([owner, other]) =>
         owner !== userId && other.customExercises.some((e) => e.exercise.id === id),
     );
+
+  /** The live check-in of a day, or null (deleted or never written). */
+  const liveCheckin = (record: UserRecord, localDate: string): DailyCheckin | null => {
+    const stored = record.checkins.find((c) => c.localDate === localDate);
+    return stored && !stored.deletedAt ? (({ deletedAt: _, ...c }) => c)(stored) : null;
+  };
 
   /** A device clock more than a day ahead of the server is rejected. */
   const inFuture = (recordedAt: string) =>
@@ -775,6 +793,78 @@ export function createMockApiClient({
       if (!record.profile) throw fail('validation_error', { profile: 'required' });
       record.weights = record.weights.filter((w) => w.localDate !== localDate);
       return afterWeightWrite(record, localDate, today);
+    },
+
+    listCheckins: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { from, to } = parse(CheckinListQuerySchema, query);
+      if (from > to) throw fail('validation_error', { from: 'after_to' });
+      if (daysBetween(from, to) > CHECKIN_LIMITS.listDaysMax) {
+        throw fail('validation_error', { to: 'too_big' });
+      }
+      return {
+        checkins: record.checkins
+          .filter((c) => !c.deletedAt && c.localDate >= from && c.localDate <= to)
+          .sort((a, b) => a.localDate.localeCompare(b.localDate))
+          .map(({ deletedAt: _, ...c }) => c),
+      };
+    },
+
+    saveCheckin: async (day, body) => {
+      const { record } = await authenticateWithConsent();
+      const { localDate } = parse(CheckinDateParamSchema, { localDate: day });
+      const { today, ...answers } = parse(CheckinUpsertRequestSchema, body);
+      const invalid = checkCheckinWrite(
+        { localDate, today, recordedAt: answers.recordedAt },
+        now(),
+      );
+      if (invalid) throw fail('validation_error', invalid);
+      const stored = record.checkins.find((c) => c.localDate === localDate);
+      // The later device time wins, also against a delete (AC15).
+      if (writeWins(stored?.recordedAt ?? null, answers.recordedAt)) {
+        record.checkins = [
+          ...record.checkins.filter((c) => c.localDate !== localDate),
+          {
+            localDate,
+            ...answers,
+            source: 'manual',
+            recordedAt: new Date(answers.recordedAt).toISOString(),
+            deletedAt: null,
+          },
+        ];
+        persist();
+      }
+      return { checkin: liveCheckin(record, localDate) };
+    },
+
+    deleteCheckin: async (day, query) => {
+      const { record } = await authenticateWithConsent();
+      const { localDate } = parse(CheckinDateParamSchema, { localDate: day });
+      const { recordedAt, today } = parse(CheckinDeleteQuerySchema, query);
+      const invalid = checkCheckinWrite({ localDate, today, recordedAt }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const stored = record.checkins.find((c) => c.localDate === localDate);
+      const iso = new Date(recordedAt).toISOString();
+      // With no row yet, a tombstone: an older write arriving later must not create it.
+      if (!stored) {
+        record.checkins.push({
+          localDate,
+          sleepMinutes: null,
+          stress: null,
+          workShift: null,
+          shiftStartMinute: null,
+          shiftEndMinute: null,
+          source: 'manual',
+          recordedAt: iso,
+          deletedAt: now().toISOString(),
+        });
+        persist();
+      } else if (writeWins(stored.recordedAt, recordedAt)) {
+        stored.deletedAt ??= now().toISOString();
+        stored.recordedAt = iso;
+        persist();
+      }
+      return { checkin: liveCheckin(record, localDate) };
     },
 
     searchFoods: async (q, locale) => {
@@ -1306,6 +1396,8 @@ export function createMockApiClient({
         })),
         // Deleted ones too, with `deletedAt` (spec 010 AC24).
         programs: record.programs,
+        // Deleted ones too, with `deletedAt` (spec 011 AC16).
+        checkins: [...record.checkins].sort((a, b) => a.localDate.localeCompare(b.localDate)),
         favouriteFoods: record.favourites.map((f) => ({
           foodId: f.foodId,
           key: catalogById.get(f.foodId)?.key ?? '',

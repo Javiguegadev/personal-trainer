@@ -9,6 +9,7 @@ import {
   type Workout,
 } from '@pt/contracts';
 import { NO_BESTS, addToBests, lastRest, newBests, type NewRecord } from './bests';
+import { restoreSessionVolume, type SessionReadiness } from '../checkin/adjust';
 import { EMPTY_SET, setForTracking, setMatchesTracking, withPlaceholder } from './sets';
 
 /**
@@ -70,6 +71,8 @@ export interface LiveSession {
   sessionRpe: number | null;
   exercises: LiveExercise[];
   rest: RestTimer | null;
+  /** The readiness adjustment made at start (spec 011 AC7); absent or null when there is none. */
+  readiness?: SessionReadiness | null;
 }
 
 export type SessionAction =
@@ -84,7 +87,9 @@ export type SessionAction =
   | { type: 'adjustRest'; deltaS: number }
   | { type: 'skipRest' }
   | { type: 'setStart'; localDate: string; startedAt: string }
-  | { type: 'setName'; name: string | null };
+  | { type: 'setName'; name: string | null }
+  /** "Entrenar normal" (spec 011 AC8). */
+  | { type: 'trainNormally' };
 
 export function startSession(input: {
   id: string;
@@ -261,6 +266,8 @@ export function sessionReducer(session: LiveSession, action: SessionAction): Liv
       return { ...session, localDate: action.localDate, startedAt: action.startedAt };
     case 'setName':
       return { ...session, name: action.name?.trim() || null };
+    case 'trainNormally':
+      return restoreSessionVolume(session);
   }
 }
 

@@ -11,6 +11,7 @@ import {
 import { EMPTY_WEEK } from '@pt/contracts';
 import type {
   ConsentKind,
+  DailyCheckin,
   CustomFoodUpsertRequest,
   FeedbackReading,
   LabelReading,
@@ -65,6 +66,8 @@ interface UserRows {
   workouts: (Workout & { deleted: boolean })[];
   /** Routines, oldest first, with deleted ones kept as tombstones (spec 010 AC22). */
   programs: (Program & { deletedAt: string | null })[];
+  /** Daily check-ins, with deleted ones kept as tombstones (spec 011 AC15). */
+  checkins: (DailyCheckin & { deletedAt: string | null })[];
 }
 
 /** A custom exercise as stored: its owner, write time and tombstone (spec 009). */
@@ -104,6 +107,7 @@ export class FakeStore implements Store {
         favourites: [],
         workouts: [],
         programs: [],
+        checkins: [],
       };
       this.users.set(userId, rows);
     }
@@ -506,6 +510,55 @@ export class FakeStore implements Store {
     return current && !current.deleted ? (({ deleted: _, ...w }) => w)(current) : null;
   }
 
+  async listCheckins(userId: string, from: string, to: string) {
+    return this.rows(userId)
+      .checkins.filter((c) => !c.deletedAt && c.localDate >= from && c.localDate <= to)
+      .sort((a, b) => a.localDate.localeCompare(b.localDate))
+      .map(({ deletedAt: _, ...c }) => c);
+  }
+
+  private liveCheckin(userId: string, localDate: string): DailyCheckin | null {
+    const stored = this.rows(userId).checkins.find((c) => c.localDate === localDate);
+    return stored && !stored.deletedAt ? (({ deletedAt: _, ...c }) => c)(stored) : null;
+  }
+
+  async upsertCheckin(userId: string, checkin: DailyCheckin) {
+    const rows = this.rows(userId);
+    const stored = rows.checkins.find((c) => c.localDate === checkin.localDate);
+    if (!stored || Date.parse(stored.recordedAt) <= Date.parse(checkin.recordedAt)) {
+      const next = {
+        ...checkin,
+        recordedAt: new Date(checkin.recordedAt).toISOString(),
+        deletedAt: null,
+      };
+      rows.checkins = [...rows.checkins.filter((c) => c.localDate !== checkin.localDate), next];
+    }
+    return this.liveCheckin(userId, checkin.localDate);
+  }
+
+  async deleteCheckin(userId: string, localDate: string, recordedAt: string) {
+    const rows = this.rows(userId);
+    const stored = rows.checkins.find((c) => c.localDate === localDate);
+    const iso = new Date(recordedAt).toISOString();
+    if (!stored) {
+      rows.checkins.push({
+        localDate,
+        sleepMinutes: null,
+        stress: null,
+        workShift: null,
+        shiftStartMinute: null,
+        shiftEndMinute: null,
+        source: 'manual',
+        recordedAt: iso,
+        deletedAt: NOW.toISOString(),
+      });
+    } else if (Date.parse(stored.recordedAt) <= Date.parse(recordedAt)) {
+      stored.deletedAt = NOW.toISOString();
+      stored.recordedAt = iso;
+    }
+    return this.liveCheckin(userId, localDate);
+  }
+
   async deleteWorkout(userId: string, id: string, recordedAt: string) {
     const stored = this.rows(userId).workouts.find((w) => w.id === id);
     if (stored && Date.parse(stored.recordedAt) <= Date.parse(recordedAt)) {
@@ -630,6 +683,9 @@ export class FakeStore implements Store {
     const rows = this.rows(userId);
     return {
       programs: structuredClone(rows.programs),
+      checkins: [...rows.checkins]
+        .sort((a, b) => a.localDate.localeCompare(b.localDate))
+        .map((c) => ({ ...c })),
       profile: rows.profile,
       dietaryPrefs: rows.dietaryPrefs,
       targets: rows.targets,

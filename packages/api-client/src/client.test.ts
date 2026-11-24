@@ -4,6 +4,7 @@ import {
   type CustomExerciseUpsertRequest,
   type MealItemUpsertRequest,
   type ProgramUpsertRequest,
+  type CheckinUpsertRequest,
   type WeekRequest,
   type WorkoutUpsertRequest,
 } from '@pt/contracts';
@@ -50,6 +51,15 @@ const quickAdd: MealItemUpsertRequest = {
   today: '2026-11-16',
   locale: 'es',
 };
+const checkinAnswers = {
+  sleepMinutes: 390,
+  stress: 'normal',
+  workShift: 'night',
+  shiftStartMinute: 1320,
+  shiftEndMinute: 360,
+  recordedAt: '2026-11-11T07:00:00.000Z',
+} as const;
+const checkinBody: CheckinUpsertRequest = { ...checkinAnswers, today: '2026-11-11' };
 const weekBody: WeekRequest = {
   workPattern: 'fixed',
   workBlocks: [{ weekday: 1, startMinute: 480, endMinute: 960 }],
@@ -164,6 +174,7 @@ describe('createApiClient', () => {
             workouts: [],
             customExercises: [],
             programs: [],
+            checkins: [],
             consents: [],
             aiUsage: [],
           }),
@@ -199,6 +210,32 @@ describe('createApiClient', () => {
         method: 'DELETE',
         path: '/me/weights/2026-11-11?today=2026-11-11',
         res: () => Response.json({ entry: null, targetsChange: null }),
+      },
+      {
+        run: (a: Api) => a.listCheckins({ from: '2026-08-17', to: '2026-11-11' }),
+        method: 'GET',
+        path: '/me/checkins?from=2026-08-17&to=2026-11-11',
+        res: () => Response.json({ checkins: [] }),
+      },
+      {
+        run: (a: Api) => a.saveCheckin('2026-11-11', checkinBody),
+        method: 'PUT',
+        path: '/me/checkins/2026-11-11',
+        body: checkinBody,
+        res: () =>
+          Response.json({
+            checkin: { localDate: '2026-11-11', ...checkinAnswers, source: 'manual' },
+          }),
+      },
+      {
+        run: (a: Api) =>
+          a.deleteCheckin('2026-11-11', {
+            recordedAt: '2026-11-11T10:00:00.000+01:00',
+            today: '2026-11-11',
+          }),
+        method: 'DELETE',
+        path: '/me/checkins/2026-11-11?recordedAt=2026-11-11T10%3A00%3A00.000%2B01%3A00&today=2026-11-11',
+        res: () => Response.json({ checkin: null }),
       },
       {
         run: (a: Api) => a.saveWeek(weekBody),

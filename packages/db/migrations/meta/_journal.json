@@ -78,6 +78,13 @@
       "when": 1795094282557,
       "tag": "0010_week_routine",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795445219109,
+      "tag": "0011_daily_checkins",
+      "breakpoints": true
     }
   ]
 }

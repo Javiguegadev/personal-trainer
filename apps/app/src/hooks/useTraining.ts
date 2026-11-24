@@ -7,6 +7,7 @@ import type {
   Workout,
 } from '@pt/contracts';
 import {
+  adjustSessionForReadiness,
   canRewriteWorkout,
   editWorkout,
   exerciseName,
@@ -23,6 +24,7 @@ import { useDeleteWorkout, useExerciseCatalog, useExerciseStats, useSaveWorkout 
 import { newId } from '@/lib/id';
 import { dispatchSession, readSession, setSession, type SessionSlot } from '@/lib/liveSession';
 import { offerWorkoutUndo } from '@/lib/workoutUndo';
+import { useTodayReadiness } from './useCheckin';
 import { useI18n } from './useI18n';
 import { useToday } from './useToday';
 
@@ -54,6 +56,9 @@ export function useTrainingActions() {
   const save = useSaveWorkout();
   const remove = useDeleteWorkout();
   const { exercises, statsById } = useExerciseLookups();
+  const { readiness } = useTodayReadiness();
+  // A session started live today fits the day's readiness, once, at start (spec 011 AC7, AC10).
+  const fit = (session: LiveSession) => adjustSessionForReadiness(session, readiness, today);
 
   const now = () => new Date().toISOString();
   const placement = () => ({ recordedAt: now(), today, locale });
@@ -65,26 +70,28 @@ export function useTrainingActions() {
   ) => save.mutate(saveWorkoutVariables(id, request, exercises, editing));
 
   return {
-    /** "Empezar entreno" (AC6). */
+    /** "Empezar entreno" (AC6); with a low readiness it carries the reason (spec 011 decision b). */
     startLive(): LiveSession {
-      const session = startSession({
-        id: newId(),
-        localDate: today,
-        startedAt: now(),
-        mode: 'live',
-      });
+      const session = fit(
+        startSession({ id: newId(), localDate: today, startedAt: now(), mode: 'live' }),
+      );
       setSession('live', session);
       return session;
     },
-    /** "Empezar" on a routine session (spec 010 AC18): prefilled from last time or the routine. */
+    /**
+     * "Empezar" on a routine session (spec 010 AC18): prefilled from last time or the routine, with
+     * one set less per exercise on a reduced or low day (spec 011 AC7).
+     */
     startProgram(session: ProgramSession): LiveSession {
-      const live = sessionFromProgram(session, {
-        id: newId(),
-        localDate: today,
-        startedAt: now(),
-        stats: statsById,
-        newId,
-      });
+      const live = fit(
+        sessionFromProgram(session, {
+          id: newId(),
+          localDate: today,
+          startedAt: now(),
+          stats: statsById,
+          newId,
+        }),
+      );
       setSession('live', live);
       return live;
     },
@@ -96,13 +103,15 @@ export function useTrainingActions() {
     },
     /** "Repetir" (AC18): a live session with the exercises and sets of a past one. */
     repeat(workout: Workout): LiveSession {
-      const session = repeatWorkout(workout, {
-        id: newId(),
-        localDate: today,
-        startedAt: now(),
-        stats: statsById,
-        newId,
-      });
+      const session = fit(
+        repeatWorkout(workout, {
+          id: newId(),
+          localDate: today,
+          startedAt: now(),
+          stats: statsById,
+          newId,
+        }),
+      );
       setSession('live', session);
       return session;
     },

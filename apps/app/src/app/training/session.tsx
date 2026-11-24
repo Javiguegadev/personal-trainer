@@ -22,6 +22,7 @@ import { DaySelector } from '@/components/DaySelector';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { FinishSheet } from '@/components/FinishSheet';
 import { Notice } from '@/components/Notice';
+import { ReadinessBanner } from '@/components/ReadinessBanner';
 import { RestTimerBar } from '@/components/RestTimerBar';
 import { Screen } from '@/components/Screen';
 import { StaleSessionNotice } from '@/components/StaleSessionNotice';
@@ -201,6 +202,7 @@ function SessionEditor({
         <Button label={s.finish} onPress={() => setFinishing('now')} testID="session-finish" />
       </View>
       <TrainingNotes flags={flags} />
+      {live ? <ReadinessBanner slot={slot} session={session} /> : null}
       {stale ? (
         <StaleSessionNotice session={session} onFinish={() => setFinishing('stale')} />
       ) : null}
