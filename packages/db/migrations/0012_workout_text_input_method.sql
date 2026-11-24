@@ -1,0 +1,1 @@
+ALTER TYPE "public"."workout_input_method" ADD VALUE 'text';
