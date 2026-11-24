@@ -77,6 +77,7 @@ describe('mealItemFromRequest (AC9, AC10)', () => {
       label: 'Huevo entero',
       nutrients: { kcal: 170.5, proteinG: 13.86, carbsG: 1.21, fatG: 11.66, fiberG: null },
       inputMethod: 'search',
+      plannedItemId: null,
       recordedAt: placement.recordedAt,
     });
   });

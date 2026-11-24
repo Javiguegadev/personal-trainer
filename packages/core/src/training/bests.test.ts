@@ -219,6 +219,7 @@ describe('statsWithWorkout (AC10, AC22: the offline stats after a save)', () => 
     sessionRpe: null,
     inputMethod: 'live',
     programSessionId: null,
+    plannedWorkoutId: null,
     exercises: exercises.map((e) => ({ ...e, label: 'x', tracking: 'weight_reps' as const })),
     recordedAt: `${day}T19:00:00.000Z`,
   });

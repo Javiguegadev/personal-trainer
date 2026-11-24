@@ -144,6 +144,8 @@ function toWorkout(row: WorkoutRow, sets: SetRow[]): Workout {
     sessionRpe: row.sessionRpe,
     inputMethod: row.inputMethod,
     programSessionId: row.programSessionId,
+    // Stored with the planner's migration (spec 013, db step).
+    plannedWorkoutId: null,
     exercises: [...byPosition.values()],
     recordedAt: row.recordedAt.toISOString(),
   };

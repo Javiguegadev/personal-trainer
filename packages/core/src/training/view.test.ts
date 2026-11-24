@@ -38,6 +38,7 @@ const gym = (
   sessionRpe: null,
   inputMethod: 'live',
   programSessionId: null,
+  plannedWorkoutId: null,
   exercises,
   recordedAt: `${localDate}T20:00:00.000Z`,
 });
@@ -234,6 +235,7 @@ describe('workoutToRequest', () => {
       ],
       inputMethod: 'live',
       programSessionId: null,
+      plannedWorkoutId: null,
       localDate: '2026-11-16',
       startedAt: workout.startedAt,
       sessionRpe: 7,
@@ -255,6 +257,7 @@ describe('workoutToRequest', () => {
       name: null,
       minutes: 90,
       inputMethod: 'activity',
+      plannedWorkoutId: null,
       localDate: '2026-11-18',
       startedAt: activity.startedAt,
       sessionRpe: null,

@@ -50,6 +50,7 @@ export function mealItemFromRequest(
     localDate: request.localDate,
     mealType: request.mealType,
     inputMethod: request.inputMethod,
+    plannedItemId: request.plannedItemId ?? null,
     recordedAt: request.recordedAt,
   };
   if (request.kind === 'quick_add') {

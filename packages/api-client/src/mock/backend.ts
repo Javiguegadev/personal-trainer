@@ -1435,6 +1435,7 @@ export function createMockApiClient({
           key: catalogById.get(f.foodId)?.key ?? '',
           createdAt: f.createdAt,
         })),
+        plan: { mealItems: [], workouts: [] },
         consents: record.consents,
         aiUsage: record.aiUsage,
       };

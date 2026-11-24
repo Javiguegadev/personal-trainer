@@ -253,6 +253,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       label: egg.nameEs,
       nutrients: { kcal: 150.25, proteinG: 12.5, carbsG: 1, fatG: 10, fiberG: null },
       inputMethod: 'search' as const,
+      plannedItemId: null,
       recordedAt: now.toISOString(),
     };
     expect(await store.upsertMealItem(id, item)).toEqual(item);
@@ -406,6 +407,7 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       sessionRpe: 7,
       inputMethod: 'live' as const,
       programSessionId: null,
+      plannedWorkoutId: null,
       exercises: [
         {
           exerciseId,

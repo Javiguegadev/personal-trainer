@@ -277,6 +277,8 @@ const workoutPlacement = {
   today: IsoDateSchema,
   /** Language of the exercise name snapshots. */
   locale: LocaleSchema.default('es'),
+  /** The planned session it does (spec 013 AC15); an unknown one is stored without the link (AC23). */
+  plannedWorkoutId: z.uuid().nullable().optional(),
 };
 
 /** `PUT /me/workouts/:id`. The whole workout is replaced, sets included (AC23). */
@@ -335,6 +337,8 @@ export const WorkoutSchema = z.object({
   inputMethod: WorkoutInputMethodSchema,
   /** The routine session it was started from; null when free, or when that session was removed. */
   programSessionId: z.uuid().nullable(),
+  /** The planned session it does (spec 013); null when it was not planned or the plan is gone. */
+  plannedWorkoutId: z.uuid().nullable(),
   /** In session order; empty for an activity. */
   exercises: z.array(WorkoutExerciseSchema),
   recordedAt: datetime,

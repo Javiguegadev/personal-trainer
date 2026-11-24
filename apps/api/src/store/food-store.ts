@@ -51,6 +51,8 @@ function toMealItem(row: MealItemRow): MealItem {
       fiberG: row.fiberG,
     },
     inputMethod: row.inputMethod,
+    // Stored with the planner's migration (spec 013, db step).
+    plannedItemId: null,
     recordedAt: row.recordedAt.toISOString(),
   };
 }

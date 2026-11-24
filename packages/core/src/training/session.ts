@@ -85,6 +85,8 @@ export interface LiveSession {
   inputMethod: 'live' | 'manual' | 'repeat' | 'program' | 'text';
   /** The routine session it was started from (spec 010 AC18); absent in sessions saved before it. */
   programSessionId?: string | null;
+  /** The planned session it does (spec 013 AC15); absent in sessions saved before it. */
+  plannedWorkoutId?: string | null;
   localDate: string;
   startedAt: string;
   name: string | null;
@@ -518,6 +520,7 @@ export function sessionToRequest(
     exercises,
     inputMethod: session.inputMethod,
     programSessionId: session.programSessionId ?? null,
+    plannedWorkoutId: session.plannedWorkoutId ?? null,
     localDate: session.localDate,
     startedAt: session.startedAt,
     sessionRpe: finish.sessionRpe,
@@ -589,6 +592,7 @@ export function editWorkout(
     mode: 'edit',
     inputMethod: workout.inputMethod === 'activity' ? 'manual' : workout.inputMethod,
     programSessionId: workout.programSessionId,
+    plannedWorkoutId: workout.plannedWorkoutId,
     localDate: workout.localDate,
     startedAt: workout.startedAt,
     name: workout.name,

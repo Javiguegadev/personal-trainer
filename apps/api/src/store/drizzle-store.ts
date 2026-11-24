@@ -555,6 +555,8 @@ export function createDrizzleStore(db: Db): Store {
         ...(await exportFoodLog(db, userId)),
         ...(await exportTrainingLog(db, userId)),
         checkins: await exportCheckins(db, userId),
+        // Stored with the planner's migration (spec 013, db step).
+        plan: { mealItems: [], workouts: [] },
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

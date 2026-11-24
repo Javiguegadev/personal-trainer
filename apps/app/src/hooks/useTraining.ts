@@ -237,8 +237,10 @@ export function useTrainingActions() {
       startedAt: string;
       minutes: number;
       sessionRpe: number | null;
+      /** The planned activity it logs (spec 013 AC16). */
+      plannedWorkoutId?: string | null;
     }) {
-      write(newId(), { ...input, ...placement() }, null);
+      write(newId(), { plannedWorkoutId: null, ...input, ...placement() }, null);
     },
     /** AC19: the day, duration, effort or name of a saved workout. */
     update(workout: Workout, changes: Parameters<typeof workoutToRequest>[2]) {

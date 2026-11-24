@@ -43,7 +43,7 @@ export type MealType = z.infer<typeof MealTypeSchema>;
 /**
  * How an item reached the log. `barcode`: a scanned product; `label` and `custom`: the first log of a
  * food the user created from a label photo or by hand (spec 006); `photo` and `text`: an item of a
- * draft made from a plate photo or a sentence (spec 007).
+ * draft made from a plate photo or a sentence (spec 007); `plan`: a planned item logged (spec 013).
  */
 export const FoodInputMethodSchema = z.enum([
   'search',
@@ -56,6 +56,7 @@ export const FoodInputMethodSchema = z.enum([
   'custom',
   'photo',
   'text',
+  'plan',
 ]);
 export type FoodInputMethod = z.infer<typeof FoodInputMethodSchema>;
 
@@ -165,6 +166,8 @@ const itemPlacement = {
   today: IsoDateSchema,
   /** Language of the name and serving snapshots (AC9). */
   locale: LocaleSchema.default('es'),
+  /** The planned item it logs (spec 013 AC8); an unknown one is stored without the link (AC23). */
+  plannedItemId: z.uuid().nullable().optional(),
 };
 
 /** `PUT /me/food-log/items/:id`. The API computes the snapshot of a catalog item itself (AC9). */
@@ -183,6 +186,7 @@ export const MealItemUpsertRequestSchema = z.discriminatedUnion('kind', [
       'custom',
       'photo',
       'text',
+      'plan',
     ]),
     ...itemPlacement,
   }),
@@ -193,7 +197,7 @@ export const MealItemUpsertRequestSchema = z.discriminatedUnion('kind', [
     proteinG: macro.nullable(),
     carbsG: macro.nullable(),
     fatG: macro.nullable(),
-    inputMethod: z.enum(['quick_add', 'repeat']),
+    inputMethod: z.enum(['quick_add', 'repeat', 'plan']),
     ...itemPlacement,
   }),
 ]);
@@ -219,6 +223,8 @@ export const MealItemSchema = z.object({
   /** Snapshot of the portion's energy and macros (AC9). */
   nutrients: NutrientsSchema,
   inputMethod: FoodInputMethodSchema,
+  /** The planned item it logs (spec 013); null when it was not planned or the plan is gone. */
+  plannedItemId: z.uuid().nullable(),
   recordedAt: datetime,
 });
 export type MealItem = z.infer<typeof MealItemSchema>;

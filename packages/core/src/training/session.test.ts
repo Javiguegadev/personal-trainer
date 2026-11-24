@@ -379,6 +379,7 @@ const savedWorkout: Workout = {
   sessionRpe: 8,
   inputMethod: 'live',
   programSessionId: null,
+  plannedWorkoutId: null,
   recordedAt: '2026-11-10T19:00:00.000Z',
   exercises: [
     {

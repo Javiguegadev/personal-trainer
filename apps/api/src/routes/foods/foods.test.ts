@@ -195,6 +195,7 @@ describe('PUT /me/food-log/items/:id (AC8–AC10)', () => {
       label: 'Huevo',
       nutrients: { kcal: 154, proteinG: 13.97, carbsG: 0.33, fatG: 10.81, fiberG: 0 },
       inputMethod: 'search',
+      plannedItemId: null,
       recordedAt: at(60),
     });
     expect(await log()).toEqual([item]);

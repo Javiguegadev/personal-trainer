@@ -186,6 +186,7 @@ const workout = (
   sessionRpe: null,
   inputMethod: 'live',
   programSessionId: null,
+  plannedWorkoutId: null,
   recordedAt: startedAt,
   exercises: exerciseIds.map((exerciseId) => ({
     exerciseId,

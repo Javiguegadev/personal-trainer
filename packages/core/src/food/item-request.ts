@@ -14,6 +14,8 @@ export interface ItemPlacement {
   recordedAt: string;
   today: string;
   locale: Locale;
+  /** The planned item the write logs (spec 013); a move or an undo keeps the item's own link. */
+  plannedItemId?: string | null;
 }
 
 /** The portion an item was logged with: the servings when it has them, else its grams. */
@@ -46,7 +48,7 @@ export function itemToRequest(
     proteinG: n.proteinG,
     carbsG: n.carbsG,
     fatG: n.fatG,
-    inputMethod: inputMethod === 'repeat' ? 'repeat' : 'quick_add',
+    inputMethod: inputMethod === 'repeat' || inputMethod === 'plan' ? inputMethod : 'quick_add',
     ...placement,
   };
 }

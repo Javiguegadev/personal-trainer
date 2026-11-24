@@ -25,6 +25,7 @@ const item: MealItem = {
   label: 'Huevo',
   nutrients: { kcal: 168, proteinG: 15, carbsG: 0.6, fatG: 11, fiberG: 0 },
   inputMethod: 'favourite',
+  plannedItemId: null,
   recordedAt: '2026-11-16T08:00:00.000Z',
 };
 

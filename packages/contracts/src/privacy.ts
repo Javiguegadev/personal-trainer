@@ -4,6 +4,7 @@ import { DietaryPrefsSchema, ProfileSchema, StoredTargetsSchema } from './profil
 import { WeightEntrySchema } from './weight';
 import { FoodSchema, MealItemSchema } from './food';
 import { ExerciseSchema, ProgramSchema, WorkoutSchema } from './training';
+import { ExportedPlanSchema } from './plan';
 
 /**
  * Version of the consent text shown to the user. Bump it when the text changes: a consent given to an
@@ -46,6 +47,8 @@ export const ExportResponseSchema = z.object({
   programs: z.array(ProgramSchema.extend({ deletedAt: datetime.nullable() })),
   /** The daily check-ins, oldest first, deleted ones included with their date (spec 011 AC16). */
   checkins: z.array(ExportedCheckinSchema),
+  /** The planned meals and sessions, deleted ones included with their date (spec 013 AC25). */
+  plan: ExportedPlanSchema,
   consents: z.array(
     z.object({
       kind: ConsentKindSchema,

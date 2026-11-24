@@ -30,11 +30,12 @@ export function useFoodLogActions() {
     recordedAt: now(),
     today,
     locale,
+    plannedItemId: null,
   });
 
   /** Writes the item again where it is, or in another meal (AC11): also the undo of a delete. */
   const rewrite = (item: MealItem, mealType: MealType) => {
-    const at = placement(item.localDate, mealType);
+    const at = { ...placement(item.localDate, mealType), plannedItemId: item.plannedItemId };
     save.mutate({
       id: item.id,
       request: itemToRequest(item, at),

@@ -28,6 +28,7 @@ const item = (over: Partial<MealItem> & { nutrients: Nutrients }): MealItem => (
   unit: 'g',
   label: 'x',
   inputMethod: 'search',
+  plannedItemId: null,
   recordedAt: '2026-11-16T08:00:00.000Z',
   ...over,
 });

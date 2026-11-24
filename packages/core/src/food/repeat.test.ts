@@ -20,6 +20,7 @@ const base: Omit<MealItem, 'id' | 'recordedAt'> = {
   label: 'x',
   nutrients: { kcal: 100, proteinG: 1, carbsG: 2, fatG: 3, fiberG: null },
   inputMethod: 'search',
+  plannedItemId: null,
 };
 
 const items: MealItem[] = [

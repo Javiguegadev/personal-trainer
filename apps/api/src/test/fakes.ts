@@ -704,6 +704,7 @@ export class FakeStore implements Store {
         key: [...this.catalog, ...this.extraFoods].find((c) => c.id === f.foodId)?.key ?? '',
         createdAt: f.createdAt,
       })),
+      plan: { mealItems: [], workouts: [] },
       consents: rows.consents,
       aiUsage: rows.aiUsage.map((u) => ({
         feature: u.feature,

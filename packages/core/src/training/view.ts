@@ -151,6 +151,7 @@ export function workoutToRequest(
     localDate: workout.localDate,
     startedAt: workout.startedAt,
     sessionRpe: workout.sessionRpe,
+    plannedWorkoutId: workout.plannedWorkoutId,
     ...placement,
     ...changes,
   };

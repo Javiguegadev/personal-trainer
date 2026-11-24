@@ -10,6 +10,7 @@ export * from './food';
 export * from './health';
 export * from './meal-draft';
 export * from './onboarding';
+export * from './plan';
 export * from './privacy';
 export * from './profile';
 export * from './training';

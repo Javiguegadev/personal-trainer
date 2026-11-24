@@ -175,6 +175,7 @@ describe('createApiClient', () => {
             customExercises: [],
             programs: [],
             checkins: [],
+            plan: { mealItems: [], workouts: [] },
             consents: [],
             aiUsage: [],
           }),

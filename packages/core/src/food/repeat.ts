@@ -68,6 +68,7 @@ export function repeatMeal(input: RepeatMealInput): RepeatedItem[] {
         localDate: input.to,
         recordedAt: input.recordedAt,
         inputMethod: 'repeat',
+        plannedItemId: null,
       },
     };
   });
