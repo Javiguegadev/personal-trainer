@@ -305,7 +305,7 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
 ## Progress
 
 - [x] contracts (56c5096) · [x] db (cb9a583, `0012` applied on dev) · [x] core (6b45e96) · [x] ai
-      (248a09a) · [x] api (4792e49) · [ ] client · [ ] ui · [ ] e2e · [ ] eval
+      (248a09a) · [x] api (4792e49) · [x] client (559fdea) · [ ] ui · [ ] e2e · [ ] eval
 - Decisions taken during implementation:
   - `WorkoutReadingSchema` is flat (`status`: `ok` | `not_workout` | `unclear`), like the meal reading,
     and carries no number bounds: `core` clamps and marks instead of failing the call.
