@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
+  boolean,
   check,
   date,
   index,
@@ -127,6 +129,10 @@ export const workouts = pgTable(
     programSessionId: uuid('program_session_id').references(() => programSessions.id, {
       onDelete: 'set null',
     }),
+    /** The planned session it does (spec 013 AC15): the plan shows it as done while this row lives. */
+    plannedWorkoutId: uuid('planned_workout_id').references((): AnyPgColumn => plannedWorkouts.id, {
+      onDelete: 'set null',
+    }),
     /** Device time of the write: the later one wins, also against a delete (AC23). */
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -139,6 +145,7 @@ export const workouts = pgTable(
   (t) => [
     index('workouts_user_date_idx').on(t.userId, t.localDate),
     index('workouts_user_program_session_idx').on(t.userId, t.programSessionId),
+    index('workouts_user_planned_workout_idx').on(t.userId, t.plannedWorkoutId),
     check('workouts_minutes_range', sql`${t.minutes} between 1 and 600`),
     check('workouts_rpe_range', sql`${t.sessionRpe} is null or ${t.sessionRpe} between 1 and 10`),
     check('workouts_name_length', sql`${t.name} is null or length(${t.name}) between 1 and 60`),
@@ -314,6 +321,74 @@ export const programExercises = pgTable(
     ),
     check('program_exercises_rest_range', sql`${t.restS} is null or ${t.restS} between 0 and 900`),
     pgPolicy('program_exercises_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+/**
+ * The sessions and activities planned by hand (spec 013, the Plans block of BLUEPRINT §5), stored apart
+ * from `workouts` so a plan never counts as done (ADR 006). A planned gym session links a routine session
+ * or a past workout to repeat (never both), or neither ("Gimnasio libre"); its name is a snapshot, so it
+ * still reads right when the link goes away. A delete keeps the row as a tombstone (AC23).
+ * RLS: users may only read their own rows; every write goes through apps/api.
+ */
+export const plannedWorkouts = pgTable(
+  'planned_workouts',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    localDate: date('local_date', { mode: 'string' }).notNull(),
+    /** Minutes after midnight on that local date; null without a time. */
+    startMinute: smallint('start_minute'),
+    kind: workoutKindEnum('kind').notNull(),
+    activity: activityTypeEnum('activity'),
+    name: text('name'),
+    minutes: smallint('minutes'),
+    /** "Partido": only for a sport (contract). */
+    isMatch: boolean('is_match').notNull().default(false),
+    programSessionId: uuid('program_session_id').references(() => programSessions.id, {
+      onDelete: 'set null',
+    }),
+    repeatWorkoutId: uuid('repeat_workout_id').references((): AnyPgColumn => workouts.id, {
+      onDelete: 'set null',
+    }),
+    /** Device time of the write: the later one wins, also against a delete (AC23). */
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('planned_workouts_user_date_idx').on(t.userId, t.localDate),
+    check(
+      'planned_workouts_start_minute_range',
+      sql`${t.startMinute} is null or ${t.startMinute} between 0 and 1439`,
+    ),
+    check(
+      'planned_workouts_minutes_range',
+      sql`${t.minutes} is null or ${t.minutes} between 1 and 600`,
+    ),
+    check(
+      'planned_workouts_name_length',
+      sql`${t.name} is null or length(${t.name}) between 1 and 60`,
+    ),
+    check(
+      'planned_workouts_one_link',
+      sql`${t.programSessionId} is null or ${t.repeatWorkoutId} is null`,
+    ),
+    check(
+      'planned_workouts_kind_fields',
+      sql`(${t.kind} = 'gym' and ${t.activity} is null and ${t.isMatch} = false) or (${t.kind} <> 'gym' and ${t.minutes} is not null)`,
+    ),
+    pgPolicy('planned_workouts_select_own', {
       for: 'select',
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,

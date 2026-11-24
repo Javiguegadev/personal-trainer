@@ -205,8 +205,12 @@ Logs (instances, client-generated ids)
 
 Plans (their items have the shape of the logs, so a planned meal or session is logged in one tap; written
 by hand from E5c and by the AI from E7, never stored as log rows with a future date: ADR 006)
-  meal_plans → plan_meals → plan_items
-  workout_programs → program_sessions → planned_sets
+  planned_meal_items(id, user_id, local_date, meal_type, food_id?, portion, kcal/macros snapshot)   ← spec 013
+                                       (a plan container and an origin arrive with the AI plans of E7)
+  planned_workouts(id, user_id, local_date, start_minute?, kind, activity?, minutes?, is_match,
+                   program_session_id? | repeat_workout_id?)                                   ← spec 013
+  meal_items.planned_item_id / workouts.planned_workout_id: the log row that does a planned one
+  workout_programs → program_sessions → program_exercises (the routine, spec 010; E7 writes the same)
   weekly_reviews(user_id, week_start, snapshot, proposal, decision[pending|accepted|rejected])
 
 Catalog and knowledge

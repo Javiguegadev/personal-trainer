@@ -92,6 +92,13 @@
       "when": 1795527443990,
       "tag": "0012_workout_text_input_method",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795545718063,
+      "tag": "0013_weekly_planner",
+      "breakpoints": true
     }
   ]
 }

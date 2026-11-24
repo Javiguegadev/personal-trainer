@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   check,
   date,
   index,
@@ -180,6 +181,10 @@ export const mealItems = pgTable(
     fatG: snapshot('fat_g').notNull(),
     fiberG: snapshot('fiber_g'),
     inputMethod: foodInputMethodEnum('input_method').notNull(),
+    /** The planned item it logs (spec 013 AC8): the plan shows it as done while this row lives. */
+    plannedItemId: uuid('planned_item_id').references((): AnyPgColumn => plannedMealItems.id, {
+      onDelete: 'set null',
+    }),
     /** Device time of the write: the later one wins, also against a delete (AC20). */
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -192,12 +197,69 @@ export const mealItems = pgTable(
   (t) => [
     index('meal_items_user_date_idx').on(t.userId, t.localDate),
     index('meal_items_user_food_recorded_idx').on(t.userId, t.foodId, t.recordedAt.desc()),
+    index('meal_items_user_planned_item_idx').on(t.userId, t.plannedItemId),
     check('meal_items_grams_range', sql`${t.grams} is null or ${t.grams} between 1 and 2000`),
     check(
       'meal_items_nutrients_non_negative',
       sql`${t.kcal} >= 0 and ${t.proteinG} >= 0 and ${t.carbsG} >= 0 and ${t.fatG} >= 0 and (${t.fiberG} is null or ${t.fiberG} >= 0)`,
     ),
     pgPolicy('meal_items_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+/**
+ * The meals planned by hand (spec 013, the Plans block of BLUEPRINT §5): the shape of `meal_items`
+ * without how the item was logged, stored apart so a plan never counts as eaten (ADR 006). A planned
+ * meal is the planned items of one day and meal type; the AI plans of E7 add a container and an origin.
+ * A delete keeps the row as a tombstone so an older write cannot bring it back (AC23).
+ * RLS: users may only read their own rows; every write goes through apps/api.
+ */
+export const plannedMealItems = pgTable(
+  'planned_meal_items',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    localDate: date('local_date', { mode: 'string' }).notNull(),
+    mealType: mealTypeEnum('meal_type').notNull(),
+    /** Null for a quick add, or when the food left the catalog. */
+    foodId: uuid('food_id').references(() => foods.id, { onDelete: 'set null' }),
+    servingId: uuid('serving_id').references(() => foodServings.id, { onDelete: 'set null' }),
+    servings: numeric('servings', { precision: 4, scale: 2, mode: 'number' }),
+    servingLabel: text('serving_label'),
+    label: text('label').notNull(),
+    grams: numeric('grams', { precision: 6, scale: 1, mode: 'number' }),
+    quantityUnit: quantityUnitEnum('quantity_unit').notNull().default('g'),
+    kcal: snapshot('kcal').notNull(),
+    proteinG: snapshot('protein_g').notNull(),
+    carbsG: snapshot('carbs_g').notNull(),
+    fatG: snapshot('fat_g').notNull(),
+    fiberG: snapshot('fiber_g'),
+    /** Device time of the write: the later one wins, also against a delete (AC23). */
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('planned_meal_items_user_date_idx').on(t.userId, t.localDate),
+    check(
+      'planned_meal_items_grams_range',
+      sql`${t.grams} is null or ${t.grams} between 1 and 2000`,
+    ),
+    check(
+      'planned_meal_items_nutrients_non_negative',
+      sql`${t.kcal} >= 0 and ${t.proteinG} >= 0 and ${t.carbsG} >= 0 and ${t.fatG} >= 0 and (${t.fiberG} is null or ${t.fiberG} >= 0)`,
+    ),
+    pgPolicy('planned_meal_items_select_own', {
       for: 'select',
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,
