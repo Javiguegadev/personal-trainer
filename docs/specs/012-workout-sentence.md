@@ -306,7 +306,8 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
 
 - [x] contracts (56c5096) · [x] db (cb9a583, `0012` applied on dev) · [x] core (6b45e96, helpers
       a821b49) · [x] ai (248a09a) · [x] api (4792e49) · [x] client (559fdea) · [x] ui (40c7214,
-      de1054b; checked on web at 390 and 1280 px, light and dark) · [ ] e2e · [ ] eval
+      de1054b; checked on web at 390 and 1280 px, light and dark) · [x] e2e (5e68d7d, 6 journeys,
+      full suite 52/52 green) · [ ] eval (`apps/api/evals/workout-text/` not written yet)
 - Decisions taken during implementation:
   - `WorkoutReadingSchema` is flat (`status`: `ok` | `not_workout` | `unclear`), like the meal reading,
     and carries no number bounds: `core` clamps and marks instead of failing the call.
@@ -339,3 +340,6 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
   - "Buscar" and "Crear ejercicio" use `mentionName` (the words without the sets) and
     `trackingFromSets` (the tracking the form starts with); the picker has a one-exercise mode for
     `replace` and `resolve`.
+  - The E2E found that `Checkbox` rendered no `aria-checked` on the web (react-native-web ignores
+    `accessibilityState`), so a screen reader could not tell whether "Cuenta como Rutina A" or any
+    other checkbox was ticked; it now sets `role` and `aria-checked` like the set ✓.
