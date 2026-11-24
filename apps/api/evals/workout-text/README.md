@@ -11,7 +11,8 @@ The cases (`cases.jsonl`) were written by an agent that saw only the exercise ca
 (`packages/db/src/knowledge/catalog/exercises.csv`), not the prompt. Review a sample by hand before
 trusting the numbers. `pnpm --filter @pt/api eval:workout-text:check` checks the cases against the
 catalog of the dev database (keys, ids, values the tracking of an exercise drops) without calling the
-model.
+model. To look into a few cases, add `--only=es-085,en-013` (no gate, report `reports/<date>-subset.md`);
+the report of every failure carries the model's own reading, before `@pt/core`.
 
 The runner uses the API's own code (`createWorkoutDrafter`: refs, the reader, `workoutDraft`) for a
 user with no exercises of their own, on a fixed day: today and the screen's day are **Wednesday

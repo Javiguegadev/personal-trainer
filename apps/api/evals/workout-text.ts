@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AiUnavailableError, createMessageFn, createWorkoutReader } from '@pt/ai';
+import { AiUnavailableError, createMessageFn, createWorkoutReader, type ReadWorkout } from '@pt/ai';
 import {
   ActivityTypeSchema,
   LocaleSchema,
@@ -22,6 +22,7 @@ import {
   type WorkoutDraft,
   type WorkoutDraftActivity,
   type WorkoutDraftResponse,
+  type WorkoutReading,
 } from '@pt/contracts';
 import { addDays, setForTracking } from '@pt/core';
 import { createDb } from '@pt/db';
@@ -363,17 +364,24 @@ function checkCases(cases: readonly Case[], exercises: readonly Exercise[]): str
 
 async function main() {
   const checkOnly = process.argv.includes('--check');
+  /** `--only=es-085,en-013`: a few cases to look into (no gate, a report of its own). */
+  const only = process.argv
+    .find((arg) => arg.startsWith('--only='))
+    ?.slice('--only='.length)
+    .split(',');
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL is not set (see .env.example)');
 
   const here = resolve(dirname(fileURLToPath(import.meta.url)), 'workout-text');
-  const cases = readCases(resolve(here, 'cases.jsonl'));
+  const allCases = readCases(resolve(here, 'cases.jsonl'));
+  const cases = only ? allCases.filter((c) => only.includes(c.id)) : allCases;
+  if (cases.length === 0) throw new Error(`No case has the ids ${only?.join(', ')}`);
   const db = createDb(databaseUrl);
   const store = createDrizzleStore(db);
   const getCatalog = createExerciseCatalogCache(store, () => new Date());
   const catalog = await getCatalog();
-  const problems = checkCases(cases, catalog.exercises);
+  const problems = checkCases(allCases, catalog.exercises);
   if (checkOnly || problems.length) {
     await db.$client.end();
     const kinds = new Map<string, number>();
@@ -393,10 +401,15 @@ async function main() {
     throw new Error('ANTHROPIC_API_KEY is not set (see .env.example)');
   }
 
-  const draftWorkout = createWorkoutDrafter(
-    { store, readWorkout: createWorkoutReader(createMessageFn(apiKey)) },
-    getCatalog,
-  );
+  // The model's own reading of each sentence, before `core`, for the report of a failure.
+  const readings = new Map<string, WorkoutReading>();
+  const reader = createWorkoutReader(createMessageFn(apiKey));
+  const readWorkout: ReadWorkout = async (input) => {
+    const result = await reader(input);
+    readings.set(input.text, result.reading);
+    return result;
+  };
+  const draftWorkout = createWorkoutDrafter({ store, readWorkout }, getCatalog);
   const costs: number[] = [];
   const latencies: number[] = [];
   async function run(c: Case) {
@@ -452,7 +465,7 @@ async function main() {
   });
   const cost = costs.reduce((a, b) => a + b, 0);
   const enough = byLocale('es') >= MIN_CASES.es && byLocale('en') >= MIN_CASES.en;
-  const passed = enough && correct / cases.length >= GATE && draftsFromNonWorkout === 0;
+  const passed = !only && enough && correct / cases.length >= GATE && draftsFromNonWorkout === 0;
 
   const summary = [
     `Sentences parsed correctly: ${correct} / ${cases.length} (${pct(correct, cases.length)}; gate ${GATE * 100} %)`,
@@ -470,12 +483,14 @@ async function main() {
     `Cost: ${cost.toFixed(4)} USD in ${costs.length} calls (${(cost / Math.max(costs.length, 1)).toFixed(5)} each; cache reads counted at the input price, an upper bound)`,
     `Latency: median ${quantile(latencies, 0.5)} ms, p90 ${quantile(latencies, 0.9)} ms`,
   ];
-  if (!enough) summary.push('The set is too small for AC18.');
+  if (only) summary.push(`Only ${cases.length} cases: no gate.`);
+  else if (!enough) summary.push('The set is too small for AC18.');
+  const verdict = only ? 'SUBSET' : passed ? 'PASS' : 'FAIL';
 
   const report = [
     `# Workout sentence eval — ${new Date().toISOString().slice(0, 10)}`,
     '',
-    passed ? '**PASS**' : '**FAIL**',
+    `**${verdict}**`,
     '',
     ...summary.map((line) => `- ${line.trim()}`),
     '',
@@ -495,15 +510,17 @@ async function main() {
       return [
         `- **${c.id}** (${c.kind}) "${c.text}"`,
         ...failures.map((f) => `  - ${f.kind}: ${f.detail}`),
+        `  - reading: \`${JSON.stringify(readings.get(c.text) ?? null)}\``,
       ];
     }),
   ];
   mkdirSync(resolve(here, 'reports'), { recursive: true });
-  const file = resolve(here, 'reports', `${new Date().toISOString().slice(0, 10)}.md`);
+  const day = new Date().toISOString().slice(0, 10);
+  const file = resolve(here, 'reports', `${day}${only ? '-subset' : ''}.md`);
   writeFileSync(file, report.join('\n'));
 
-  console.log(`${summary.join('\n')}\nReport: ${file}\n${passed ? 'PASS' : 'FAIL'}`);
-  if (!passed) process.exitCode = 1;
+  console.log(`${summary.join('\n')}\nReport: ${file}\n${verdict}`);
+  if (!passed && !only) process.exitCode = 1;
 }
 
 main().catch((error: unknown) => {

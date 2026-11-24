@@ -319,6 +319,14 @@ sessionRpe, distanceSaid }`), `daysAgo` (null or 0–30), `startTime` (`HH:MM` o
     día" (AC4).
   - en-013: "chin ups 3x8 with 25 lbs added" is read as weighted pull-ups (`dominadas-lastradas`); the
     values are right.
+- Prompt fixed the same day with the user's go-ahead (three lines: never leave out an exercise said,
+  the first one or a cardio machine included; a stationary bike is an exercise also with a distance;
+  a day before the 7 listed still gets its number, "hace tres semanas" → 21; and a closing check that
+  every exercise and activity said is in the answer). The examples in the prompt are not sentences of
+  the eval. Eval run again: **PASS, 177 of 178 (99.4 %)**; 0 of 16 sentences without a workout gave a
+  draft; exercise match 275/276 (99.6 %); set values 900/903 (99.7 %); 0.0015 USD per call at most;
+  latency median 1.6 s, p90 2.3 s. The one failure, es-137 ("sentadilla zercher" read as the back
+  squat, with its words shown), passed in the two runs before: the model's variance, not chased.
 - Decisions taken during implementation:
   - `WorkoutReadingSchema` is flat (`status`: `ok` | `not_workout` | `unclear`), like the meal reading,
     and carries no number bounds: `core` clamps and marks instead of failing the call.
