@@ -404,3 +404,11 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
     are already patched at once. `useSavePlanChanges()(changes, locale)` cuts a change into bulk writes
     (`planChangeBatches` in core) queued in the `food-log` and `training` scopes; a refused write is
     undone entirely (`useRejectedPlanWrite`). The mock database key is `pt.mock-db.v10`.
+  - UI part 1, seeing and logging the plan (2026-11-25, human's choice on AC4/AC8): on today and past
+    days the pending planned items show only under their meal (AC8); "Plan del día" there shows the
+    planned energy (and, from part 2, "Añadir al plan"), and a future day lists its planned meals in it.
+    A week row lists its planned sessions with commas ("Rutina A · 18:30, Fútbol · 21:00"); the day
+    screen also hides the typical slots on a day with planned sessions. "Hecho" and "Registrar" of an
+    activity open the activity sheet with `?plan=`; a past gym session opens the past-session screen.
+    "Planificar mi semana" switches Today to the week view. `plan/item/[id]` logs or removes a planned
+    item of today or a past day (AC9); a future one is edited in part 2.

@@ -9,11 +9,19 @@ import {
   routineDueOn,
   typicalDay,
   usualSleep,
+  withTodayPlan,
   type CheckinAnswers,
   type ReadinessPlan,
 } from '@pt/core';
 import { useMemo } from 'react';
-import { useCheckins, useDeleteCheckin, useProgram, useSaveCheckin, useWorkouts } from '@/lib/api';
+import {
+  useCheckins,
+  useDeleteCheckin,
+  usePlan,
+  useProgram,
+  useSaveCheckin,
+  useWorkouts,
+} from '@/lib/api';
 import { rememberShiftHours } from '@/lib/checkinPrefs';
 import { profileActivities } from '@/lib/week';
 import { useToday } from './useToday';
@@ -49,12 +57,14 @@ export function useTodayReadiness(): {
 
 /**
  * Today's plan as the readiness line reads it (AC9): the routine session due today (the one "Empezar"
- * would start, spec 010 AC17) and the activities of today's weekday.
+ * would start, spec 010 AC17) and the activities of today's weekday; on a day with planned sessions,
+ * the pending planned ones instead (spec 013 AC15).
  */
 export function useTodayPlan(profile: Profile): ReadinessPlan {
   const today = useToday();
   const program = useProgram();
   const log = useWorkouts(today);
+  const plan = usePlan(today);
   const activities = profileActivities(profile);
   const weekday = isoWeekday(today) as Weekday;
   const routine = program.data;
@@ -70,7 +80,15 @@ export function useTodayPlan(profile: Profile): ReadinessPlan {
   if (!next && undatedGym && !slots.some((slot) => slot.kind === 'strength')) {
     planned.push({ isMatch: false });
   }
-  return { session: next ? readinessPlanSession(next) : null, activities: planned };
+  return withTodayPlan(
+    { session: next ? readinessPlanSession(next) : null, activities: planned },
+    {
+      today,
+      planned: plan.data?.workouts ?? [],
+      workouts: log.data ?? [],
+      program: routine ?? null,
+    },
+  );
 }
 
 /** Saving and deleting a check-in: optimistic, queued offline in its own scope (AC14). */

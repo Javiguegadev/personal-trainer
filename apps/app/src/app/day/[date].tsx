@@ -1,14 +1,28 @@
-import { IsoDateSchema, WORKOUT_LIMITS, type Profile, type Weekday } from '@pt/contracts';
 import {
+  IsoDateSchema,
+  WORKOUT_LIMITS,
+  type PlannedWorkout,
+  type Profile,
+  type Weekday,
+} from '@pt/contracts';
+import {
+  canPlan,
   dayAccess,
   dayMeals,
   dayNotices,
+  dayPlanMeals,
   dayWorkBlock,
   daysBetween,
   formatLongDate,
+  formatNumber,
+  formatPortion,
   isoWeekday,
   lastDays,
+  pendingPlannedWorkouts,
+  planNotices,
+  plannedDayEnergy,
   showsFoodNumbers,
+  sortPlannedSessions,
   typicalDay,
   WEEK_VIEW,
   weekStartOf,
@@ -16,7 +30,7 @@ import {
 import { tokens } from '@pt/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BackLink } from '@/components/BackLink';
 import { BlockingState } from '@/components/BlockingState';
@@ -28,16 +42,34 @@ import { DescribeWorkoutButton } from '@/components/DescribeWorkoutButton';
 import { MealSection } from '@/components/MealSection';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { PlanNotices } from '@/components/PlanNotices';
+import { PlanRejectedNotice } from '@/components/PlanRejectedNotice';
+import { PlannedSessionRow, type PlannedSessionAction } from '@/components/PlannedSessionRow';
 import { Screen } from '@/components/Screen';
+import { SyncBadge } from '@/components/SyncBadge';
+import { UndoToast } from '@/components/UndoToast';
 import { WorkoutRow } from '@/components/WorkoutRow';
 import { useCheckinList } from '@/hooks/useCheckin';
 import { useDraftGuard } from '@/hooks/useDraftGuard';
+import { useFoodLogActions } from '@/hooks/useFoodLogActions';
 import { useI18n } from '@/hooks/useI18n';
+import { usePlanActions } from '@/hooks/usePlanActions';
+import { usePlannedStart } from '@/hooks/usePlannedStart';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
 import { useTrainingActions } from '@/hooks/useTraining';
 import { useWeekText } from '@/hooks/useWeekText';
-import { useMe, usePendingMealItemIds, usePendingTrainingIds, useWeekLog } from '@/lib/api';
+import {
+  useMe,
+  usePendingMealItemIds,
+  usePendingPlanIds,
+  usePendingTrainingIds,
+  usePlan,
+  useWeekLog,
+} from '@/lib/api';
+import { useFoodUndo } from '@/lib/foodUndo';
+import { useSession } from '@/lib/liveSession';
+import { usePlanUndo } from '@/lib/planUndo';
 import { pastSessionStart } from '@/lib/trainingTime';
 import { profileActivities, profileWeek } from '@/lib/week';
 
@@ -46,7 +78,10 @@ import { profileActivities, profileWeek } from '@/lib/week';
  * and workouts, each opening its edit screen. Today and the 27 days before can add a meal or a
  * workout; older days are read-only; future days show only their typical week. The day's check-in
  * ("Cómo estaba"), the shift it tells and the shift overlap notices come from spec 011 (AC5, AC11,
- * AC12).
+ * AC12). The plan (spec 013): pending planned items under each meal with "Registrar lo planificado"
+ * (AC8), the pending planned sessions with "Empezar", "Hecho" or "Registrar" (AC14–AC17), their notices
+ * (AC13) and "Plan del día" with the planned energy (AC4); a future day lists its planned meals there.
+ * Past days older than 27 days show only what was logged.
  */
 export default function DayRoute() {
   const { t } = useI18n();
@@ -56,7 +91,7 @@ export default function DayRoute() {
   const parsed = IsoDateSchema.safeParse(params.date);
   if (!me.data?.profile) return <BlockingState />;
 
-  // The range of the week view: 12 weeks back to the end of next week (AC10).
+  // The range of the week view: 12 weeks back to the end of the plan horizon (AC10, spec 013 AC1).
   const date = parsed.success ? parsed.data : null;
   const inRange =
     date !== null &&
@@ -70,25 +105,52 @@ export default function DayRoute() {
       </Screen>
     );
   }
-  return <DayScreen key={date} date={date} today={today} profile={me.data.profile} />;
+  return (
+    <DayScreen
+      key={date}
+      date={date}
+      today={today}
+      profile={me.data.profile}
+      targetKcal={me.data.targets?.kcal ?? null}
+    />
+  );
 }
 
-function DayScreen({ date, today, profile }: { date: string; today: string; profile: Profile }) {
-  const { t, locale } = useI18n();
+function DayScreen({
+  date,
+  today,
+  profile,
+  targetKcal,
+}: {
+  date: string;
+  today: string;
+  profile: Profile;
+  targetKcal: number | null;
+}) {
+  const { t, format, locale } = useI18n();
   const { colors } = useTheme();
   const router = useRouter();
   const text = useWeekText();
   const actions = useTrainingActions();
+  const foodActions = useFoodLogActions();
+  const planActions = usePlanActions();
+  const startPlanned = usePlannedStart();
   const pendingItems = usePendingMealItemIds();
   const pendingWorkouts = usePendingTrainingIds();
+  const pendingPlan = usePendingPlanIds();
+  const foodUndo = useFoodUndo();
+  const planUndo = usePlanUndo();
+  const live = useSession('live');
   const [choosing, setChoosing] = useState(false);
   const draftGuard = useDraftGuard();
   const { checkins } = useCheckinList();
   const access = dayAccess(date, today);
   const monday = weekStartOf(date);
   const log = useWeekLog(monday, { enabled: access !== 'future' });
+  const plan = usePlan(today);
   const d = t.week.day;
   const flags = profile.safetyFlags;
+  const showNumbers = showsFoodNumbers(flags);
 
   const week = {
     workBlocks: profileWeek(profile).workBlocks,
@@ -99,10 +161,40 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
   // The typical work block, or the shift told in the day's check-in (spec 011 AC11).
   const work = dayWorkBlock(week, checkin, date);
   const notices = dayNotices({ date, plannedActivities: week.plannedActivities, checkins });
-  const meals = dayMeals(log.data?.mealItems ?? [], date, flags);
+  const loggedItems = log.data?.mealItems ?? [];
+  const planItems = (plan.data?.mealItems ?? []).filter((p) => p.localDate === date);
+  const planSessions = (plan.data?.workouts ?? []).filter((p) => p.localDate === date);
+  // Pending planned items go under their meal where they can be logged (AC8).
+  const meals = dayMeals(loggedItems, date, flags, access === 'add' ? planItems : []);
   const workouts = (log.data?.workouts ?? [])
     .filter((w) => w.localDate === date)
     .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
+  // Nothing planned and not done is shown on a day older than the add window (spec 013 AC2, AC17).
+  const pendingSessions =
+    access === 'read_only'
+      ? []
+      : sortPlannedSessions(pendingPlannedWorkouts(planSessions, workouts));
+  // A day with planned sessions shows them instead of the typical ones (spec 013 AC2).
+  const typicalSlots = planSessions.length > 0 ? [] : typical.training;
+  const planNoticeList = planNotices({
+    date,
+    planned: plan.data?.workouts ?? [],
+    week,
+    checkins,
+  });
+  const plannable = canPlan(date, today);
+  const energy = plannedDayEnergy({
+    date,
+    today,
+    planned: planItems,
+    logged: loggedItems,
+    flags,
+    targetKcal,
+  });
+  const futureMeals =
+    access === 'future'
+      ? dayPlanMeals(planItems, [], date, flags).filter((m) => m.items.length)
+      : [];
   const canAdd = access === 'add';
 
   const startGym = () => {
@@ -112,6 +204,13 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
   };
   // The sentence shortcut reads today and the 6 days before only (spec 012 AC1, AC4).
   const canDescribe = lastDays(today, WORKOUT_LIMITS.pastDaysUi).includes(date);
+  const sessionAction = (planned: PlannedWorkout): PlannedSessionAction | null => {
+    if (access === 'future') return null;
+    if (date < today) return 'log';
+    if (planned.kind !== 'gym') return 'done';
+    return live ? null : 'start';
+  };
+  const openPlanned = (id: string) => router.push({ pathname: '/plan/item/[id]', params: { id } });
 
   let logged;
   if (access === 'future') logged = null;
@@ -150,8 +249,8 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
                 key={meal.mealType}
                 meal={meal.mealType}
                 items={meal.items}
-                showNumbers={showsFoodNumbers(flags)}
-                pendingIds={pendingItems}
+                showNumbers={showNumbers}
+                pendingIds={[...pendingItems, ...pendingPlan]}
                 repeatable={null}
                 onAdd={
                   canAdd
@@ -169,6 +268,9 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
                     params: { id: item.id, week: monday },
                   })
                 }
+                planned={meal.pending}
+                onLogPlanned={canAdd ? () => planActions.logPlanned(meal.pending) : undefined}
+                onOpenPlanned={(item) => openPlanned(item.id)}
               />
             ))}
           </View>
@@ -193,21 +295,40 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
     );
   }
 
+  const footer = foodUndo ? (
+    <UndoToast
+      message={
+        foodUndo.kind === 'deleted'
+          ? format(t.food.item.deleted, { food: foodUndo.item.label })
+          : format(t.food.item.added, {
+              count:
+                foodUndo.items.length === 1
+                  ? t.food.foodsOne
+                  : format(t.food.foodsOther, { count: String(foodUndo.items.length) }),
+            })
+      }
+      onUndo={() => foodActions.undo(foodUndo)}
+    />
+  ) : planUndo ? (
+    <UndoToast message={planUndo.message} onUndo={() => planActions.undo(planUndo)} />
+  ) : undefined;
+
   return (
-    <Screen testID="day-screen">
+    <Screen testID="day-screen" footer={footer}>
       <BackLink fallback="/" />
       <AppText variant="title" testID="day-title">
         {formatLongDate(date, locale)}
       </AppText>
       <OfflineBanner />
-      {work || typical.training.length > 0 ? (
-        <Card title={typical.training.length > 0 ? d.planned : d.work} testID="day-typical">
+      <PlanRejectedNotice />
+      {work || typicalSlots.length > 0 ? (
+        <Card title={typicalSlots.length > 0 ? d.planned : d.work} testID="day-typical">
           {work ? (
             <AppText testID="day-work">
               {work.shift ? text.shift(work.shift, work) : `${d.work}: ${text.work(work)}`}
             </AppText>
           ) : null}
-          {typical.training.map((slot) => (
+          {typicalSlots.map((slot) => (
             <AppText key={slot.activityIndex} testID={`day-planned-${slot.activityIndex}`}>
               {text.slot(slot)}
             </AppText>
@@ -215,6 +336,71 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
         </Card>
       ) : null}
       <DayNotices notices={notices} activities={week.plannedActivities} date={date} today={today} />
+      {pendingSessions.length > 0 ? (
+        <Card title={t.plan.sessionsTitle} testID="day-planned-sessions">
+          {pendingSessions.map((planned) => {
+            const action = sessionAction(planned);
+            return (
+              <PlannedSessionRow
+                key={planned.id}
+                planned={planned}
+                action={action}
+                pending={pendingPlan.includes(planned.id)}
+                onAction={() =>
+                  action === 'log' && planned.kind === 'gym'
+                    ? draftGuard.guard(() => startPlanned(planned))
+                    : startPlanned(planned)
+                }
+              />
+            );
+          })}
+          {draftGuard.notice}
+        </Card>
+      ) : null}
+      <PlanNotices notices={planNoticeList} planned={planSessions} />
+      {plannable && (energy || futureMeals.length > 0) ? (
+        <Card title={t.plan.dayTitle} testID="day-plan">
+          {energy ? (
+            <AppText tone="muted" testID="day-plan-energy">
+              {energy.targetKcal === null
+                ? format(t.plan.energyOnly, { kcal: formatNumber(energy.kcal, locale) })
+                : format(t.plan.energy, {
+                    kcal: formatNumber(energy.kcal, locale),
+                    target: formatNumber(energy.targetKcal, locale),
+                  })}
+            </AppText>
+          ) : null}
+          {futureMeals.map((meal) => (
+            <View key={meal.mealType} style={styles.planMeal} testID={`day-plan-${meal.mealType}`}>
+              <AppText weight="bold">
+                {[
+                  t.food.meals[meal.mealType],
+                  meal.kcal === null
+                    ? null
+                    : format(t.food.kcal, { value: formatNumber(meal.kcal, locale) }),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </AppText>
+              {meal.items.map((item) => (
+                <Pressable
+                  key={item.id}
+                  role="button"
+                  accessibilityLabel={format(t.plan.openPlanned, { food: item.label })}
+                  onPress={() => openPlanned(item.id)}
+                  style={({ pressed }) => [styles.planItem, { opacity: pressed ? 0.6 : 1 }]}
+                  testID="day-plan-item"
+                >
+                  <AppText style={styles.flex}>
+                    {[item.label, formatPortion(item, locale)].filter(Boolean).join(' · ')}
+                  </AppText>
+                  {pendingPlan.includes(item.id) ? <SyncBadge /> : null}
+                </Pressable>
+              ))}
+            </View>
+          ))}
+        </Card>
+      ) : null}
       {access === 'future' ? null : <DayCheckin checkin={checkin} date={date} access={access} />}
       {logged}
       {access === 'read_only' ? (
@@ -227,7 +413,7 @@ function DayScreen({ date, today, profile }: { date: string; today: string; prof
             onPress={() => router.push({ pathname: '/food/add', params: { date } })}
             testID="day-add-meal"
           />
-          {draftGuard.notice}
+          {pendingSessions.length > 0 ? null : draftGuard.notice}
           {choosing ? (
             <View style={styles.choice} testID="day-workout-choice">
               <Button
@@ -269,4 +455,12 @@ const styles = StyleSheet.create({
   group: { gap: tokens.space.sm },
   choice: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
   loading: { marginVertical: tokens.space.lg },
+  planMeal: { gap: tokens.space.xs },
+  planItem: {
+    minHeight: tokens.layout.minTouchTarget,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+  },
+  flex: { flex: 1 },
 });

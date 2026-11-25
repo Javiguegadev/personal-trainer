@@ -15,7 +15,7 @@ import { useCheckinList } from '@/hooks/useCheckin';
 import { useI18n } from '@/hooks/useI18n';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
-import { useWeekLog } from '@/lib/api';
+import { usePlan, useWeekLog } from '@/lib/api';
 import { profileActivities, profileWeek } from '@/lib/week';
 import { AppText } from './AppText';
 import { Button } from './Button';
@@ -24,8 +24,9 @@ import { WeekDayRow } from './WeekDayRow';
 
 /**
  * The week view of Today (spec 010 AC8–AC10): Monday to Sunday with the typical week and what was
- * logged; "‹" and "›" move from 12 weeks back to next week, "Hoy" returns. A week already visited
- * stays on the device; an unvisited one offline shows only its typical week.
+ * logged; "‹" and "›" move from 12 weeks back to the end of the plan horizon (spec 013 AC1), "Hoy"
+ * returns. A week already visited stays on the device; an unvisited one offline shows only its typical
+ * week. Today and future rows add the plan, which is cached for the whole horizon (spec 013 AC2, AC22).
  */
 export function TodayWeek({
   profile,
@@ -43,6 +44,7 @@ export function TodayWeek({
   const nav = weekNavigation(weekStart, today);
   const future = weekStart > current;
   const log = useWeekLog(weekStart, { enabled: !future });
+  const plan = usePlan(today);
   const { checkins } = useCheckinList();
   const v = t.week.view;
 
@@ -59,6 +61,9 @@ export function TodayWeek({
     flags: profile.safetyFlags,
     // The shifts of the check-ins fill the days without a typical work block (spec 011 AC11).
     checkins,
+    plan: plan.data,
+    // Without numeric targets (pregnancy) the planned energy has no target (spec 013 AC3).
+    targetKcal: targets?.kcal ?? null,
   });
   const noTypicalWeek =
     week.workBlocks.length === 0 && week.plannedActivities.every((a) => a.days.length === 0);

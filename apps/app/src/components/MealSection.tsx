@@ -1,4 +1,4 @@
-import type { MealItem, MealType } from '@pt/contracts';
+import type { MealItem, MealType, PlannedMealItem } from '@pt/contracts';
 import { dailyTotals, formatNumber, formatPortion } from '@pt/core';
 import { tokens } from '@pt/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -22,9 +22,18 @@ interface MealSectionProps {
   onAdd?: () => void;
   onRepeat: () => void;
   onOpenItem: (item: MealItem) => void;
+  /** The pending planned items of this meal (spec 013 AC8), shown muted under the logged ones. */
+  planned?: readonly PlannedMealItem[];
+  /** "Registrar lo planificado": absent where the plan cannot be logged. */
+  onLogPlanned?: () => void;
+  onOpenPlanned?: (item: PlannedMealItem) => void;
 }
 
-/** One meal of the day (spec 005 AC15): its items, its total and "Añadir". An empty meal is one line. */
+/**
+ * One meal of the day (spec 005 AC15): its items, its total and "Añadir". An empty meal is one line.
+ * Its pending planned items follow, muted and marked "Plan", with "Registrar lo planificado" (spec 013
+ * AC8); they never count in the total.
+ */
 export function MealSection({
   meal,
   items,
@@ -34,6 +43,9 @@ export function MealSection({
   onAdd,
   onRepeat,
   onOpenItem,
+  planned = [],
+  onLogPlanned,
+  onOpenPlanned,
 }: MealSectionProps) {
   const { t, format, locale } = useI18n();
   const { colors } = useTheme();
@@ -102,6 +114,54 @@ export function MealSection({
           </Pressable>
         );
       })}
+
+      {planned.map((item) => {
+        const portion = formatPortion(item, locale);
+        return (
+          <Pressable
+            key={item.id}
+            role="button"
+            accessibilityLabel={format(t.plan.openPlanned, { food: item.label })}
+            disabled={!onOpenPlanned}
+            onPress={() => onOpenPlanned?.(item)}
+            testID="meal-planned-item"
+            style={({ pressed }) => [
+              styles.item,
+              { borderTopColor: colors.border, opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <View style={styles.itemMain}>
+              <AppText tone="muted">{item.label}</AppText>
+              <AppText variant="caption" tone="muted">
+                {[t.plan.tag, portion].filter(Boolean).join(' · ')}
+              </AppText>
+              {pendingIds.includes(item.id) ? <SyncBadge /> : null}
+            </View>
+            {showNumbers ? (
+              <AppText variant="label" tone="muted">
+                {kcal(item.nutrients.kcal)}
+              </AppText>
+            ) : null}
+          </Pressable>
+        );
+      })}
+
+      {onLogPlanned && planned.length > 0 ? (
+        <Button
+          variant="secondary"
+          label={
+            showNumbers
+              ? format(t.plan.logPlanned, {
+                  count: foods(planned.length),
+                  kcal: formatNumber(Math.round(dailyTotals(planned).kcal), locale),
+                })
+              : format(t.plan.logPlannedNoNumbers, { count: foods(planned.length) })
+          }
+          accessibilityLabel={format(t.plan.logPlannedA11y, { meal: name })}
+          onPress={onLogPlanned}
+          testID={`meal-${meal}-log-planned`}
+        />
+      ) : null}
 
       {repeatable ? (
         <Button

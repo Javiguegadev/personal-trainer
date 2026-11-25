@@ -4,6 +4,7 @@ import type {
   ActivityType,
   Exercise,
   ExerciseTracking,
+  PlannedWorkout,
   Program,
   ProgramSession,
   Workout,
@@ -18,6 +19,7 @@ import {
   liveExerciseFromDraft,
   newLiveExercise,
   repeatWorkout,
+  resolvePlannedSession,
   sessionFromProgram,
   sessionToRequest,
   startSession,
@@ -106,6 +108,37 @@ export function useTrainingActions() {
       );
       setSession('live', live);
       return live;
+    },
+    /**
+     * "Empezar" (today, a live session) or "Registrar" (a past day, the past-session screen) on a planned
+     * gym session (spec 013 AC15, AC17): its routine session, the workout it repeats, or an empty session
+     * with its name. The workout will store the planned session; the rotation follows the workouts.
+     * Returns the slot to open.
+     */
+    startPlanned(
+      planned: PlannedWorkout,
+      start: { mode: 'live' } | { mode: 'manual'; localDate: string; startedAt: string },
+      program: Pick<Program, 'sessions'> | null,
+      workouts: readonly Workout[],
+    ): SessionSlot {
+      const localDate = start.mode === 'live' ? today : start.localDate;
+      const startedAt = start.mode === 'live' ? now() : start.startedAt;
+      const base = { id: newId(), localDate, startedAt, stats: statsById, newId };
+      const resolved = resolvePlannedSession(planned, program);
+      const repeated =
+        resolved.type === 'repeat' ? workouts.find((w) => w.id === resolved.workoutId) : undefined;
+      let session: LiveSession;
+      if (resolved.type === 'program') {
+        session = sessionFromProgram(resolved.session, { ...base, mode: start.mode });
+      } else if (repeated) {
+        session = { ...repeatWorkout(repeated, base), mode: start.mode };
+      } else {
+        session = { ...startSession({ ...base, mode: start.mode }), name: planned.name };
+      }
+      session = { ...session, plannedWorkoutId: planned.id };
+      const slot: SessionSlot = start.mode === 'live' ? 'live' : 'draft';
+      setSession(slot, start.mode === 'live' ? fit(session) : session);
+      return slot;
     },
     /** "Registrar entreno pasado" (AC17): the same screen without the rest timer. */
     startManual(localDate: string, startedAt: string): LiveSession {

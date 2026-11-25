@@ -1,4 +1,10 @@
-import { ActivityTypeSchema, IsoDateSchema, WORKOUT_LIMITS, type Profile } from '@pt/contracts';
+import {
+  ActivityTypeSchema,
+  IsoDateSchema,
+  WORKOUT_LIMITS,
+  type PlannedWorkout,
+  type Profile,
+} from '@pt/contracts';
 import { activityChoices, dayAccess, lastDays, toLocalTime, type ActivityChoice } from '@pt/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -20,7 +26,7 @@ import {
   setActivityDraftExtras,
   useActivityDraftExtras,
 } from '@/lib/activityDraft';
-import { useMe } from '@/lib/api';
+import { useMe, usePlan } from '@/lib/api';
 import { dispatchSession } from '@/lib/liveSession';
 import { draftStart, localDateTime } from '@/lib/trainingTime';
 
@@ -47,6 +53,8 @@ type ActivityParams = {
   pain?: string;
   distance?: string;
   dayDropped?: string;
+  /** "Hecho" or "Registrar" on a planned activity (spec 013 AC16, AC17): its id. */
+  plan?: string;
 };
 
 const intParam = (value: string | undefined, min: number, max: number) => {
@@ -58,15 +66,21 @@ const intParam = (value: string | undefined, min: number, max: number) => {
 
 /**
  * "Registrar actividad" (spec 009 AC16): a sport, cardio or another activity in a few taps: the type
- * (the profile's activities first), the day, the minutes and, optionally, how hard it was.
+ * (the profile's activities first), the day, the minutes and, optionally, how hard it was. From a
+ * planned activity (`?plan=`, spec 013 AC16) it opens with its type, day, minutes and time, saves with
+ * one tap and stores the link to the plan.
  */
 export default function ActivityRoute() {
   const me = useMe();
-  if (!me.data?.profile) return <BlockingState />;
-  return <ActivitySheet profile={me.data.profile} />;
+  const today = useToday();
+  const plan = usePlan(today);
+  const params = useLocalSearchParams<ActivityParams>();
+  if (!me.data?.profile || (params.plan && plan.isPending)) return <BlockingState />;
+  const planned = plan.data?.workouts.find((w) => w.id === params.plan && w.kind !== 'gym') ?? null;
+  return <ActivitySheet profile={me.data.profile} planned={planned} />;
 }
 
-function ActivitySheet({ profile }: { profile: Profile }) {
+function ActivitySheet({ profile, planned }: { profile: Profile; planned: PlannedWorkout | null }) {
   const { t } = useI18n();
   const router = useRouter();
   const today = useToday();
@@ -75,11 +89,17 @@ function ActivitySheet({ profile }: { profile: Profile }) {
   const params = useLocalSearchParams<ActivityParams>();
   const fromText = params.source === 'text';
   const saidType = ActivityTypeSchema.safeParse(params.type);
+  const plannedType = planned
+    ? planned.activity
+      ? `a:${planned.activity}`
+      : `p:${planned.name ?? ''}`
+    : null;
   const [type, setType] = useState<string | null>(
-    saidType.success ? `a:${saidType.data}` : choices[0] ? keyOf(choices[0]) : null,
+    plannedType ??
+      (saidType.success ? `a:${saidType.data}` : choices[0] ? keyOf(choices[0]) : null),
   );
   // `?date=` from a day screen of the week view (spec 010 AC12): up to 27 days back.
-  const { date } = params;
+  const date = planned?.localDate ?? params.date;
   const requested =
     date !== undefined && IsoDateSchema.safeParse(date).success && dayAccess(date, today) === 'add'
       ? date
@@ -97,8 +117,19 @@ function ActivitySheet({ profile }: { profile: Profile }) {
     WORKOUT_LIMITS.minutesMax,
   );
   const [minutesText, setMinutesText] = useState(
-    saidMinutes !== null ? String(saidMinutes) : fromText ? '' : '60',
+    planned?.minutes
+      ? String(planned.minutes)
+      : saidMinutes !== null
+        ? String(saidMinutes)
+        : fromText
+          ? ''
+          : '60',
   );
+  // The planned time, or now when it had none (spec 013 AC16).
+  const time =
+    planned && planned.startMinute !== null
+      ? `${Math.floor(planned.startMinute / 60)}:${String(planned.startMinute % 60).padStart(2, '0')}`
+      : params.time;
   const saidRpe = intParam(params.rpe, WORKOUT_LIMITS.rpeMin, WORKOUT_LIMITS.rpeMax);
   const [rpe, setRpe] = useState<string | null>(saidRpe === null ? null : String(saidRpe));
   // Only the sheet of the sentence itself lists the other activities said (AC6).
@@ -126,12 +157,13 @@ function ActivitySheet({ profile }: { profile: Profile }) {
       activity: choice.activity,
       name: choice.name,
       localDate: day,
-      startedAt: params.time
-        ? draftStart(day, params.time, today, now)
+      startedAt: time
+        ? draftStart(day, time, today, now)
         : (localDateTime(day, toLocalTime(now)) ?? now.toISOString()),
       minutes,
       sessionRpe: rpe === null ? null : Number(rpe),
       inputMethod: fromText ? 'text' : 'activity',
+      plannedWorkoutId: planned?.id ?? null,
     });
     const extra = intParam(params.extra, 0, 10);
     if (extra !== null) {

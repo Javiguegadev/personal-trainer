@@ -6,7 +6,13 @@ import {
   type Profile,
   type Targets,
 } from '@pt/contracts';
-import { dailyTotals, lastDays, repeatableMeal, showsFoodNumbers } from '@pt/core';
+import {
+  dailyTotals,
+  lastDays,
+  pendingPlannedItems,
+  repeatableMeal,
+  showsFoodNumbers,
+} from '@pt/core';
 import { tokens } from '@pt/ui';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -21,16 +27,23 @@ import { MealSection } from '@/components/MealSection';
 import { Notice } from '@/components/Notice';
 import { NutritionSummaryCard } from '@/components/NutritionSummaryCard';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { PlanRejectedNotice } from '@/components/PlanRejectedNotice';
 import { Screen } from '@/components/Screen';
 import { UndoToast } from '@/components/UndoToast';
 import { useFoodLogActions } from '@/hooks/useFoodLogActions';
 import { useI18n } from '@/hooks/useI18n';
+import { usePlanActions } from '@/hooks/usePlanActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
-import { useFoodLog, useMe, usePendingMealItemIds } from '@/lib/api';
+import { useFoodLog, useMe, usePendingMealItemIds, usePendingPlanIds, usePlan } from '@/lib/api';
 import { useFoodUndo } from '@/lib/foodUndo';
+import { usePlanUndo } from '@/lib/planUndo';
 
-/** The Food tab (spec 005 AC15, AC16): a day, its summary and its six meals. */
+/**
+ * The Food tab (spec 005 AC15, AC16): a day, its summary and its six meals. The pending planned items
+ * of each meal follow its logged ones, with "Registrar lo planificado" (spec 013 AC8); they never count
+ * in the summary (AC7).
+ */
 export default function FoodScreen() {
   const me = useMe();
   if (!me.data?.profile) return <BlockingState />;
@@ -43,9 +56,12 @@ function FoodLog({ profile, targets }: { profile: Profile; targets: Targets | nu
   const router = useRouter();
   const today = useToday();
   const log = useFoodLog(today);
-  const pendingIds = usePendingMealItemIds();
+  const plan = usePlan(today);
+  const pendingIds = [...usePendingMealItemIds(), ...usePendingPlanIds()];
   const actions = useFoodLogActions();
+  const planActions = usePlanActions();
   const undo = useFoodUndo();
+  const planUndo = usePlanUndo();
   const [day, setDay] = useState(today);
   const f = t.food;
 
@@ -53,6 +69,12 @@ function FoodLog({ profile, targets }: { profile: Profile; targets: Targets | nu
   const items = log.data ?? [];
   const dayItems = items.filter((item) => item.localDate === day);
   const itemsOf = (meal: MealType) => dayItems.filter((item) => item.mealType === meal);
+  const dayPlan = (plan.data?.mealItems ?? []).filter((p) => p.localDate === day);
+  const plannedOf = (meal: MealType) =>
+    pendingPlannedItems(
+      dayPlan.filter((p) => p.mealType === meal),
+      dayItems,
+    );
 
   const add = (meal: MealType) =>
     router.push({ pathname: '/food/add', params: { date: day, meal } });
@@ -105,10 +127,16 @@ function FoodLog({ profile, targets }: { profile: Profile; targets: Targets | nu
             items={itemsOf(meal)}
             showNumbers={showNumbers}
             pendingIds={pendingIds}
-            repeatable={repeatableMeal(items, meal, day)}
+            // "Repetir lo de ayer" is not offered for a meal that has a plan that day (spec 013 AC8).
+            repeatable={repeatableMeal(items, meal, day, dayPlan)}
             onAdd={() => add(meal)}
             onRepeat={() => actions.repeatYesterday(items, meal, day)}
             onOpenItem={open}
+            planned={plannedOf(meal)}
+            onLogPlanned={() => planActions.logPlanned(plannedOf(meal))}
+            onOpenPlanned={(item) =>
+              router.push({ pathname: '/plan/item/[id]', params: { id: item.id } })
+            }
           />
         ))}
       </>
@@ -133,12 +161,15 @@ function FoodLog({ profile, targets }: { profile: Profile; targets: Targets | nu
             }
             onUndo={() => actions.undo(undo)}
           />
+        ) : planUndo ? (
+          <UndoToast message={planUndo.message} onUndo={() => planActions.undo(planUndo)} />
         ) : undefined
       }
     >
       <AppText variant="title">{f.title}</AppText>
       <OfflineBanner />
       <FoodRejectedNotice />
+      <PlanRejectedNotice />
       <DaySelector
         label={f.day}
         // Today and the 6 days before; the cached log holds one more day for "repeat yesterday".
