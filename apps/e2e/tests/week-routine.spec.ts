@@ -219,7 +219,7 @@ test.describe('typical week, week view and starter routine (spec 010)', () => {
 
     // AC9: with `ed_soft_stop`, the dots stay and the kcal go. The flag is set on the mock server.
     await page.evaluate(() => {
-      const key = 'pt.mock-db.v9';
+      const key = 'pt.mock-db.v10';
       const db = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
         string,
         { profile: { safetyFlags: string[] } }

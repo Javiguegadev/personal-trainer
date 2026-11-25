@@ -4,6 +4,7 @@ import {
   registerCheckinMutations,
   registerCustomFoodMutations,
   registerFoodMutations,
+  registerPlanMutations,
   registerTrainingMutations,
   registerWeightMutations,
   type ApiClient,
@@ -40,6 +41,7 @@ registerFoodMutations(queryClient, api);
 registerCustomFoodMutations(queryClient, api);
 registerTrainingMutations(queryClient, api);
 registerCheckinMutations(queryClient, api);
+registerPlanMutations(queryClient, api);
 setupOnlineManager();
 
 export const {
@@ -94,6 +96,10 @@ export const {
   useRejectedCheckinWrite,
   useWeekLog,
   useSaveWeek,
+  usePlan,
+  useSavePlanChanges,
+  usePendingPlanIds,
+  useRejectedPlanWrite,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

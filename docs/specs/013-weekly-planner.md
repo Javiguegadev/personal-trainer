@@ -363,7 +363,7 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - Contracts: `CONSENT_VERSION` was not bumped in the contracts step; it changes to `2026-11-v10` in the
     API step, with the 403 `consent_required` test (AC24). The `planned_workouts` minutes check is 1–600
@@ -397,3 +397,10 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
     another user's stays 404. `GET /me/plan` returns routine links as stored and reads a repeat link to
     a deleted workout as null. The account-deletion integration test covers both tables and passed on
     dev.
+  - Client (2026-11-25): one `plan` query (`['plan']`) from 27 days back to the end of the horizon
+    instead of one per week: it fits one `GET /me/plan` (at most 54 days), so the whole offline range
+    of AC22 is cached even for weeks never opened, and every screen reads and patches the same list.
+    The log mutations do not patch the plan: "done" is a log pointing at a planned row, and the logs
+    are already patched at once. `useSavePlanChanges()(changes, locale)` cuts a change into bulk writes
+    (`planChangeBatches` in core) queued in the `food-log` and `training` scopes; a refused write is
+    undone entirely (`useRejectedPlanWrite`). The mock database key is `pt.mock-db.v10`.

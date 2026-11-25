@@ -8,6 +8,7 @@ export * from './client';
 export * from './feedback';
 export * from './foods';
 export * from './hooks';
+export * from './plan';
 export * from './training';
 export * from './week';
 export * from './weights';

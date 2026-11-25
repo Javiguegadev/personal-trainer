@@ -83,51 +83,66 @@ export function stampChanges(changes: PlanChanges, recordedAt: string): PlanChan
   };
 }
 
-/** Requests of at most `changesMax` changes; the deletes go first, so a replaced day never overflows. */
-function chunk<U>(
-  side: { upserts: U[]; deletes: PlanDelete[] },
-  locale: Locale,
-): { locale: Locale; upserts: U[]; deletes: PlanDelete[] }[] {
-  const ops: Op<U>[] = [
-    ...side.deletes.map((del): Op<U> => ({ type: 'delete', del })),
-    ...side.upserts.map((row): Op<U> => ({ type: 'upsert', row })),
+/** One bulk write: at most `changesMax` changes, the deletes first. */
+export interface PlanBatch<R> {
+  upserts: R[];
+  deletes: PlanDelete[];
+}
+
+/** Batches of at most `changesMax` changes; the deletes go first, so a replaced day never overflows. */
+function chunk<R>(side: PlanBatch<R>): PlanBatch<R>[] {
+  const ops: Op<R>[] = [
+    ...side.deletes.map((del): Op<R> => ({ type: 'delete', del })),
+    ...side.upserts.map((row): Op<R> => ({ type: 'upsert', row })),
   ];
-  const requests: { locale: Locale; upserts: U[]; deletes: PlanDelete[] }[] = [];
+  const batches: PlanBatch<R>[] = [];
   for (let start = 0; start < ops.length; start += PLAN_LIMITS.changesMax) {
     const slice = ops.slice(start, start + PLAN_LIMITS.changesMax);
-    requests.push({
-      locale,
+    batches.push({
       upserts: slice.flatMap((op) => (op.type === 'upsert' ? [op.row] : [])),
       deletes: slice.flatMap((op) => (op.type === 'delete' ? [op.del] : [])),
     });
   }
-  return requests;
+  return batches;
 }
 
 /**
- * The bulk writes of a change (AC22): `POST /me/plan/meal-items` requests in the `food` queue scope and
- * `POST /me/plan/workouts` requests in the `training` scope, so a planned row is sent before the log
- * that points at it. Big changes (a copied week) are cut at `changesMax`.
+ * The bulk writes of a change as rows (AC22): planned meals for the `food` queue scope, planned sessions
+ * for the `training` scope, so a planned row is sent before the log that points at it. Big changes (a
+ * copied week) are cut at `changesMax`. The rows are what the app shows until the API answers.
  */
+export function planChangeBatches(changes: PlanChanges): {
+  mealItems: PlanBatch<PlannedMealItem>[];
+  workouts: PlanBatch<PlannedWorkout>[];
+} {
+  const merged = mergePlanChanges(changes);
+  return { mealItems: chunk(merged.mealItems), workouts: chunk(merged.workouts) };
+}
+
+/** The request of a batch of planned items: `POST /me/plan/meal-items`. */
+export function planMealRequest(
+  batch: PlanBatch<PlannedMealItem>,
+  locale: Locale,
+): PlanMealChangesRequest {
+  return { locale, upserts: batch.upserts.map(plannedItemToUpsert), deletes: batch.deletes };
+}
+
+/** The request of a batch of planned sessions: `POST /me/plan/workouts`. */
+export function planWorkoutRequest(
+  batch: PlanBatch<PlannedWorkout>,
+  locale: Locale,
+): PlanWorkoutChangesRequest {
+  return { locale, upserts: batch.upserts.map(plannedWorkoutToUpsert), deletes: batch.deletes };
+}
+
+/** The bulk write requests of a change (AC22), in the order they are sent. */
 export function planChangesToRequests(
   changes: PlanChanges,
   locale: Locale,
 ): { mealItems: PlanMealChangesRequest[]; workouts: PlanWorkoutChangesRequest[] } {
-  const merged = mergePlanChanges(changes);
+  const batches = planChangeBatches(changes);
   return {
-    mealItems: chunk(
-      {
-        upserts: merged.mealItems.upserts.map(plannedItemToUpsert),
-        deletes: merged.mealItems.deletes,
-      },
-      locale,
-    ),
-    workouts: chunk(
-      {
-        upserts: merged.workouts.upserts.map(plannedWorkoutToUpsert),
-        deletes: merged.workouts.deletes,
-      },
-      locale,
-    ),
+    mealItems: batches.mealItems.map((batch) => planMealRequest(batch, locale)),
+    workouts: batches.workouts.map((batch) => planWorkoutRequest(batch, locale)),
   };
 }

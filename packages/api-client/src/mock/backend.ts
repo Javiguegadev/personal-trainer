@@ -53,6 +53,13 @@ import {
   ProgramUpsertRequestSchema,
   TrainingProfileUpdateSchema,
   WeekRequestSchema,
+  PLAN_LIMITS,
+  PlanMealChangesRequestSchema,
+  PlanQuerySchema,
+  PlanWorkoutChangesRequestSchema,
+  type PlanDelete,
+  type PlannedMealItem,
+  type PlannedWorkout,
   type Program,
   type ApiErrorCode,
   type DietaryPrefs,
@@ -117,6 +124,10 @@ import {
   evaluateStoredProfile,
   programFromRequest,
   sameTrainingLoad,
+  checkPlanRange,
+  checkPlanWrite,
+  plannedMealItemFromUpsert,
+  plannedWorkoutFromUpsert,
   type ExerciseSetRow,
   type LoggableExercise,
 } from '@pt/core';
@@ -169,7 +180,12 @@ interface UserRecord {
   programs: StoredProgram[];
   /** Daily check-ins, deletes kept as tombstones (spec 011 AC15). */
   checkins: StoredCheckin[];
+  /** The plan, deletes kept as tombstones (spec 013 AC23). */
+  plannedMealItems: (PlannedMealItem & { deletedAt: string | null })[];
+  plannedWorkouts: (PlannedWorkout & { deletedAt: string | null })[];
 }
+
+type PlanTable = 'plannedMealItems' | 'plannedWorkouts';
 
 type StoredCheckin = DailyCheckin & { deletedAt: string | null };
 
@@ -185,8 +201,8 @@ interface StoredCustomExercise {
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v9: spec 011). */
-export const MOCK_DB_KEY = 'pt.mock-db.v9';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v10: spec 013). */
+export const MOCK_DB_KEY = 'pt.mock-db.v10';
 
 const exerciseById = new Map(MOCK_EXERCISES.map((e) => [e.id, e]));
 
@@ -341,7 +357,39 @@ const emptyUser = (email: string | null): UserRecord => ({
   customExercises: [],
   programs: [],
   checkins: [],
+  plannedMealItems: [],
+  plannedWorkouts: [],
 });
+
+/** Planned items by day and time; planned sessions by day and start time, untimed last (as the API). */
+const plannedItemOrder = (a: PlannedMealItem, b: PlannedMealItem) =>
+  a.localDate.localeCompare(b.localDate) || a.recordedAt.localeCompare(b.recordedAt);
+const plannedSessionOrder = (a: PlannedWorkout, b: PlannedWorkout) =>
+  a.localDate.localeCompare(b.localDate) ||
+  (a.startMinute ?? 1440) - (b.startMinute ?? 1440) ||
+  a.recordedAt.localeCompare(b.recordedAt);
+
+/**
+ * The day limits after a bulk write (150 items, 4 sessions): the live rows of the days, minus the rows
+ * the request changes, plus its rows. Returns the index of the first row over the limit, or -1.
+ */
+function overDayLimit(
+  existing: readonly { id: string; localDate: string }[],
+  rows: readonly { id: string; localDate: string }[],
+  deletes: readonly PlanDelete[],
+  max: number,
+): number {
+  const touched = new Set([...rows, ...deletes].map((c) => c.id));
+  const perDay = new Map<string, number>();
+  for (const row of existing) {
+    if (!touched.has(row.id)) perDay.set(row.localDate, (perDay.get(row.localDate) ?? 0) + 1);
+  }
+  return rows.findIndex((row) => {
+    const count = (perDay.get(row.localDate) ?? 0) + 1;
+    perDay.set(row.localDate, count);
+    return count > max;
+  });
+}
 
 export function createMockApiClient({
   getAccessToken,
@@ -482,6 +530,76 @@ export function createMockApiClient({
     }
     return 'missing';
   };
+
+  /** Whose row an id of a plan table or of the workouts is (a log's link, a repeat link). */
+  const ownerOf = (
+    table: PlanTable | 'workouts',
+    userId: string,
+    id: string,
+  ): 'own' | 'other' | 'missing' => {
+    for (const [owner, other] of Object.entries(db)) {
+      if ((other[table] as { id: string }[]).some((row) => row.id === id)) {
+        return owner === userId ? 'own' : 'other';
+      }
+    }
+    return 'missing';
+  };
+
+  /** The date and clock checks of a bulk plan write (spec 013 AC23); deletes have no date. */
+  function checkPlanDates(
+    upserts: readonly { localDate: string; recordedAt: string }[],
+    deletes: readonly PlanDelete[],
+  ) {
+    for (const [i, upsert] of upserts.entries()) {
+      const invalid = checkPlanWrite(upsert, now());
+      if (invalid) {
+        const [field, reason] = Object.entries(invalid)[0]!;
+        throw fail('validation_error', { [`upserts.${i}.${field}`]: reason });
+      }
+    }
+    for (const [i, del] of deletes.entries()) {
+      if (inFuture(del.recordedAt)) {
+        throw fail('validation_error', { [`deletes.${i}.recordedAt`]: 'in_future' });
+      }
+    }
+  }
+
+  /** A bulk plan write, as the API's transaction: deletes, then rows; the later `recordedAt` wins. */
+  function writePlan<R extends { id: string; recordedAt: string }>(
+    userId: string,
+    record: UserRecord,
+    table: PlanTable,
+    rows: readonly R[],
+    deletes: readonly PlanDelete[],
+  ): R[] {
+    const ids = new Set(rows.map((r) => r.id));
+    for (const [owner, other] of Object.entries(db)) {
+      if (owner !== userId && other[table].some((r) => ids.has(r.id))) {
+        throw fail('id_taken', { id: 'taken' });
+      }
+    }
+    const own = record[table] as unknown as (R & { deletedAt: string | null })[];
+    for (const del of deletes) {
+      const stored = own.find((r) => r.id === del.id);
+      if (stored && writeWins(stored.recordedAt, del.recordedAt)) {
+        stored.deletedAt ??= now().toISOString();
+        stored.recordedAt = new Date(del.recordedAt).toISOString();
+      }
+    }
+    for (const row of rows) {
+      const index = own.findIndex((r) => r.id === row.id);
+      const stored = own[index];
+      if (stored && !writeWins(stored.recordedAt, row.recordedAt)) continue;
+      const next = { ...row, recordedAt: new Date(row.recordedAt).toISOString(), deletedAt: null };
+      if (index >= 0) own[index] = next;
+      else own.push(next);
+    }
+    persist();
+    return rows.flatMap((row) => {
+      const stored = own.find((r) => r.id === row.id && r.deletedAt === null);
+      return stored ? [(({ deletedAt: _, ...live }) => live as unknown as R)(stored)] : [];
+    });
+  }
 
   const activeProgram = (record: UserRecord): Program | null => {
     const live = record.programs.find((p) => p.deletedAt === null);
@@ -722,9 +840,9 @@ export function createMockApiClient({
       if (record.programs.some((p) => p.id !== id && p.deletedAt === null)) {
         throw fail('program_exists');
       }
-      // Workouts of a session left out keep their sets and lose the link (AC22).
+      // Workouts and planned sessions of a session left out lose the link (AC22, spec 013).
       for (const removed of existing?.p.sessions.filter((s) => !ids.has(s.id)) ?? []) {
-        for (const w of record.workouts) {
+        for (const w of [...record.workouts, ...record.plannedWorkouts]) {
           if (w.programSessionId === removed.id) w.programSessionId = null;
         }
       }
@@ -1064,6 +1182,12 @@ export function createMockApiClient({
         // A session removed before a queued workout arrived: the workout loses the link (AC22).
         if (owner === 'missing') workout.programSessionId = null;
       }
+      if (workout.plannedWorkoutId !== null) {
+        const owner = ownerOf('plannedWorkouts', user.userId, workout.plannedWorkoutId);
+        if (owner === 'other') throw fail('not_found', { plannedWorkoutId: 'not_found' });
+        // A planned session that never reached the API: stored without the link (spec 013 AC23).
+        if (owner === 'missing') workout.plannedWorkoutId = null;
+      }
       // Ids are global: an id that belongs to another user is never touched.
       for (const [owner, other] of Object.entries(db)) {
         if (owner !== user.userId && other.workouts.some((w) => w.id === id)) {
@@ -1137,6 +1261,12 @@ export function createMockApiClient({
         throw item.error === 'food_not_found'
           ? fail('not_found', { foodId: 'not_found' })
           : fail('validation_error', { 'portion.servingId': 'not_found' });
+      }
+      if (item.plannedItemId !== null) {
+        const owner = ownerOf('plannedMealItems', user.userId, item.plannedItemId);
+        if (owner === 'other') throw fail('not_found', { plannedItemId: 'not_found' });
+        // A planned item that never reached the API: stored without the link (spec 013 AC23).
+        if (owner === 'missing') item.plannedItemId = null;
       }
       // Ids are global: an id that belongs to another user is never touched.
       for (const [owner, other] of Object.entries(db)) {
@@ -1331,8 +1461,8 @@ export function createMockApiClient({
       const { foodId } = parse(FoodIdParamSchema, { foodId: id });
       if (!record.customFoods.some((f) => f.id === foodId)) return;
       record.customFoods = record.customFoods.filter((f) => f.id !== foodId);
-      // The logged items keep their snapshot without the food (AC12); the favourite goes.
-      for (const item of record.mealItems) {
+      // The logged and planned items keep their snapshot without the food (AC12); the favourite goes.
+      for (const item of [...record.mealItems, ...record.plannedMealItems]) {
         if (item.foodId === foodId) {
           item.foodId = null;
           item.servingId = null;
@@ -1408,6 +1538,86 @@ export function createMockApiClient({
       return mealDraft(reading, candidates, 'photo');
     },
 
+    getPlan: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { from, to } = parse(PlanQuerySchema, query);
+      const invalid = checkPlanRange(from, to);
+      if (invalid) throw fail('validation_error', invalid);
+      const inRange = (r: { localDate: string; deletedAt: string | null }) =>
+        r.deletedAt === null && r.localDate >= from && r.localDate <= to;
+      const liveWorkout = (id: string | null) =>
+        id !== null && record.workouts.some((w) => w.id === id && !w.deleted);
+      return {
+        mealItems: record.plannedMealItems
+          .filter(inRange)
+          .map(({ deletedAt: _, ...item }) => item)
+          .sort(plannedItemOrder),
+        // A deleted workout to repeat leaves a free gym session with its name (spec 013 Stale links).
+        workouts: record.plannedWorkouts
+          .filter(inRange)
+          .map(({ deletedAt: _, ...session }) => ({
+            ...session,
+            repeatWorkoutId: liveWorkout(session.repeatWorkoutId) ? session.repeatWorkoutId : null,
+          }))
+          .sort(plannedSessionOrder),
+      };
+    },
+
+    savePlanMealChanges: async (body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { locale, upserts, deletes } = parse(PlanMealChangesRequestSchema, body);
+      checkPlanDates(upserts, deletes);
+      const rows: PlannedMealItem[] = [];
+      for (const [i, upsert] of upserts.entries()) {
+        const food = upsert.kind === 'food' ? findFood(record, upsert.foodId, locale) : null;
+        const row = plannedMealItemFromUpsert(upsert, food);
+        if ('error' in row) {
+          throw row.error === 'food_not_found'
+            ? fail('not_found', { [`upserts.${i}.foodId`]: 'not_found' })
+            : fail('validation_error', { [`upserts.${i}.portion.servingId`]: 'not_found' });
+        }
+        rows.push(row);
+      }
+      const live = record.plannedMealItems.filter((r) => r.deletedAt === null);
+      const over = overDayLimit(live, rows, deletes, PLAN_LIMITS.itemsPerDayMax);
+      if (over >= 0) {
+        throw fail('validation_error', { [`upserts.${over}.localDate`]: 'too_many_items' });
+      }
+      return { mealItems: writePlan(user.userId, record, 'plannedMealItems', rows, deletes) };
+    },
+
+    savePlanWorkoutChanges: async (body) => {
+      const { user, record } = await authenticateWithConsent();
+      const { upserts, deletes } = parse(PlanWorkoutChangesRequestSchema, body);
+      checkPlanDates(upserts, deletes);
+      const rows: PlannedWorkout[] = [];
+      for (const [i, upsert] of upserts.entries()) {
+        let row = plannedWorkoutFromUpsert(upsert);
+        if (row.programSessionId !== null) {
+          const owner = programSessionOwner(user.userId, row.programSessionId);
+          if (owner === 'other') {
+            throw fail('not_found', { [`upserts.${i}.programSessionId`]: 'not_found' });
+          }
+          // A session removed before a queued plan arrived: a free gym session with its name.
+          if (owner === 'missing') row = { ...row, programSessionId: null };
+        }
+        if (row.repeatWorkoutId !== null) {
+          const owner = ownerOf('workouts', user.userId, row.repeatWorkoutId);
+          if (owner === 'other') {
+            throw fail('not_found', { [`upserts.${i}.repeatWorkoutId`]: 'not_found' });
+          }
+          if (owner === 'missing') row = { ...row, repeatWorkoutId: null };
+        }
+        rows.push(row);
+      }
+      const live = record.plannedWorkouts.filter((r) => r.deletedAt === null);
+      const over = overDayLimit(live, rows, deletes, PLAN_LIMITS.sessionsPerDayMax);
+      if (over >= 0) {
+        throw fail('validation_error', { [`upserts.${over}.localDate`]: 'too_many_sessions' });
+      }
+      return { workouts: writePlan(user.userId, record, 'plannedWorkouts', rows, deletes) };
+    },
+
     exportData: async () => {
       const { user, record } = await authenticate();
       return {
@@ -1435,7 +1645,11 @@ export function createMockApiClient({
           key: catalogById.get(f.foodId)?.key ?? '',
           createdAt: f.createdAt,
         })),
-        plan: { mealItems: [], workouts: [] },
+        // Deleted ones too, with `deletedAt` (spec 013 AC25).
+        plan: {
+          mealItems: [...record.plannedMealItems].sort(plannedItemOrder),
+          workouts: [...record.plannedWorkouts].sort(plannedSessionOrder),
+        },
         consents: record.consents,
         aiUsage: record.aiUsage,
       };

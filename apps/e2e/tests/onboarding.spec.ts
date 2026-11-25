@@ -151,7 +151,7 @@ test.describe('onboarding (spec 001, spec 002)', () => {
     // A new CONSENT_VERSION ships: the stored consent is now for an older text.
     await page.evaluate(() => {
       // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
-      const key = 'pt.mock-db.v9';
+      const key = 'pt.mock-db.v10';
       const db = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
         string,
         { consents: { version: string }[] }

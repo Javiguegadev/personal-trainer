@@ -19,6 +19,9 @@ import {
   MealDraftResponseSchema,
   MealItemSaveResponseSchema,
   MeResponseSchema,
+  PlanMealChangesResponseSchema,
+  PlanResponseSchema,
+  PlanWorkoutChangesResponseSchema,
   ProgramResponseSchema,
   RecentFoodsResponseSchema,
   TargetsPreviewResponseSchema,
@@ -62,6 +65,12 @@ import {
   type MealItemSaveResponse,
   type MealItemUpsertRequest,
   type MeResponse,
+  type PlanMealChangesRequest,
+  type PlanMealChangesResponse,
+  type PlanQuery,
+  type PlanResponse,
+  type PlanWorkoutChangesRequest,
+  type PlanWorkoutChangesResponse,
   type RecentFoodsResponse,
   type ProfileInput,
   type TargetsPreviewResponse,
@@ -413,6 +422,26 @@ export function createApiClient({
         ProgramResponseSchema,
         { method: 'DELETE' },
       ),
+
+    /** `GET /me/plan`: the planned items and sessions of at most 63 days (spec 013 AC22). */
+    getPlan: ({ from, to }: PlanQuery): Promise<PlanResponse> =>
+      request(`/me/plan?from=${from}&to=${to}`, PlanResponseSchema),
+
+    /**
+     * `POST /me/plan/meal-items`: planned items to store and to delete, at most 300; stored entirely or
+     * not at all, the later `recordedAt` winning (spec 013 AC23).
+     */
+    savePlanMealChanges: (body: PlanMealChangesRequest): Promise<PlanMealChangesResponse> =>
+      request('/me/plan/meal-items', PlanMealChangesResponseSchema, { method: 'POST', json: body }),
+
+    /** `POST /me/plan/workouts`: planned sessions to store and to delete (spec 013 AC23). */
+    savePlanWorkoutChanges: (
+      body: PlanWorkoutChangesRequest,
+    ): Promise<PlanWorkoutChangesResponse> =>
+      request('/me/plan/workouts', PlanWorkoutChangesResponseSchema, {
+        method: 'POST',
+        json: body,
+      }),
 
     /** `GET /me/export` (AC23). The caller turns it into a file (platform-specific). */
     exportData: (): Promise<ExportResponse> => request('/me/export', ExportResponseSchema),

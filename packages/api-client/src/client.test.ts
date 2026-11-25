@@ -3,6 +3,8 @@ import {
   CONSENT_VERSION,
   type CustomExerciseUpsertRequest,
   type MealItemUpsertRequest,
+  type PlanMealChangesRequest,
+  type PlanWorkoutChangesRequest,
   type ProgramUpsertRequest,
   type CheckinUpsertRequest,
   type WeekRequest,
@@ -75,6 +77,41 @@ const programBody: ProgramUpsertRequest = {
   sessions: [{ id: '91000000-0000-4000-8000-00000000000a', name: 'Rutina A', exercises: [] }],
   recordedAt: '2026-11-11T10:00:00.000Z',
   locale: 'es',
+};
+const planMealBody: PlanMealChangesRequest = {
+  locale: 'es',
+  upserts: [
+    {
+      kind: 'quick_add',
+      id: '13000000-0000-4000-8000-000000000001',
+      localDate: '2026-11-13',
+      mealType: 'dinner',
+      label: 'Cena fuera',
+      kcal: 800,
+      proteinG: null,
+      carbsG: null,
+      fatG: null,
+      recordedAt: '2026-11-11T10:00:00.000Z',
+    },
+  ],
+  deletes: [{ id: '13000000-0000-4000-8000-000000000002', recordedAt: '2026-11-11T10:00:00.000Z' }],
+};
+const planWorkoutBody: PlanWorkoutChangesRequest = {
+  locale: 'es',
+  upserts: [
+    {
+      kind: 'gym',
+      id: '13000000-0000-4000-8000-000000000003',
+      localDate: '2026-11-13',
+      startMinute: 1110,
+      name: 'Rutina A',
+      minutes: 60,
+      programSessionId: '91000000-0000-4000-8000-00000000000a',
+      repeatWorkoutId: null,
+      recordedAt: '2026-11-11T10:00:00.000Z',
+    },
+  ],
+  deletes: [],
 };
 const healthBody = {
   status: 'ok',
@@ -404,6 +441,26 @@ describe('createApiClient', () => {
         method: 'GET',
         path: `/me/exercises/${EXERCISE_ID}/history`,
         res: () => Response.json({ exerciseId: EXERCISE_ID, sessions: [], bests: NO_BESTS }),
+      },
+      {
+        run: (a: Api) => a.getPlan({ from: '2026-10-15', to: '2026-12-06' }),
+        method: 'GET',
+        path: '/me/plan?from=2026-10-15&to=2026-12-06',
+        res: () => Response.json({ mealItems: [], workouts: [] }),
+      },
+      {
+        run: (a: Api) => a.savePlanMealChanges(planMealBody),
+        method: 'POST',
+        path: '/me/plan/meal-items',
+        body: planMealBody,
+        res: () => Response.json({ mealItems: [] }),
+      },
+      {
+        run: (a: Api) => a.savePlanWorkoutChanges(planWorkoutBody),
+        method: 'POST',
+        path: '/me/plan/workouts',
+        body: planWorkoutBody,
+        res: () => Response.json({ workouts: [] }),
       },
     ];
 

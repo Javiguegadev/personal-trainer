@@ -17,6 +17,8 @@ import type {
   Locale,
   MealItemSaveResponse,
   MeResponse,
+  PlanMealChangesResponse,
+  PlanWorkoutChangesResponse,
   ProfileInput,
   ProgramResponse,
   TargetsChange,
@@ -33,6 +35,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
+import type { PlanChanges } from '@pt/core';
 import { isApiError, type ApiClient } from './client';
 import { feedbackKeys, writeTouchesDay } from './feedback';
 import {
@@ -72,6 +75,15 @@ import {
   type SaveWorkoutVariables,
 } from './training';
 import { meKey } from './keys';
+import {
+  dismissRejectedPlanWrite,
+  planKeys,
+  planQueryOptions,
+  planWriteVariables,
+  type RejectedPlanWrite,
+  type SavePlanMealsVariables,
+  type SavePlanWorkoutsVariables,
+} from './plan';
 import { weekLogQueryOptions, type WeekSaveResult } from './week';
 import {
   dismissWeightNotice,
@@ -506,6 +518,55 @@ export function createApiHooks(api: ApiClient) {
         retry: false,
         onSuccess: ({ me }) => afterProfileSaved(queryClient, me),
       });
+    },
+
+    /**
+     * The plan from 27 days back to the end of the horizon (spec 013 AC22): one list for the week view,
+     * the day screens, Today and the Training tab. Kept offline.
+     */
+    usePlan: (today: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...planQueryOptions(api, today), enabled: options.enabled ?? true }),
+
+    /**
+     * Saves a change of the plan (spec 013): optimistic and offline-safe, cut into bulk writes queued
+     * with the food log (meals) and the workouts (sessions), whose functions come from the defaults
+     * registered with `registerPlanMutations`. Build the change with `@pt/core`; for an undo, pass the
+     * change's undo stamped at undo time (`stampChanges`).
+     */
+    useSavePlanChanges: () => {
+      const meals = useMutation<PlanMealChangesResponse, unknown, SavePlanMealsVariables>({
+        mutationKey: planKeys.saveMeals,
+      });
+      const workouts = useMutation<PlanWorkoutChangesResponse, unknown, SavePlanWorkoutsVariables>({
+        mutationKey: planKeys.saveWorkouts,
+      });
+      return (changes: PlanChanges, locale: Locale): void => {
+        const writes = planWriteVariables(changes, locale);
+        for (const variables of writes.mealItems) meals.mutate(variables);
+        for (const variables of writes.workouts) workouts.mutate(variables);
+      };
+    },
+
+    /** Planned rows with a write that has not reached the server yet ("pendiente de sincronizar"). */
+    usePendingPlanIds: (): string[] =>
+      useMutationState({
+        filters: { mutationKey: planKeys.mutations, status: 'pending' },
+        select: (mutation) => {
+          const { batch } = mutation.state.variables as SavePlanMealsVariables;
+          return [...batch.upserts.map((r) => r.id), ...batch.deletes.map((d) => d.id)];
+        },
+      }).flat(),
+
+    /** The last plan write the API rejected, and how to dismiss it. */
+    useRejectedPlanWrite: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<RejectedPlanWrite | null>({
+        queryKey: planKeys.rejected,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return { rejected: data, dismiss: () => dismissRejectedPlanWrite(queryClient) };
     },
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),

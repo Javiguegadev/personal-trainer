@@ -8,6 +8,7 @@ import {
   EMPTY_PLAN_CHANGES,
   isEmptyPlanChanges,
   mergePlanChanges,
+  planChangeBatches,
   planChangesToRequests,
   stampChanges,
   type PlanChanges,
@@ -85,6 +86,20 @@ describe('planChangesToRequests (spec 013 AC22)', () => {
       upserts: [],
       deletes: [{ id: uuid(1), recordedAt: LATER }],
     });
+  });
+
+  it('gives the same batches as rows, for the optimistic cache', () => {
+    const upserts = Array.from({ length: 301 }, (_, i) => plannedSession({ id: uuid(1000 + i) }));
+    const batches = planChangeBatches({
+      mealItems: { upserts: [], deletes: [] },
+      workouts: { upserts, deletes: [{ id: uuid(2), recordedAt: RECORDED }] },
+    });
+    expect(batches.mealItems).toEqual([]);
+    expect(batches.workouts.map((b) => [b.deletes.length, b.upserts.length])).toEqual([
+      [1, 299],
+      [0, 2],
+    ]);
+    expect(batches.workouts[1]!.upserts.map((u) => u.id)).toEqual([uuid(1299), uuid(1300)]);
   });
 
   it('sends nothing for empty changes', () => {
