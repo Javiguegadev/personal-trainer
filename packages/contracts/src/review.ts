@@ -7,8 +7,16 @@ import { IsoDateSchema, StoredTargetsSchema } from './profile';
  */
 export const REVIEW_RULES = {
   version: 'review-v1',
-  /** Days since onboarding before the first review (AC1). */
-  minHistoryDays: 14,
+  /**
+   * Days since onboarding before the first review (AC1): three weeks, so the two-week weight rate has
+   * weights from after the onboarding (domain review, decided by the human 2026-11-25).
+   */
+  minHistoryDays: 21,
+  /**
+   * After a calibration change, the review proposes nothing until both weeks it compares start after
+   * the change: the change must have had time to show in the weight (domain review, human 2026-11-25).
+   */
+  pauseWeeksAfterChange: 2,
   /** One proposal changes the calibration by this much (AC3). */
   stepKcal: 100,
   /** The accumulated calibration stays within ± this (AC5). */
@@ -53,8 +61,16 @@ export const ReviewReasonSchema = z.enum([
   'not_enough_logging',
   'off_target_intake',
   'decrease_blocked_sleep_stress',
+  /** A low BMI, a minor or an eating-disorder signal: the review never lowers the calories. */
+  'decrease_blocked_profile',
   'at_floor',
   'calibration_limit',
+  /** One reading far from the rest decides the rate: the review waits for another week. */
+  'uneven_weights',
+  /** The calibration changed less than two weeks before the weeks compared. */
+  'recent_change',
+  /** Losing fast while the target cannot rise: a professional should look at it. */
+  'see_professional',
 ]);
 export type ReviewReason = z.infer<typeof ReviewReasonSchema>;
 

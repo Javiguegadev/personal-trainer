@@ -1,6 +1,7 @@
 import type {
   ContextSnapshot,
   SafetyEvaluation,
+  SafetyFlag,
   Sex,
   Targets,
   TargetsBreakdown,
@@ -15,6 +16,21 @@ import {
 } from './focus';
 
 export { computeAge };
+
+/**
+ * Profiles whose calories the weekly review never lowers (spec 014, domain review): a low BMI or target
+ * BMI, a minor and an eating-disorder signal get no deficit, so a negative calibration, which acts as
+ * one, is not applied to them either; a positive one is.
+ */
+export const NO_DECREASE_FLAGS: readonly SafetyFlag[] = [
+  'low_bmi',
+  'low_target_bmi',
+  'teen_limited',
+  'ed_soft_stop',
+];
+
+export const blocksDecrease = (flags: readonly SafetyFlag[]): boolean =>
+  flags.some((flag) => NO_DECREASE_FLAGS.includes(flag));
 
 /**
  * Daily calorie and macro targets, version `targets-v4` (spec 014; spec 004; spec 002 AC6, AC9–AC11;
@@ -82,8 +98,10 @@ export function computeTargets(
   // Tolerance: 1.8 + 0.6 is 2.4000000000000004 in floating point, which is not above the ceiling.
   const capped = uncapped - ACTIVITY_FACTOR_CEILING > 1e-9;
   const activityFactor = capped ? ACTIVITY_FACTOR_CEILING : uncapped;
-  // The calibration corrects the estimate of the expenditure (spec 014), not the goal.
-  const calibrationKcal = snapshot.energy.calibrationKcal;
+  // The calibration corrects the estimate of the expenditure (spec 014), not the goal; it never lowers
+  // the calories of a profile that gets no deficit.
+  const stored = snapshot.energy.calibrationKcal;
+  const calibrationKcal = blocksDecrease(safety.flags) ? Math.max(0, stored) : stored;
   const tdee = bmr * activityFactor + calibrationKcal;
   const goal = safety.appliedGoal;
   const { focus, minutesPerWeek } = snapshot.training;

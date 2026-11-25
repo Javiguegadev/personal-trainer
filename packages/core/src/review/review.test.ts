@@ -74,6 +74,8 @@ interface HistoryOptions {
   sleepAt?: (day: number) => number | null;
   stressAt?: (day: number) => 'low' | 'normal' | 'high' | null;
   workoutDays?: number[];
+  /** The local date of the last calibration change. */
+  calibratedOn?: string | null;
 }
 
 /** Four weeks of logs for `p`, as the API reads them for the review of `WEEK`. */
@@ -115,14 +117,22 @@ function history(p: StoredProfile, o: HistoryOptions = {}): WeeklyReviewInput {
           ];
     }),
     targetsHistory: [{ fromDate: '2026-10-20', kcal: target }],
+    calibratedOn: o.calibratedOn ?? null,
   };
 }
 
 const inWeek = (day: number) => day >= 21;
 
+/** The review of a history that must have one. */
+function reviewOf(input: WeeklyReviewInput) {
+  const review = weeklyReview(input);
+  if (!review) throw new Error('expected a review');
+  return review;
+}
+
 describe('weeklyReview: six four-week histories (spec 014 AC7)', () => {
   it('losing on track: no change', () => {
-    const review = weeklyReview(history(profile(), { slopeKgPerWeek: -0.32 }));
+    const review = reviewOf(history(profile(), { slopeKgPerWeek: -0.32 }));
     expect(review.status).toBe('no_change');
     expect(review.proposal).toBeNull();
     expect(review.reasons).toEqual(['on_track']);
@@ -130,7 +140,7 @@ describe('weeklyReview: six four-week histories (spec 014 AC7)', () => {
 
   it('losing slowly while eating at the target: −100 kcal of calibration', () => {
     const p = profile();
-    const review = weeklyReview(history(p, { slopeKgPerWeek: 0 }));
+    const review = reviewOf(history(p, { slopeKgPerWeek: 0 }));
     expect(review.status).toBe('proposed');
     expect(review.reasons).toEqual(['slow_loss']);
     expect(review.proposal).toMatchObject({
@@ -145,7 +155,7 @@ describe('weeklyReview: six four-week histories (spec 014 AC7)', () => {
   });
 
   it('losing fast with little logging: +100 kcal anyway', () => {
-    const review = weeklyReview(
+    const review = reviewOf(
       history(profile(), {
         slopeKgPerWeek: -1.0,
         kcalAt: (day, t) => (day === 22 || day === 24 ? t : null),
@@ -157,7 +167,7 @@ describe('weeklyReview: six four-week histories (spec 014 AC7)', () => {
 
   it('maintaining while drifting up: −100 kcal', () => {
     const p = profile({ requestedGoal: 'maintain', goal: 'maintain' });
-    const review = weeklyReview(history(p, { slopeKgPerWeek: 0.4 }));
+    const review = reviewOf(history(p, { slopeKgPerWeek: 0.4 }));
     expect(review.reasons).toEqual(['drift_up']);
     expect(review.proposal?.kcalDelta).toBe(-100);
     expect(review.proposal?.toKcal).toBe(review.proposal!.fromKcal - 100);
@@ -165,13 +175,13 @@ describe('weeklyReview: six four-week histories (spec 014 AC7)', () => {
 
   it('gaining slowly: +100 kcal', () => {
     const p = profile({ requestedGoal: 'gain', goal: 'gain' });
-    const review = weeklyReview(history(p, { slopeKgPerWeek: 0 }));
+    const review = reviewOf(history(p, { slopeKgPerWeek: 0 }));
     expect(review.reasons).toEqual(['slow_gain']);
     expect(review.proposal?.kcalDelta).toBe(100);
   });
 
   it('losing slowly in a week of little sleep: no decrease, and it says why', () => {
-    const review = weeklyReview(
+    const review = reviewOf(
       history(profile(), {
         slopeKgPerWeek: 0,
         sleepAt: (day) => (day === 21 || day === 23 || day === 25 ? 300 : 450),
@@ -185,7 +195,7 @@ describe('weeklyReview: six four-week histories (spec 014 AC7)', () => {
 
 describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
   it('needs 3 weights in the reviewed week and two weeks before (AC4)', () => {
-    const review = weeklyReview(
+    const review = reviewOf(
       history(profile(), {
         weightAt: (day) => (inWeek(day) && day > 22 ? null : 80),
       }),
@@ -196,7 +206,7 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
   });
 
   it('needs 5 days with food in the reviewed week and the week before (AC4)', () => {
-    const review = weeklyReview(
+    const review = reviewOf(
       history(profile(), {
         slopeKgPerWeek: 0,
         kcalAt: (day, t) => (inWeek(day) && day > 24 ? null : t),
@@ -207,7 +217,7 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
   });
 
   it('needs the logged intake within 10 % of the target (AC4)', () => {
-    const review = weeklyReview(
+    const review = reviewOf(
       history(profile(), { slopeKgPerWeek: 0, kcalAt: (_day, t) => Math.round(t * 1.2) }),
     );
     expect(review.reasons).toEqual(['slow_loss', 'off_target_intake']);
@@ -216,7 +226,7 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
 
   it('keeps the accumulated calibration within ±300 kcal (AC5)', () => {
     const p = profile({ energyCalibrationKcal: -300 });
-    const review = weeklyReview(history(p, { slopeKgPerWeek: 0 }));
+    const review = reviewOf(history(p, { slopeKgPerWeek: 0 }));
     expect(review.reasons).toEqual(['slow_loss', 'calibration_limit']);
     expect(review.proposal).toBeNull();
   });
@@ -231,7 +241,7 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
       plannedActivities: [],
     });
     expect(targetOf(p)).toBe(1200);
-    const review = weeklyReview(history(p, { slopeKgPerWeek: 0 }));
+    const review = reviewOf(history(p, { slopeKgPerWeek: 0 }));
     expect(review.reasons).toEqual(['slow_loss', 'at_floor']);
     expect(review.proposal).toBeNull();
   });
@@ -240,11 +250,9 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
     const p = profile({ requestedGoal: 'gain', goal: 'gain' });
     const stressed = (day: number) => (inWeek(day) && day < 25 ? ('high' as const) : null);
     expect(
-      weeklyReview(history(profile(), { slopeKgPerWeek: 0, stressAt: stressed })).reasons,
+      reviewOf(history(profile(), { slopeKgPerWeek: 0, stressAt: stressed })).reasons,
     ).toContain('decrease_blocked_sleep_stress');
-    expect(
-      weeklyReview(history(p, { slopeKgPerWeek: 0, stressAt: stressed })).proposal,
-    ).toMatchObject({
+    expect(reviewOf(history(p, { slopeKgPerWeek: 0, stressAt: stressed })).proposal).toMatchObject({
       kcalDelta: 100,
     });
   });
@@ -252,13 +260,13 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
   it('uses the applied goal: a low BMI asking to lose is reviewed as maintain (AC3)', () => {
     // 178 cm and 60 kg: BMI 18.9, under 20, so no deficit (spec 001).
     const p = profile({ weightKg: 60, safetyFlags: ['low_bmi'], goal: 'maintain' });
-    const review = weeklyReview(history(p, { slopeKgPerWeek: -0.3 }));
+    const review = reviewOf(history(p, { slopeKgPerWeek: -0.3 }));
     expect(review.reasons).toEqual(['drift_down']);
     expect(review.proposal?.kcalDelta).toBe(100);
   });
 
   it('summarises the week without judging it (AC2)', () => {
-    const review = weeklyReview(
+    const review = reviewOf(
       history(profile(), {
         slopeKgPerWeek: -0.32,
         // Food on 6 days of the week; on Sunday only a weight.
@@ -287,8 +295,90 @@ describe('weeklyReview: rules (spec 014 AC3–AC5)', () => {
   it('gives the same review for the same inputs, and does not change them (AC7)', () => {
     const input = history(profile(), { slopeKgPerWeek: 0 });
     const copy = JSON.parse(JSON.stringify(input)) as WeeklyReviewInput;
-    expect(weeklyReview(input)).toEqual(weeklyReview(input));
+    expect(reviewOf(input)).toEqual(reviewOf(input));
     expect(input).toEqual(copy);
+  });
+});
+
+describe('weeklyReview: domain review (spec 014 AC3–AC5)', () => {
+  const lowBmi = () => profile({ weightKg: 60, safetyFlags: ['low_bmi'], goal: 'maintain' });
+
+  it('never reviews a profile with an eating-disorder signal or a pregnancy', () => {
+    // The logs of an ordinary profile: a pregnancy has no numeric targets to build them from.
+    const logs = history(profile(), { slopeKgPerWeek: 0 });
+    for (const flag of ['ed_soft_stop', 'pregnancy'] as const) {
+      expect(weeklyReview({ ...logs, profile: profile({ safetyFlags: [flag] }) })).toBeNull();
+    }
+  });
+
+  it('never lowers the calories of a low BMI or a minor, even when the weight drifts up', () => {
+    const review = reviewOf(history(lowBmi(), { slopeKgPerWeek: 0.3 }));
+    expect(review.reasons).toEqual(['drift_up', 'decrease_blocked_profile']);
+    expect(review.proposal).toBeNull();
+    const teen = profile({
+      birthDate: '2009-06-01',
+      requestedGoal: 'maintain',
+      goal: 'maintain',
+      safetyFlags: ['teen_limited'],
+    });
+    expect(reviewOf(history(teen, { slopeKgPerWeek: 0.4 })).reasons).toEqual([
+      'drift_up',
+      'decrease_blocked_profile',
+    ]);
+  });
+
+  it('asks for more energy on a fast loss whatever the goal, without the logging gate', () => {
+    const review = reviewOf(
+      history(lowBmi(), {
+        slopeKgPerWeek: -0.75,
+        kcalAt: (day, t) => (day > 24 ? t : null),
+      }),
+    );
+    expect(review.reasons).toEqual(['fast_loss']);
+    expect(review.proposal?.kcalDelta).toBe(100);
+  });
+
+  it('refers to a professional when losing fast at the calorie floor', () => {
+    const floor = profile({
+      sex: 'female',
+      birthDate: '1966-01-01',
+      heightCm: 150,
+      weightKg: 46,
+      plannedActivities: [],
+    });
+    const review = reviewOf(history(floor, { slopeKgPerWeek: -0.6 }));
+    expect(review.reasons).toEqual(['fast_loss', 'see_professional']);
+    expect(review.proposal).toBeNull();
+  });
+
+  it('refers to a professional when losing fast at the calibration bound', () => {
+    const review = reviewOf(
+      history(profile({ energyCalibrationKcal: 300 }), { slopeKgPerWeek: -1.0 }),
+    );
+    expect(review.reasons).toEqual(['fast_loss', 'calibration_limit', 'see_professional']);
+  });
+
+  it('waits when one reading decides the rate', () => {
+    const p = profile({ requestedGoal: 'maintain', goal: 'maintain' });
+    // Two weeks before: 80, 80, 80; this week: 80, 80, 81.5 (one high reading).
+    const weightAt = (day: number) =>
+      day >= 7 && day <= 9 ? 80 : day >= 21 && day <= 23 ? (day === 23 ? 81.5 : 80) : null;
+    const review = reviewOf(history(p, { weightAt }));
+    expect(review.reasons).toEqual(['drift_up', 'uneven_weights']);
+    expect(review.proposal).toBeNull();
+  });
+
+  it('pauses proposals for two weeks after a calibration change', () => {
+    // Accepted on Monday 9: the week of 2 November (W−2) started before it.
+    const paused = reviewOf(history(profile(), { slopeKgPerWeek: 0, calibratedOn: '2026-11-09' }));
+    expect(paused.reasons).toEqual(['slow_loss', 'recent_change']);
+    // Changed on Sunday 1 November: both weeks compared start after it.
+    const after = reviewOf(history(profile(), { slopeKgPerWeek: 0, calibratedOn: '2026-11-01' }));
+    expect(after.proposal?.kcalDelta).toBe(-100);
+    // A fast loss is never paused.
+    expect(
+      reviewOf(history(profile(), { slopeKgPerWeek: -1.0, calibratedOn: '2026-11-16' })).proposal,
+    ).toMatchObject({ kcalDelta: 100 });
   });
 });
 
@@ -296,12 +386,13 @@ describe('reviewWeekToShow (spec 014 AC1)', () => {
   const show = (today: string, flags: SafetyFlag[] = []) =>
     reviewWeekToShow({ today, onboardedOn: '2026-11-02', flags });
 
-  it('waits 14 days from the onboarding and names the Monday of the first review', () => {
-    expect(show('2026-11-12')).toEqual({ weekStart: null, firstReviewOn: '2026-11-16' });
+  it('waits 21 days from the onboarding and names the Monday of the first review', () => {
+    expect(show('2026-11-12')).toEqual({ weekStart: null, firstReviewOn: '2026-11-23' });
+    expect(show('2026-11-22')).toEqual({ weekStart: null, firstReviewOn: '2026-11-23' });
   });
 
   it('reviews the last complete week from that Monday on', () => {
-    expect(show('2026-11-16')).toEqual({ weekStart: '2026-11-09', firstReviewOn: null });
+    expect(show('2026-11-23')).toEqual({ weekStart: '2026-11-16', firstReviewOn: null });
     expect(show('2026-11-25')).toEqual({ weekStart: '2026-11-16', firstReviewOn: null });
     expect(show('2026-11-29')).toEqual({ weekStart: '2026-11-16', firstReviewOn: null });
   });

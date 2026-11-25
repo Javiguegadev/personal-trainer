@@ -50,7 +50,7 @@ its evals" (BLUEPRINT §7). This spec covers the first half; spec 015 covers the
   compare them with the typical week or the plan (no adherence number, ADR 006 left this to E5b and the
   answer is "not now"). Training volume is never changed here (E7, adaptive training).
 - **When.** The review of a week (Monday–Sunday, with the day start of spec 010 AC6) is computed from
-  its Monday, on the first `GET /me/review`, once the account has at least 14 days of history, and is
+  its Monday, on the first `GET /me/review`, once the account has at least 21 days of history, and is
   stored with the numbers it used (traceable, BLUEPRINT §5). It stays on Today until the user decides
   or the next one replaces it. Nothing is applied without "Aplicar".
 - **No new data category**, so no consent change: the review and the calibration are derived from data
@@ -67,7 +67,7 @@ its evals" (BLUEPRINT §7). This spec covers the first half; spec 015 covers the
 
 ### Weekly review
 
-- **AC1** — Given an account with at least 14 days since onboarding and a completed week (Monday to
+- **AC1** — Given an account with at least 21 days since onboarding and a completed week (Monday to
   Sunday, user's local dates), when Today opens on or after that Monday, then a "Tu semana" card shows
   that week's review until the user decides on its proposal or the next week's review replaces it; a
   review without a proposal can be closed ("Entendido"). Given `ed_soft_stop` or pregnancy, then no
@@ -91,6 +91,13 @@ its evals" (BLUEPRINT §7). This spec covers the first half; spec 015 covers the
   deficit or surplus is still computed by `targets-v4` on the calibrated TDEE with the limits of specs
   001–004. Given 3 or more check-in days that week with sleep under 6 h or high stress, then a decrease
   is not proposed (`decrease_blocked_sleep_stress`) and the review says so. _(free)_
+- **AC5b** — Given the domain review (2026-11-25), then: a low BMI or target BMI, a minor or an
+  eating-disorder signal never get a decrease (`decrease_blocked_profile`) and `targets-v4` never applies
+  a negative calibration to them; losing faster than 1 %/week proposes +100 kcal whatever the goal; when
+  that increase cannot raise the target (the floor) or would pass the bound, the review refers to a
+  professional (`see_professional`); a proposal must hold without the most extreme reading of either
+  week (`uneven_weights`); and after a calibration change nothing but a fast-loss increase is proposed
+  until both weeks compared start after it (`recent_change`, decided by the human). _(free)_
 - **AC6** — Given a proposal, when the user taps "Aplicar (2.200 → 2.100 kcal)", then
   `energy_calibration_kcal` changes by the proposal, the targets are recomputed (`targets-v4`, a new row
   in the targets history) and Today shows the old and new kcal as after a weight change (ADR 005); when
@@ -172,7 +179,7 @@ its evals" (BLUEPRINT §7). This spec covers the first half; spec 015 covers the
 ## API contracts
 
 - Schemas to add to `@pt/contracts` (new `review.ts`): `REVIEW_RULES` (provisional bands, step 100,
-  bound 300, adherence 5 days / ±10 %, sleep-stress 3 days, history 14 days), `ReviewReasonSchema`,
+  bound 300, adherence 5 days / ±10 %, sleep-stress 3 days, history 21 days, a 2-week pause after a change), `ReviewReasonSchema`,
   `ReviewSummarySchema`, `WeeklyReviewSchema` (`weekStart`, `status`, `summary`, `proposal { kcalDelta,
 fromKcal, toKcal } | null`, `reasons`, `rulesVersion`, `decidedAt`), `StreakSchema` (`weeks`,
   `currentWeekDays`, `hidden`), `ReviewResponseSchema` (`{ review, streak }`),
@@ -181,7 +188,7 @@ fromKcal, toKcal } | null`, `reasons`, `rulesVersion`, `decidedAt`), `StreakSche
 - Schemas to change: `TargetsBreakdownSchema` (+ `calibrationKcal`), `ContextSnapshotSchema` (+
   calibration, `context-v6`), `ExportResponseSchema` (+ `weeklyReviews`, `energyCalibrationKcal`).
 - `GET /me/review` → 200 `ReviewResponse` (computes and stores the last complete week's review when it is
-  missing; `review` null before 14 days or for `ed_soft_stop` / pregnancy) / 401 / 403
+  missing; `review` null before 21 days or for `ed_soft_stop` / pregnancy) / 401 / 403
 - `POST /me/review/{weekStart}/decision` → 200 / 400 / 401 / 403 / 404 / 409 `review_decided` |
   `review_stale`
 - `DELETE /me/energy-calibration` → 200 `CalibrationResetResponse` / 401 / 403
