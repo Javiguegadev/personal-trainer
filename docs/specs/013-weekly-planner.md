@@ -363,7 +363,7 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [x] e2e
 - Decisions taken during implementation:
   - Contracts: `CONSENT_VERSION` was not bumped in the contracts step; it changes to `2026-11-v10` in the
     API step, with the 403 `consent_required` test (AC24). The `planned_workouts` minutes check is 1–600
@@ -439,3 +439,15 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
     log is not on the device (offline, never opened) shows the spec 010 AC10 message instead of a copy
     without its logs. As the core copy defines it, a source day with nothing of a chosen kind clears
     that kind on its target day (named in the confirmation, with the undo).
+  - E2E (2026-11-25, `apps/e2e/tests/planner.spec.ts`, 6 journeys, clock fixed): the journeys of the
+    UI section, with these choices. The routine is the intermediate 3-day one (A, B, C; a beginner gets
+    A, B). "Plan an activity and log it with Hecho" plans a football match for today on the day screen.
+    "Copiar día" and "Copiar semana" share one journey (copy, undo, then the week). `ed_soft_stop` is
+    checked on a future day's plan and the week view. The E2E step also added what AC9 asked and part 1
+    had left out: a logged item linked to the plan shows "✓ Registrado del plan" under its meal. The
+    full suite (58) passes; on this machine a full parallel run was slow (10–12 min) and a few older
+    journeys timed out on `page.reload` / `page.goto`, a different few each time, all passing when run
+    again (the known Metro flakiness, see the pending E2E note).
+- Left for the human: the phone check in Expo Go (time picker of "Planificar entreno", day and meal
+  chips at 360 px, keyboard on the add screen in plan mode, the copy confirmation and the undo back on
+  Today or the day), the professional review (Open questions).

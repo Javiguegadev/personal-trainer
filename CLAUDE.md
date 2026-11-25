@@ -119,6 +119,10 @@ pnpm format
   (177 of 178 sentences, 99.4 %, after a prompt fix). Left: the phone check in Expo Go (describe screen, keyboard
   dictation, draft editor), a review of a sample of the eval cases, the professional review (Open
   questions). E5 is complete.
-- Next (ADR 003, ADR 006, ADR 007): E5c weekly planner (meals and sessions planned by hand) → E5b adaptive
+- Spec 013 (E5c weekly planner: meals and sessions planned by hand, "Planificar con mi rutina", copy
+  day and week): every step implemented with E2E on 2026-11-25; migration `0013` applied on dev; consent
+  `2026-11-v10`. Left: the phone check in Expo Go (time picker, chips at 360 px, plan-mode keyboard,
+  copy confirmation and undo), the professional review (Open questions). E5c is complete.
+- Next (ADR 003, ADR 006, ADR 007): E5b adaptive
   loop → beta without paywall → E7 premium AI → E6 payments → E8 → E9 launch (with the Apple Health and
   Health Connect import) → E10 (watch APIs such as Garmin).
