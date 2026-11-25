@@ -1,6 +1,5 @@
 import { AiUnavailableError, type FeedbackPromptInput } from '@pt/ai';
 import {
-  FEEDBACK_LIMITS,
   FOOD_LOG_LIMITS,
   type DailyFeedbackRequest,
   type DailyFeedbackResponse,
@@ -25,7 +24,7 @@ import {
   type FeedbackCandidates,
 } from '@pt/core';
 import type { Deps } from '../deps';
-import { utcDayStart } from '../images';
+import { withinDailyCap } from './entitlements';
 import { resolveFoods, toFood, toRecentFoods, type Catalog } from './foods';
 
 /** How many recently logged foods the candidates come from (AC12). */
@@ -124,8 +123,7 @@ export function createFeedbackService(
    * ones too. Null past the cap or on a failure: the notes use the fixed wording.
    */
   async function word(userId: string, input: FeedbackPromptInput) {
-    const used = await deps.store.countAiUsage(userId, 'daily_feedback', utcDayStart(deps.now()));
-    if (used >= FEEDBACK_LIMITS.aiPerDay) return null;
+    if (!(await withinDailyCap(deps, userId, 'daily_feedback'))) return null;
     try {
       const { reading, usage } = await deps.wordFeedback(input);
       await deps.store.recordAiUsage(userId, usage, deps.now());

@@ -2,7 +2,6 @@ import { createRoute } from '@hono/zod-openapi';
 import { AiUnavailableError, type AiFeature, type MealInput } from '@pt/ai';
 import {
   ApiErrorSchema,
-  MEAL_DRAFT_LIMITS,
   MealDraftResponseSchema,
   MealPhotoDraftRequestSchema,
   MealTextDraftRequestSchema,
@@ -12,7 +11,8 @@ import {
 import { bodyLimit } from 'hono/body-limit';
 import type { Deps } from '../../deps';
 import { apiError, createRouter, errorBody } from '../../http';
-import { IMAGE_BODY_MAX, checkImage, utcDayStart } from '../../images';
+import { IMAGE_BODY_MAX, checkImage } from '../../images';
+import { withinDailyCap } from '../../services/entitlements';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { createCatalogCache } from '../../services/foods';
 import { createMealDrafter } from '../../services/meal-draft';
@@ -31,11 +31,6 @@ const draftResponses = {
   403: error('Consent required'),
   429: error('`ai_cap_reached`: the daily limit of this shortcut (AC12)'),
   503: error('`ai_unavailable`: the model gave no usable draft (AC11)'),
-};
-
-const CAPS: Record<'meal_text' | 'meal_photo', number> = {
-  meal_text: MEAL_DRAFT_LIMITS.textsPerDay,
-  meal_photo: MEAL_DRAFT_LIMITS.photosPerDay,
 };
 
 /**
@@ -85,8 +80,7 @@ export function draftRoutes(deps: Deps) {
     input: MealInput,
     locale: Locale,
   ): Promise<{ status: 'ok'; draft: MealDraftResponse } | { status: 'cap' | 'unavailable' }> {
-    const used = await deps.store.countAiUsage(userId, feature, utcDayStart(deps.now()));
-    if (used >= CAPS[feature]) return { status: 'cap' };
+    if (!(await withinDailyCap(deps, userId, feature))) return { status: 'cap' };
     try {
       const { draft, usage } = await draftMeal(userId, input, locale);
       await deps.store.recordAiUsage(userId, usage, deps.now());

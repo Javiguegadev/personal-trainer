@@ -8,7 +8,7 @@
  * are set. Never point it at production.
  */
 import { CONSENT_VERSION } from '@pt/contracts';
-import { addDays } from '@pt/core';
+import { addDays, targetsOnly } from '@pt/core';
 import { createDb, eq, schema, sql } from '@pt/db';
 import { afterAll, describe, expect, it } from 'vitest';
 import { profileInput } from '../test/fakes';
@@ -49,6 +49,8 @@ const COVERED_USER_TABLES = [
   // Spec 013: the plan.
   'planned_meal_items',
   'planned_workouts',
+  // Spec 014: the weekly reviews.
+  'weekly_reviews',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -737,6 +739,72 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
     expect(exportedPlan.mealItems.find((i) => i.id === fromPlan.id)?.plannedItemId).toBe(
       plannedEgg.id,
     );
+
+    // Spec 014: a review stored once, decided once with its calibration, then the reset.
+    const review = {
+      weekStart: '2026-11-16',
+      status: 'proposed' as const,
+      summary: {
+        daysLogged: 7,
+        foodDays: 7,
+        averageKcal: 2000,
+        targetKcal: 2000,
+        weightAverageKg: 70,
+        weightRateKgPerWeek: 0,
+        weightRatePerWeek: 0,
+        workouts: 0,
+        workoutMinutes: 0,
+        checkinDays: 0,
+        poorSleepDays: 0,
+        highStressDays: 0,
+      },
+      proposal: { kcalDelta: -100, fromKcal: 2000, toKcal: 1920 },
+      reasons: ['slow_loss' as const],
+      rulesVersion: 'review-v1',
+    };
+    expect((await store.insertWeeklyReview(id, review, new Date())).proposal).toEqual(
+      review.proposal,
+    );
+    const storedAgain = await store.insertWeeklyReview(
+      id,
+      { ...review, reasons: ['on_track'] },
+      new Date(),
+    );
+    expect(storedAgain.reasons).toEqual(['slow_loss']);
+    const beforeReview = await store.getMe(id);
+    const currentTargets = targetsOnly(beforeReview.targets!);
+    const calibration = {
+      calibrationKcal: -100,
+      evaluation: {
+        goal: beforeReview.profile!.goal,
+        safetyFlags: beforeReview.profile!.safetyFlags,
+        targets: { ...currentTargets, kcal: 1920 },
+      },
+    };
+    expect(
+      await store.decideWeeklyReview(id, '2026-11-16', 'accepted', new Date(), calibration),
+    ).toBe('ok');
+    expect(await store.decideWeeklyReview(id, '2026-11-16', 'rejected', new Date(), null)).toBe(
+      'decided',
+    );
+    expect(await store.decideWeeklyReview(id, '2026-11-09', 'rejected', new Date(), null)).toBe(
+      'not_found',
+    );
+    const afterReview = await store.getMe(id);
+    expect(afterReview.profile?.energyCalibrationKcal).toBe(-100);
+    expect(afterReview.targets?.kcal).toBe(1920);
+    expect(await store.getCalibrationChange(id)).not.toBeNull();
+    expect((await store.listWeeklyReviews(id, 5)).map((r) => r.status)).toEqual(['accepted']);
+    expect(await store.setCalibration(id, { ...calibration, calibrationKcal: 0 }, new Date())).toBe(
+      true,
+    );
+    expect((await store.getMe(id)).profile?.energyCalibrationKcal).toBe(0);
+    expect((await store.listTargetsHistory(id)).length).toBeGreaterThanOrEqual(3);
+    await store.deleteAllCheckins(id, new Date());
+    expect(await store.listCheckins(id, '2026-01-01', '2026-12-31')).toEqual([]);
+    expect((await store.exportUser(id)).weeklyReviews.map((r) => r.weekStart)).toEqual([
+      '2026-11-16',
+    ]);
 
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.

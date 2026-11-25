@@ -9,6 +9,7 @@ import {
 import { addDays, evaluateProfileInput } from '@pt/core';
 import type { Deps } from '../../deps';
 import { checkinRoutes } from './checkins';
+import { reviewRoutes } from './review';
 import { weekRoutes } from './week';
 import { weightRoutes } from './weights';
 import { apiError, createRouter } from '../../http';
@@ -109,10 +110,14 @@ export function meRoutes(deps: Deps) {
       const { userId } = c.var.user;
       // The last 7 days of the log: the low-BMI recovery rule reads their average (spec 003 AC12).
       const context = await deps.store.getSafetyContext(userId, addDays(input.today, -6));
-      const evaluation = evaluateProfileInput(input, context.flags, deps.now(), {
-        storedWeightKg: context.weightKg,
-        entries: context.weights,
-      });
+      // The weekly reviews' calibration stays through a profile save (spec 014 AC8).
+      const evaluation = evaluateProfileInput(
+        input,
+        context.flags,
+        deps.now(),
+        { storedWeightKg: context.weightKg, entries: context.weights },
+        context.energyCalibrationKcal,
+      );
       if (evaluation.kind === 'invalid') {
         return apiError(c, 400, 'validation_error', evaluation.fields);
       }
@@ -135,5 +140,6 @@ export function meRoutes(deps: Deps) {
     })
     .route('/', weightRoutes(deps))
     .route('/', weekRoutes(deps))
-    .route('/', checkinRoutes(deps));
+    .route('/', checkinRoutes(deps))
+    .route('/', reviewRoutes(deps));
 }

@@ -82,6 +82,20 @@ export function checkinRoutes(deps: Deps) {
     },
   });
 
+  const deleteAllCheckins = createRoute({
+    method: 'delete',
+    path: '/me/checkins',
+    tags: ['checkins'],
+    middleware: [auth, consent] as const,
+    responses: {
+      204: {
+        description: 'Every check-in of the user deleted ("Borrar mis check-ins", spec 014 AC12)',
+      },
+      401: error('Unauthenticated'),
+      403: error('Consent required'),
+    },
+  });
+
   return createRouter()
     .openapi(listCheckins, async (c) => {
       const { from, to } = c.req.valid('query');
@@ -114,5 +128,9 @@ export function checkinRoutes(deps: Deps) {
       if (invalid) return apiError(c, 400, 'validation_error', invalid);
       const checkin = await deps.store.deleteCheckin(c.var.user.userId, localDate, recordedAt);
       return c.json({ checkin }, 200);
+    })
+    .openapi(deleteAllCheckins, async (c) => {
+      await deps.store.deleteAllCheckins(c.var.user.userId, deps.now());
+      return c.body(null, 204);
     });
 }

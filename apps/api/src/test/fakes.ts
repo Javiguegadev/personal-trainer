@@ -30,20 +30,23 @@ import type {
   Workout,
   Program,
   TrainingProfileUpdate,
+  WeeklyReview,
 } from '@pt/contracts';
-import { USER_FOOD_SOURCE, customExercise, type ExerciseSetRow } from '@pt/core';
+import { USER_FOOD_SOURCE, customExercise, type ExerciseSetRow, type ReviewDraft } from '@pt/core';
 import { randomUUID } from 'node:crypto';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
 import { createApp } from '../app';
 import type {
   AuthAdmin,
   BarcodeMissReason,
+  CalibrationWrite,
   CatalogFood,
   Deps,
   ProductWrite,
   ExportRecord,
   KnowledgeSourceRecord,
   MeRecord,
+  ReviewDecisionResult,
   Store,
   WeekWrite,
 } from '../deps';
@@ -77,6 +80,10 @@ interface UserRows {
   /** The plan, with deleted rows kept as tombstones (spec 013 AC23). */
   plannedMealItems: (PlannedMealItem & { deletedAt: string | null })[];
   plannedWorkouts: (PlannedWorkout & { deletedAt: string | null })[];
+  /** Weekly reviews, oldest week first (spec 014). */
+  weeklyReviews: WeeklyReview[];
+  /** When the calibration last changed (spec 014 AC5b). */
+  calibratedAt: string | null;
 }
 
 /** A custom exercise as stored: its owner, write time and tombstone (spec 009). */
@@ -119,6 +126,8 @@ export class FakeStore implements Store {
         checkins: [],
         plannedMealItems: [],
         plannedWorkouts: [],
+        weeklyReviews: [],
+        calibratedAt: null,
       };
       this.users.set(userId, rows);
     }
@@ -157,6 +166,7 @@ export class FakeStore implements Store {
       flags: rows.profile?.safetyFlags ?? [],
       weightKg: rows.profile?.weightKg ?? null,
       weights: rows.weights.filter((w) => w.localDate >= weightsFrom),
+      energyCalibrationKcal: rows.profile?.energyCalibrationKcal ?? 0,
     };
   }
 
@@ -794,6 +804,96 @@ export class FakeStore implements Store {
     return this.ownerOf((rows) => rows.plannedWorkouts.some((r) => r.id === id), userId);
   }
 
+  // Weekly review, streak and calibration (spec 014)
+
+  async listTargetsHistory(userId: string) {
+    return this.rows(userId).targets.map((t) => ({ kcal: t.kcal, validFrom: t.validFrom }));
+  }
+
+  async listLoggedDays(userId: string, from: string, to: string) {
+    const rows = this.rows(userId);
+    const days = [
+      ...rows.mealItems.filter((i) => !i.deleted).map((i) => i.localDate),
+      ...rows.workouts.filter((w) => !w.deleted).map((w) => w.localDate),
+      ...rows.weights.map((w) => w.localDate),
+    ].filter((day) => day >= from && day <= to);
+    return [...new Set(days)].sort();
+  }
+
+  async getCalibrationChange(userId: string) {
+    const at = this.rows(userId).calibratedAt;
+    return at ? new Date(at) : null;
+  }
+
+  async listWeeklyReviews(userId: string, limit: number) {
+    return structuredClone(this.rows(userId).weeklyReviews)
+      .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+      .slice(0, limit);
+  }
+
+  async insertWeeklyReview(userId: string, draft: ReviewDraft, at: Date) {
+    const rows = this.rows(userId);
+    let stored = rows.weeklyReviews.find((r) => r.weekStart === draft.weekStart);
+    if (!stored) {
+      stored = { ...structuredClone(draft), createdAt: at.toISOString(), decidedAt: null };
+      rows.weeklyReviews.push(stored);
+      rows.weeklyReviews.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+    }
+    return structuredClone(stored);
+  }
+
+  async decideWeeklyReview(
+    userId: string,
+    weekStart: string,
+    decision: 'accepted' | 'rejected',
+    at: Date,
+    calibration: CalibrationWrite | null,
+  ): Promise<ReviewDecisionResult> {
+    const rows = this.rows(userId);
+    const review = rows.weeklyReviews.find((r) => r.weekStart === weekStart);
+    if (!review) return 'not_found';
+    if (review.status !== 'proposed') return 'decided';
+    if (rows.weeklyReviews.some((r) => r.weekStart > weekStart)) return 'stale';
+    review.status = decision;
+    review.decidedAt = at.toISOString();
+    if (calibration) this.writeCalibration(rows, calibration, at);
+    return 'ok';
+  }
+
+  async setCalibration(userId: string, write: CalibrationWrite, at: Date) {
+    const rows = this.rows(userId);
+    if (!rows.profile) return false;
+    this.writeCalibration(rows, write, at);
+    return true;
+  }
+
+  private writeCalibration(rows: UserRows, write: CalibrationWrite, at: Date) {
+    const iso = at.toISOString();
+    if (rows.profile) {
+      rows.profile = {
+        ...rows.profile,
+        energyCalibrationKcal: write.calibrationKcal,
+        goal: write.evaluation.goal,
+        safetyFlags: write.evaluation.safetyFlags,
+      };
+    }
+    rows.calibratedAt = iso;
+    for (const t of rows.targets) if (t.validTo === null) t.validTo = iso;
+    if (write.evaluation.targets) {
+      rows.targets.push({ ...write.evaluation.targets, validFrom: iso, validTo: null });
+    }
+  }
+
+  async deleteAllCheckins(userId: string, at: Date) {
+    const iso = at.toISOString();
+    for (const c of this.rows(userId).checkins) {
+      if (c.deletedAt === null) {
+        c.deletedAt = iso;
+        c.recordedAt = iso;
+      }
+    }
+  }
+
   async workoutOwner(userId: string, id: string) {
     return this.ownerOf((rows) => rows.workouts.some((w) => w.id === id), userId);
   }
@@ -824,7 +924,7 @@ export class FakeStore implements Store {
         mealItems: structuredClone(rows.plannedMealItems).sort(byDayThenTime),
         workouts: structuredClone(rows.plannedWorkouts).sort(byDayThenStart),
       },
-      weeklyReviews: [],
+      weeklyReviews: structuredClone(rows.weeklyReviews),
       consents: rows.consents,
       aiUsage: rows.aiUsage.map((u) => ({
         feature: u.feature,

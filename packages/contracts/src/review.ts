@@ -150,6 +150,10 @@ export const ReviewResponseSchema = z.object({
 });
 export type ReviewResponse = z.infer<typeof ReviewResponseSchema>;
 
+/** The reviewed week of a decision: its Monday (a later check refuses another weekday, 400). */
+export const ReviewWeekParamSchema = z.object({ weekStart: IsoDateSchema });
+export type ReviewWeekParam = z.infer<typeof ReviewWeekParamSchema>;
+
 /** `POST /me/review/{weekStart}/decision` (AC6). */
 export const ReviewDecisionRequestSchema = z.object({
   decision: z.enum(['accept', 'reject']),

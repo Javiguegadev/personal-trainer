@@ -9,6 +9,7 @@ import { SafetyFlagSchema } from '@pt/contracts';
 import { and, asc, count, desc, eq, gte, isNull, lte, schema, sql, type Db } from '@pt/db';
 import type { Store } from '../deps';
 import { createCheckinStore, exportCheckins } from './checkin-store';
+import { createReviewStore, exportWeeklyReviews } from './review-store';
 import { createFoodStore, exportFoodLog } from './food-store';
 import { createPlanStore, exportPlan } from './plan-store';
 import { createTrainingStore, exportTrainingLog } from './training-store';
@@ -155,8 +156,7 @@ function toProfile(
     },
     trainingExperience: training?.experience ?? null,
     equipmentAccess: training?.equipment ?? null,
-    // The column arrives with migration 0014 (spec 014).
-    energyCalibrationKcal: 0,
+    energyCalibrationKcal: row.energyCalibrationKcal,
   };
 }
 
@@ -204,6 +204,7 @@ export function createDrizzleStore(db: Db): Store {
     ...createTrainingStore(db),
     ...createCheckinStore(db),
     ...createPlanStore(db),
+    ...createReviewStore(db),
 
     async getMe(userId) {
       const [[consent], [profile], profileRows, [prefs], [targets]] = await Promise.all([
@@ -238,7 +239,11 @@ export function createDrizzleStore(db: Db): Store {
     async getSafetyContext(userId, weightsFrom) {
       const [[row], weights] = await Promise.all([
         db
-          .select({ flags: profiles.safetyFlags, weightKg: profiles.weightKg })
+          .select({
+            flags: profiles.safetyFlags,
+            weightKg: profiles.weightKg,
+            calibration: profiles.energyCalibrationKcal,
+          })
           .from(profiles)
           .where(eq(profiles.id, userId)),
         db
@@ -253,6 +258,7 @@ export function createDrizzleStore(db: Db): Store {
         flags: row ? toFlags(row.flags) : [],
         weightKg: row?.weightKg ?? null,
         weights: weights.map(toWeight),
+        energyCalibrationKcal: row?.calibration ?? 0,
       };
     },
 
@@ -560,7 +566,7 @@ export function createDrizzleStore(db: Db): Store {
         ...(await exportTrainingLog(db, userId)),
         checkins: await exportCheckins(db, userId),
         plan: await exportPlan(db, userId),
-        weeklyReviews: [],
+        weeklyReviews: await exportWeeklyReviews(db, userId),
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

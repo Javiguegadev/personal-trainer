@@ -9,7 +9,6 @@ import {
   FoodIdParamSchema,
   FoodLocaleQuerySchema,
   FoodSchema,
-  LABEL_SCAN_LIMITS,
   LabelScanRequestSchema,
   LabelScanResponseSchema,
 } from '@pt/contracts';
@@ -17,7 +16,8 @@ import { checkCustomFood, labelDraft, normalizeBarcode } from '@pt/core';
 import { bodyLimit } from 'hono/body-limit';
 import type { Deps } from '../../deps';
 import { apiError, createRouter, errorBody } from '../../http';
-import { IMAGE_BODY_MAX, checkImage, utcDayStart } from '../../images';
+import { IMAGE_BODY_MAX, checkImage } from '../../images';
+import { withinDailyCap } from '../../services/entitlements';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import { toFood } from '../../services/foods';
 import { createBarcodeLookup } from '../../services/products';
@@ -191,8 +191,9 @@ export function productRoutes(deps: Deps) {
       if (bad === 'invalid')
         return apiError(c, 400, 'validation_error', { 'image.data': 'invalid' });
       if (bad === 'too_large') return apiError(c, 413, 'image_too_large');
-      const used = await deps.store.countAiUsage(userId, 'label_scan', utcDayStart(deps.now()));
-      if (used >= LABEL_SCAN_LIMITS.perDay) return apiError(c, 429, 'ai_cap_reached');
+      if (!(await withinDailyCap(deps, userId, 'label_scan'))) {
+        return apiError(c, 429, 'ai_cap_reached');
+      }
 
       // AC19: the image goes to the model and nowhere else. It is never stored or logged.
       try {

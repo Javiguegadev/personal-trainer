@@ -27,9 +27,10 @@ import type {
   Program,
   TrainingProfileUpdate,
   Week,
+  WeeklyReview,
   WorkPattern,
 } from '@pt/contracts';
-import type { ExerciseSetRow, LoggableExercise } from '@pt/core';
+import type { ExerciseSetRow, LoggableExercise, ReviewDraft } from '@pt/core';
 import type { LookupProduct } from './off/client';
 
 /** The signed-in user, taken from a verified Supabase access token. */
@@ -78,6 +79,8 @@ export interface SafetyContext {
   /** Null when there is no profile yet. */
   weightKg: number | null;
   weights: WeightEntry[];
+  /** The weekly reviews' calibration (spec 014): a profile save keeps it. 0 without a profile. */
+  energyCalibrationKcal: number;
 }
 
 /** A weight write: the entry to store for that day, or null to delete it. */
@@ -361,7 +364,43 @@ export interface Store {
   plannedWorkoutOwner(userId: string, id: string): Promise<Ownership>;
   /** Who owns a workout, deleted or not (the "Repetir" link of a planned session). */
   workoutOwner(userId: string, id: string): Promise<Ownership>;
+
+  // Weekly review, streak and calibration (spec 014)
+  /** The kcal targets history, oldest first (`validFrom` as an ISO time). */
+  listTargetsHistory(userId: string): Promise<{ kcal: number; validFrom: string }[]>;
+  /** The local dates from `from` to `to` with a live meal item, a live workout or a weight entry. */
+  listLoggedDays(userId: string, from: string, to: string): Promise<string[]>;
+  /** When the calibration last changed, or null (AC5b). */
+  getCalibrationChange(userId: string): Promise<Date | null>;
+  /** The user's reviews, newest week first. */
+  listWeeklyReviews(userId: string, limit: number): Promise<WeeklyReview[]>;
+  /** Stores the review of its week unless one is stored already; returns the stored one. */
+  insertWeeklyReview(userId: string, draft: ReviewDraft, at: Date): Promise<WeeklyReview>;
+  /**
+   * In one transaction (AC6): decides the review of `weekStart` once, and only when it is the latest;
+   * an acceptance also writes the calibration. Nothing is written unless the result is `ok`.
+   */
+  decideWeeklyReview(
+    userId: string,
+    weekStart: string,
+    decision: 'accepted' | 'rejected',
+    at: Date,
+    calibration: CalibrationWrite | null,
+  ): Promise<ReviewDecisionResult>;
+  /** "Volver al cálculo inicial" (AC12). Returns false when the user has no profile. */
+  setCalibration(userId: string, write: CalibrationWrite, at: Date): Promise<boolean>;
+  /** "Borrar mis check-ins" (AC12): every live check-in becomes a tombstone. */
+  deleteAllCheckins(userId: string, at: Date): Promise<void>;
 }
+
+/** A calibration change (spec 014): the value and the profile evaluated again with it. */
+export interface CalibrationWrite {
+  calibrationKcal: number;
+  /** The targets row is closed and `targets` inserted (null = none). */
+  evaluation: { goal: Profile['goal']; safetyFlags: SafetyFlag[]; targets: Targets | null };
+}
+
+export type ReviewDecisionResult = 'ok' | 'not_found' | 'decided' | 'stale';
 
 /** Whose row an id is: the user's, another user's, or nobody's. */
 export type Ownership = 'own' | 'other' | 'missing';

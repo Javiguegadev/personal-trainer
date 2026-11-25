@@ -2,7 +2,6 @@ import { createRoute } from '@hono/zod-openapi';
 import { AiUnavailableError } from '@pt/ai';
 import {
   ApiErrorSchema,
-  WORKOUT_DRAFT_LIMITS,
   WORKOUT_LIMITS,
   WorkoutDraftResponseSchema,
   WorkoutTextDraftRequestSchema,
@@ -10,7 +9,7 @@ import {
 import { addDays, checkClientDates } from '@pt/core';
 import type { Deps } from '../../deps';
 import { apiError, createRouter } from '../../http';
-import { utcDayStart } from '../../images';
+import { withinDailyCap } from '../../services/entitlements';
 import { requireAuth, requireConsent } from '../../middleware/auth';
 import type { ExerciseCatalog } from '../../services/training';
 import { createWorkoutDrafter } from '../../services/workout-draft';
@@ -64,8 +63,9 @@ export function workoutDraftRoutes(deps: Deps, getCatalog: () => Promise<Exercis
     }
 
     // Cap and metering (AC17): every call writes one `ai_usage` row, failed ones too.
-    const used = await deps.store.countAiUsage(userId, 'workout_text', utcDayStart(deps.now()));
-    if (used >= WORKOUT_DRAFT_LIMITS.textsPerDay) return apiError(c, 429, 'ai_cap_reached');
+    if (!(await withinDailyCap(deps, userId, 'workout_text'))) {
+      return apiError(c, 429, 'ai_cap_reached');
+    }
     try {
       const { draft, usage } = await draftWorkout(userId, request);
       await deps.store.recordAiUsage(userId, usage, deps.now());
