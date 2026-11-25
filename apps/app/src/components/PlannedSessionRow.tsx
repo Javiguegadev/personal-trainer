@@ -1,6 +1,6 @@
 import type { PlannedWorkout } from '@pt/contracts';
 import { tokens } from '@pt/ui';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useI18n } from '@/hooks/useI18n';
 import { usePlanText } from '@/hooks/usePlanText';
 import { useWorkoutText } from '@/hooks/useWorkoutText';
@@ -21,6 +21,7 @@ export function PlannedSessionRow({
   prefix,
   pending = false,
   onAction,
+  onOpen,
 }: {
   planned: PlannedWorkout;
   action: PlannedSessionAction | null;
@@ -28,6 +29,8 @@ export function PlannedSessionRow({
   prefix?: string;
   pending?: boolean;
   onAction?: () => void;
+  /** Opens the planning sheet to change or remove it (spec 013 AC12): today and future days. */
+  onOpen?: () => void;
 }) {
   const { t, format } = useI18n();
   const text = usePlanText();
@@ -47,12 +50,19 @@ export function PlannedSessionRow({
 
   return (
     <View style={styles.row} testID={`planned-session-${planned.id}`}>
-      <View style={styles.main}>
+      <Pressable
+        role={onOpen ? 'button' : undefined}
+        accessibilityLabel={onOpen ? format(t.plan.workout.openA11y, { session: line }) : undefined}
+        disabled={!onOpen}
+        onPress={onOpen}
+        style={({ pressed }) => [styles.main, { opacity: pressed ? 0.6 : 1 }]}
+        testID={onOpen ? 'planned-session-open' : undefined}
+      >
         <AppText weight={prefix ? 'bold' : 'regular'}>
           {prefix ? format(prefix, { session: line }) : line}
         </AppText>
         {pending ? <SyncBadge /> : null}
-      </View>
+      </Pressable>
       {action && onAction ? (
         <Button
           variant={action === 'start' ? 'primary' : 'secondary'}
@@ -73,5 +83,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: tokens.space.sm,
   },
-  main: { flex: 1, gap: 2 },
+  main: { flex: 1, gap: 2, minHeight: tokens.layout.minTouchTarget, justifyContent: 'center' },
 });

@@ -412,3 +412,17 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
     activity open the activity sheet with `?plan=`; a past gym session opens the past-session screen.
     "Planificar mi semana" switches Today to the week view. `plan/item/[id]` logs or removes a planned
     item of today or a past day (AC9); a future one is edited in part 2.
+  - UI part 2, planning by hand (2026-11-25): "Plan del día" shows on today and every future day of the
+    horizon, at the end of the day screen (under the logged meals on today, AC4), with "Añadir al plan"
+    as one button per meal and "Aún no hay comidas planificadas este día" on an empty future day.
+    `food/add?plan=1` (AC5) also hides "Crear alimento"'s label photo; it says when a day reaches 150
+    planned items instead of adding more, and each food added has the plan's 5-second undo. A planned
+    item of a future day (AC6) changes portion, meal and day (chips today → horizon) in one sheet, or is
+    removed; a food that left the catalog changes only meal and day. "Planificar entreno" (AC10) is in the
+    "Planificado" card of today and every future day; `plan/workout?date=` / `?id=` is one sheet for new
+    and edit (AC12): the choices offered are the ones that exist (routine sessions, "Repetir", activity,
+    free gym), a new one starts on the next routine session in rotation, the activity's minutes come from
+    the profile activity of that name (else 60), gym minutes default to the strength activity's, a
+    planned repeat stores the workout's shown name as its snapshot, and the 4-a-day limit is a field
+    error. Tapping a pending planned session of today or a future day opens it. The sheet shows the AC13
+    notices of the session being planned.

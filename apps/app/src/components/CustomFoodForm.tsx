@@ -47,6 +47,8 @@ interface CustomFoodFormProps {
    * but the app does not put numbers in front of them, so the label photo is not offered.
    */
   showNumbers: boolean;
+  /** False while planning (spec 013 AC5): a label photo reads food in front of the user. */
+  labelPhoto?: boolean;
   onSubmit: (request: CustomFoodUpsertRequest) => void;
   onCancel: () => void;
 }
@@ -73,6 +75,7 @@ export function CustomFoodForm({
   initialName = '',
   initialImage,
   showNumbers,
+  labelPhoto = true,
   onSubmit,
   onCancel,
 }: CustomFoodFormProps) {
@@ -233,7 +236,7 @@ export function CustomFoodForm({
         </AppText>
       ) : null}
 
-      {showNumbers ? (
+      {showNumbers && labelPhoto ? (
         <View
           style={[styles.label, { borderColor: colors.border, backgroundColor: colors.surface }]}
           testID="label-photo"

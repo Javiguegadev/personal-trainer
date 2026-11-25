@@ -4,6 +4,7 @@ import {
   IsoDateSchema,
   MEAL_TYPES,
   MealTypeSchema,
+  PLAN_LIMITS,
   PortionSchema,
   type DraftItem,
   type Food,
@@ -17,9 +18,11 @@ import {
 } from '@pt/contracts';
 import {
   addDays,
+  canPlan,
   customFoodAsFood,
   formatPortion,
   formatWeekdayDay,
+  formatWeekdayLongDay,
   initialPortion,
   isOwnFood,
   mealTypeForTime,
@@ -41,6 +44,7 @@ import { FoodRow } from '@/components/FoodRow';
 import { MealDraftView } from '@/components/MealDraftView';
 import { MealTextInput } from '@/components/MealTextInput';
 import { Notice } from '@/components/Notice';
+import { PlanRejectedNotice } from '@/components/PlanRejectedNotice';
 import { PlatePhotoPicker } from '@/components/PlatePhotoPicker';
 import { PortionSheet } from '@/components/PortionSheet';
 import { ProductNotFound, type ProductMiss } from '@/components/ProductNotFound';
@@ -53,6 +57,7 @@ import { useDeferredFoodDelete } from '@/hooks/useDeferredFoodDelete';
 import { useFoodLogActions } from '@/hooks/useFoodLogActions';
 import { useI18n } from '@/hooks/useI18n';
 import { useOnline } from '@/hooks/useOnline';
+import { usePlanActions, type NewPlannedItem } from '@/hooks/usePlanActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useToday } from '@/hooks/useToday';
 import {
@@ -63,6 +68,7 @@ import {
   useFoodSearch,
   useMealDraft,
   useMe,
+  usePlan,
   useRecentFoods,
   useSaveCustomFood,
   useSetFavouriteFood,
@@ -70,6 +76,7 @@ import {
 import { useFoodUndo } from '@/lib/foodUndo';
 import { newId } from '@/lib/id';
 import { pickPhoto } from '@/lib/photo';
+import { usePlanUndo } from '@/lib/planUndo';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -127,7 +134,9 @@ function missReason(error: unknown): ProductMiss {
  * The add screen (spec 005 AC7, AC8, AC12), opened over the tabs. `?date=&meal=` come from a meal of the
  * Food tab; without `meal` (opened from Today) the meal is preselected from the time of day and can be
  * changed with chips. Scanning a barcode and creating a food (spec 006) are steps of this screen, like
- * the portion sheet, so the search, the meal and the day stay as they were.
+ * the portion sheet, so the search, the meal and the day stay as they were. `?plan=1` is the plan mode
+ * of spec 013 AC5: the foods go to the plan of a day in the horizon, and the shortcuts that read food
+ * in front of the user (barcode, label, plate photo, sentence) are hidden.
  */
 export default function FoodAddRoute() {
   const me = useMe();
@@ -137,6 +146,7 @@ export default function FoodAddRoute() {
     meal?: string;
     foodId?: string;
     portion?: string;
+    plan?: string;
   }>();
   // The meal is chosen once, when the screen opens: it must not change while the user adds foods.
   const [timeMeal] = useState(() => {
@@ -145,14 +155,20 @@ export default function FoodAddRoute() {
   });
   if (!me.data?.profile) return <BlockingState />;
 
+  const planMode = params.plan === '1';
   const requestedDate = IsoDateSchema.safeParse(params.date);
-  const date =
-    requestedDate.success &&
-    requestedDate.data <= today &&
-    // The Food tab offers 6 days back; a day screen of the week view 27 (spec 010 AC12).
-    requestedDate.data >= addDays(today, -WEEK_VIEW.addDaysBack)
-      ? requestedDate.data
-      : today;
+  const date = !requestedDate.success
+    ? today
+    : planMode
+      ? // A plan goes from today to the end of the horizon (spec 013 AC1).
+        canPlan(requestedDate.data, today)
+        ? requestedDate.data
+        : today
+      : requestedDate.data <= today &&
+          // The Food tab offers 6 days back; a day screen of the week view 27 (spec 010 AC12).
+          requestedDate.data >= addDays(today, -WEEK_VIEW.addDaysBack)
+        ? requestedDate.data
+        : today;
   const requestedMeal = MealTypeSchema.safeParse(params.meal);
   return (
     <FoodAdd
@@ -161,7 +177,8 @@ export default function FoodAddRoute() {
       initialMeal={requestedMeal.success ? requestedMeal.data : timeMeal}
       mealFixed={requestedMeal.success}
       showNumbers={showsFoodNumbers(me.data.profile.safetyFlags)}
-      suggested={suggestedFood(params.foodId, params.portion)}
+      suggested={planMode ? null : suggestedFood(params.foodId, params.portion)}
+      planMode={planMode}
     />
   );
 }
@@ -187,6 +204,7 @@ function FoodAdd({
   mealFixed,
   showNumbers,
   suggested,
+  planMode,
 }: {
   date: string;
   today: string;
@@ -194,12 +212,22 @@ function FoodAdd({
   mealFixed: boolean;
   showNumbers: boolean;
   suggested: { foodId: string; portion: Portion } | null;
+  /** Spec 013 AC5: the foods go to the plan of `date`, not to the log. */
+  planMode: boolean;
 }) {
   const { t, format, locale } = useI18n();
   const { colors } = useTheme();
   const router = useRouter();
   const online = useOnline();
   const actions = useFoodLogActions();
+  const planActions = usePlanActions();
+  const planUndo = usePlanUndo();
+  const plan = usePlan(today);
+  // The API refuses more than 150 planned items on a day: say so here instead (spec 013 Limits).
+  const dayFull =
+    planMode &&
+    (plan.data?.mealItems ?? []).filter((item) => item.localDate === date).length >=
+      PLAN_LIMITS.itemsPerDayMax;
   const setFavourite = useSetFavouriteFood();
   const saveFood = useSaveCustomFood();
   const deferredDelete = useDeferredFoodDelete();
@@ -265,10 +293,19 @@ function FoodAdd({
   const toSearch = () => setStep({ kind: 'search' });
   /** Back to the search with a confirmation, so several foods can be added in a row (AC8). */
   const afterAdd = (label: string, portion: string | null) => {
-    setDone(format(a.added, { food: portion ? `${label} · ${portion}` : label }));
+    setDone(
+      format(planMode ? t.plan.added : a.added, {
+        food: portion ? `${label} · ${portion}` : label,
+      }),
+    );
     setQuery('');
     toSearch();
   };
+  /** "Añadir al plan" (spec 013 AC5): the planned row, with an undo that removes it. */
+  const addPlanned = (item: NewPlannedItem, food: Food | null) =>
+    dayFull
+      ? null
+      : planActions.addItem(item, food, (row) => format(t.plan.added, { food: row.label }));
 
   /**
    * The food of a scanned or typed barcode (spec 006 AC3, AC8): first among the foods the device holds,
@@ -469,10 +506,16 @@ function FoodAdd({
         favourite={favouriteIds.has(food.id)}
         onToggleFavourite={() => toggleFavourite(food)}
         showNumbers={showNumbers}
-        submitLabel={t.food.portion.add}
+        submitLabel={planMode ? t.plan.addToPlan : t.food.portion.add}
         onSubmit={(portion) => {
-          const item = actions.addFood(food, portion, inputMethod, date, mealType);
-          afterAdd(item.label, formatPortion(item, locale));
+          const item = planMode
+            ? addPlanned(
+                { kind: 'food', foodId: food.id, portion, localDate: date, mealType },
+                food,
+              )
+            : actions.addFood(food, portion, inputMethod, date, mealType);
+          if (item) afterAdd(item.label, formatPortion(item, locale));
+          else toSearch();
         }}
         onCancel={toSearch}
       >
@@ -508,8 +551,11 @@ function FoodAdd({
       <QuickAddForm
         initialName={step.name}
         onSubmit={(values) => {
-          const item = actions.addQuick(values, date, mealType);
-          afterAdd(item.label, null);
+          const item = planMode
+            ? addPlanned({ kind: 'quick_add', ...values, localDate: date, mealType }, null)
+            : actions.addQuick(values, date, mealType);
+          if (item) afterAdd(item.label, null);
+          else toSearch();
         }}
         onCancel={toSearch}
       />
@@ -558,6 +604,7 @@ function FoodAdd({
         initialName={step.name}
         initialImage={step.image}
         showNumbers={showNumbers}
+        labelPhoto={!planMode}
         onSubmit={(request) => {
           // Optimistic and queued: the food is in the lists at once, also without a connection.
           const id = editing?.id ?? newId();
@@ -689,6 +736,16 @@ function FoodAdd({
               message={format(c.deleted, { food: deleted.name })}
               onUndo={deferredDelete.undo}
             />
+          ) : planMode ? (
+            planUndo ? (
+              <UndoToast
+                message={planUndo.message}
+                onUndo={() => {
+                  planActions.undo(planUndo);
+                  setDone(null);
+                }}
+              />
+            ) : null
           ) : undo?.kind === 'added' ? (
             <UndoToast
               message={format(t.food.item.added, {
@@ -707,12 +764,24 @@ function FoodAdd({
         </>
       }
     >
-      <View>
-        <AppText variant="title">
-          {mealFixed ? format(a.titleMeal, { meal: t.food.meals[mealType] }) : a.title}
+      {planMode ? (
+        <AppText variant="title" testID="food-add-plan-title">
+          {/* "Planificar · Cena del jueves 27" (spec 013 AC5). */}
+          {mealFixed
+            ? format(t.plan.addTitle, {
+                meal: t.food.meals[mealType],
+                day: formatWeekdayLongDay(date, locale),
+              })
+            : format(t.plan.addTitleDay, { day: formatWeekdayLongDay(date, locale) })}
         </AppText>
-        {date === today ? null : <AppText tone="muted">{formatWeekdayDay(date, locale)}</AppText>}
-      </View>
+      ) : (
+        <View>
+          <AppText variant="title">
+            {mealFixed ? format(a.titleMeal, { meal: t.food.meals[mealType] }) : a.title}
+          </AppText>
+          {date === today ? null : <AppText tone="muted">{formatWeekdayDay(date, locale)}</AppText>}
+        </View>
+      )}
       {mealFixed ? null : (
         <ChoiceGroup
           label={a.meal}
@@ -723,7 +792,8 @@ function FoodAdd({
         />
       )}
       {done ? <Notice tone="success" message={`✓ ${done}`} testID="food-added" /> : null}
-      <FoodRejectedNotice />
+      {planMode ? <PlanRejectedNotice /> : <FoodRejectedNotice />}
+      {dayFull ? <Notice tone="info" message={t.plan.dayFull} testID="plan-day-full" /> : null}
       <View style={styles.searchRow}>
         <View style={styles.searchField}>
           <TextField
@@ -743,40 +813,51 @@ function FoodAdd({
             testID="food-search"
           />
         </View>
-        <Button
-          variant="secondary"
-          label={s.open}
-          accessibilityLabel={s.openLabel}
-          onPress={() => openCamera({ kind: 'scan' })}
-          testID="food-scan"
-        />
-      </View>
-      <View style={styles.shortcuts}>
-        <View style={styles.shortcut}>
+        {/* The shortcuts that read food in front of the user are not for planning (spec 013 AC5). */}
+        {planMode ? null : (
           <Button
             variant="secondary"
-            label={t.food.shortcuts.photo}
-            accessibilityLabel={t.food.shortcuts.photoLabel}
-            onPress={() => openCamera({ kind: 'platePhoto' })}
-            disabled={!online}
-            testID="food-plate-photo"
+            label={s.open}
+            accessibilityLabel={s.openLabel}
+            onPress={() => openCamera({ kind: 'scan' })}
+            testID="food-scan"
           />
-        </View>
-        <View style={styles.shortcut}>
-          <Button
-            variant="secondary"
-            label={t.food.shortcuts.describe}
-            accessibilityLabel={t.food.shortcuts.describeLabel}
-            onPress={() => setStep({ kind: 'describe', text: '' })}
-            disabled={!online}
-            testID="food-describe"
-          />
-        </View>
+        )}
       </View>
+      {planMode ? null : (
+        <View style={styles.shortcuts}>
+          <View style={styles.shortcut}>
+            <Button
+              variant="secondary"
+              label={t.food.shortcuts.photo}
+              accessibilityLabel={t.food.shortcuts.photoLabel}
+              onPress={() => openCamera({ kind: 'platePhoto' })}
+              disabled={!online}
+              testID="food-plate-photo"
+            />
+          </View>
+          <View style={styles.shortcut}>
+            <Button
+              variant="secondary"
+              label={t.food.shortcuts.describe}
+              accessibilityLabel={t.food.shortcuts.describeLabel}
+              onPress={() => setStep({ kind: 'describe', text: '' })}
+              disabled={!online}
+              testID="food-describe"
+            />
+          </View>
+        </View>
+      )}
       {online ? null : (
         <>
           <Notice tone="info" message={a.offline} testID="food-search-offline" />
-          <Notice tone="info" message={t.food.shortcuts.offline} testID="food-shortcuts-offline" />
+          {planMode ? null : (
+            <Notice
+              tone="info"
+              message={t.food.shortcuts.offline}
+              testID="food-shortcuts-offline"
+            />
+          )}
         </>
       )}
       {list}

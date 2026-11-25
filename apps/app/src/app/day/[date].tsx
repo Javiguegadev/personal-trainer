@@ -1,5 +1,6 @@
 import {
   IsoDateSchema,
+  MEAL_TYPES,
   WORKOUT_LIMITS,
   type PlannedWorkout,
   type Profile,
@@ -80,8 +81,9 @@ import { profileActivities, profileWeek } from '@/lib/week';
  * ("Cómo estaba"), the shift it tells and the shift overlap notices come from spec 011 (AC5, AC11,
  * AC12). The plan (spec 013): pending planned items under each meal with "Registrar lo planificado"
  * (AC8), the pending planned sessions with "Empezar", "Hecho" or "Registrar" (AC14–AC17), their notices
- * (AC13) and "Plan del día" with the planned energy (AC4); a future day lists its planned meals there.
- * Past days older than 27 days show only what was logged.
+ * (AC13) and "Plan del día" with the planned energy and "Añadir al plan" per meal (AC4); a future day
+ * lists its planned meals there. Today and future days offer "Planificar entreno" (AC10), and a planned
+ * session opens its sheet (AC12). Past days older than 27 days show only what was logged.
  */
 export default function DayRoute() {
   const { t } = useI18n();
@@ -211,6 +213,9 @@ function DayScreen({
     return live ? null : 'start';
   };
   const openPlanned = (id: string) => router.push({ pathname: '/plan/item/[id]', params: { id } });
+  /** "Planificar entreno" (spec 013 AC10) and a planned session to change (AC12). */
+  const planSession = (id?: string) =>
+    router.push({ pathname: '/plan/workout', params: id ? { id } : { date } });
 
   let logged;
   if (access === 'future') logged = null;
@@ -336,7 +341,7 @@ function DayScreen({
         </Card>
       ) : null}
       <DayNotices notices={notices} activities={week.plannedActivities} date={date} today={today} />
-      {pendingSessions.length > 0 ? (
+      {pendingSessions.length > 0 || plannable ? (
         <Card title={t.plan.sessionsTitle} testID="day-planned-sessions">
           {pendingSessions.map((planned) => {
             const action = sessionAction(planned);
@@ -351,56 +356,22 @@ function DayScreen({
                     ? draftGuard.guard(() => startPlanned(planned))
                     : startPlanned(planned)
                 }
+                onOpen={plannable ? () => planSession(planned.id) : undefined}
               />
             );
           })}
-          {draftGuard.notice}
+          {pendingSessions.length > 0 ? draftGuard.notice : null}
+          {plannable ? (
+            <Button
+              variant="secondary"
+              label={t.plan.workout.open}
+              onPress={() => planSession()}
+              testID="day-plan-workout"
+            />
+          ) : null}
         </Card>
       ) : null}
       <PlanNotices notices={planNoticeList} planned={planSessions} />
-      {plannable && (energy || futureMeals.length > 0) ? (
-        <Card title={t.plan.dayTitle} testID="day-plan">
-          {energy ? (
-            <AppText tone="muted" testID="day-plan-energy">
-              {energy.targetKcal === null
-                ? format(t.plan.energyOnly, { kcal: formatNumber(energy.kcal, locale) })
-                : format(t.plan.energy, {
-                    kcal: formatNumber(energy.kcal, locale),
-                    target: formatNumber(energy.targetKcal, locale),
-                  })}
-            </AppText>
-          ) : null}
-          {futureMeals.map((meal) => (
-            <View key={meal.mealType} style={styles.planMeal} testID={`day-plan-${meal.mealType}`}>
-              <AppText weight="bold">
-                {[
-                  t.food.meals[meal.mealType],
-                  meal.kcal === null
-                    ? null
-                    : format(t.food.kcal, { value: formatNumber(meal.kcal, locale) }),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </AppText>
-              {meal.items.map((item) => (
-                <Pressable
-                  key={item.id}
-                  role="button"
-                  accessibilityLabel={format(t.plan.openPlanned, { food: item.label })}
-                  onPress={() => openPlanned(item.id)}
-                  style={({ pressed }) => [styles.planItem, { opacity: pressed ? 0.6 : 1 }]}
-                  testID="day-plan-item"
-                >
-                  <AppText style={styles.flex}>
-                    {[item.label, formatPortion(item, locale)].filter(Boolean).join(' · ')}
-                  </AppText>
-                  {pendingPlan.includes(item.id) ? <SyncBadge /> : null}
-                </Pressable>
-              ))}
-            </View>
-          ))}
-        </Card>
-      ) : null}
       {access === 'future' ? null : <DayCheckin checkin={checkin} date={date} access={access} />}
       {logged}
       {access === 'read_only' ? (
@@ -447,6 +418,73 @@ function DayScreen({
           )}
         </View>
       ) : null}
+      {/* Under the logged meals on today (spec 013 AC4). */}
+      {plannable ? (
+        <Card title={t.plan.dayTitle} testID="day-plan">
+          {energy ? (
+            <AppText tone="muted" testID="day-plan-energy">
+              {energy.targetKcal === null
+                ? format(t.plan.energyOnly, { kcal: formatNumber(energy.kcal, locale) })
+                : format(t.plan.energy, {
+                    kcal: formatNumber(energy.kcal, locale),
+                    target: formatNumber(energy.targetKcal, locale),
+                  })}
+            </AppText>
+          ) : null}
+          {futureMeals.map((meal) => (
+            <View key={meal.mealType} style={styles.planMeal} testID={`day-plan-${meal.mealType}`}>
+              <AppText weight="bold">
+                {[
+                  t.food.meals[meal.mealType],
+                  meal.kcal === null
+                    ? null
+                    : format(t.food.kcal, { value: formatNumber(meal.kcal, locale) }),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </AppText>
+              {meal.items.map((item) => (
+                <Pressable
+                  key={item.id}
+                  role="button"
+                  accessibilityLabel={format(t.plan.openPlanned, { food: item.label })}
+                  onPress={() => openPlanned(item.id)}
+                  style={({ pressed }) => [styles.planItem, { opacity: pressed ? 0.6 : 1 }]}
+                  testID="day-plan-item"
+                >
+                  <AppText style={styles.flex}>
+                    {[item.label, formatPortion(item, locale)].filter(Boolean).join(' · ')}
+                  </AppText>
+                  {pendingPlan.includes(item.id) ? <SyncBadge /> : null}
+                </Pressable>
+              ))}
+            </View>
+          ))}
+          {access === 'future' && futureMeals.length === 0 ? (
+            <AppText tone="muted" testID="day-plan-empty">
+              {t.plan.dayEmpty}
+            </AppText>
+          ) : null}
+          {/* "Añadir al plan" per meal (spec 013 AC4): the add screen in plan mode (AC5). */}
+          <View style={styles.planAdd} testID="day-plan-add">
+            <AppText variant="label">{t.plan.addToPlan}</AppText>
+            <View style={styles.planAddMeals}>
+              {MEAL_TYPES.map((meal) => (
+                <Button
+                  key={meal}
+                  variant="secondary"
+                  label={t.food.meals[meal]}
+                  accessibilityLabel={format(t.plan.addToPlanMeal, { meal: t.food.meals[meal] })}
+                  onPress={() =>
+                    router.push({ pathname: '/food/add', params: { date, meal, plan: '1' } })
+                  }
+                  testID={`day-plan-add-${meal}`}
+                />
+              ))}
+            </View>
+          </View>
+        </Card>
+      ) : null}
     </Screen>
   );
 }
@@ -456,6 +494,8 @@ const styles = StyleSheet.create({
   choice: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
   loading: { marginVertical: tokens.space.lg },
   planMeal: { gap: tokens.space.xs },
+  planAdd: { gap: tokens.space.xs },
+  planAddMeals: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
   planItem: {
     minHeight: tokens.layout.minTouchTarget,
     flexDirection: 'row',

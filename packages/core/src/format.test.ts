@@ -7,6 +7,7 @@ import {
   formatNumber,
   formatShortDate,
   formatWeekdayDay,
+  formatWeekdayLongDay,
   parseDecimal,
 } from './format';
 
@@ -51,6 +52,8 @@ describe('date labels', () => {
     expect(formatShortDate('2026-11-01', 'es')).toMatch(/^1 nov/);
     expect(formatShortDate('2025-11-13', 'en', true)).toMatch(/13 Nov.*2025/);
     expect(formatWeekdayDay('2026-11-13', 'es')).toMatch(/vie.*13/);
+    expect(formatWeekdayLongDay('2026-11-13', 'es')).toMatch(/^viernes,? 13$/);
+    expect(formatWeekdayLongDay('2026-11-13', 'en')).toMatch(/Friday.*13/);
   });
 });
 

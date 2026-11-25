@@ -51,6 +51,11 @@ export function formatShortDate(isoDate: string, locale: Locale, withYear = fals
   });
 }
 
+/** "jueves 27" / "Thursday 27": a day inside the next weeks (spec 013 AC5). */
+export function formatWeekdayLongDay(isoDate: string, locale: Locale): string {
+  return formatDay(isoDate, locale, { weekday: 'long', day: 'numeric' });
+}
+
 /** "vie 13" / "Fri 13": a day chip. */
 export function formatWeekdayDay(isoDate: string, locale: Locale): string {
   return formatDay(isoDate, locale, { weekday: 'short', day: 'numeric' });

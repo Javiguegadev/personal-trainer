@@ -1,17 +1,20 @@
-import type { PlannedMealItem } from '@pt/contracts';
+import { MEAL_TYPES, type MealType, type PlannedMealItem } from '@pt/contracts';
 import {
   formatLongDate,
   formatNumber,
   formatPortion,
   initialPortion,
   itemPortion,
+  planTargetWeeks,
   showsFoodNumbers,
 } from '@pt/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
 import { Button } from '@/components/Button';
+import { ChoiceGroup } from '@/components/ChoiceGroup';
+import { DaySelector } from '@/components/DaySelector';
 import { Notice } from '@/components/Notice';
 import { PortionSheet } from '@/components/PortionSheet';
 import { Screen } from '@/components/Screen';
@@ -21,9 +24,10 @@ import { useToday } from '@/hooks/useToday';
 import { useFavouriteFoods, useFood, useMe, usePlan, useSetFavouriteFood } from '@/lib/api';
 
 /**
- * A planned item (spec 013 AC9), opened over the tabs. On today or a past day: the portion sheet with
+ * A planned item, opened over the tabs. On today or a past day (spec 013 AC9): the portion sheet with
  * the planned portion, "Registrar" (the portion can be changed first) and "Quitar del plan" with an
- * undo. A planned item of a future day cannot be logged.
+ * undo. On a future day (AC6): its portion, its meal and its day (inside the horizon) can be changed,
+ * or it is removed with an undo; it cannot be logged.
  */
 export default function PlannedItemRoute() {
   const { t } = useI18n();
@@ -48,28 +52,82 @@ export default function PlannedItemRoute() {
       </Screen>
     );
   }
+  const showNumbers = showsFoodNumbers(me.data.profile.safetyFlags);
+  if (item.localDate > today) {
+    return <PlannedItemEditor item={item} today={today} showNumbers={showNumbers} close={close} />;
+  }
+  return <PlannedItemSheet item={item} showNumbers={showNumbers} close={close} />;
+}
+
+/** "Quitar del plan" with its undo (AC6, AC9). */
+function RemoveButton({ item, close }: { item: PlannedMealItem; close: () => void }) {
+  const { t, format } = useI18n();
+  const actions = usePlanActions();
   return (
-    <PlannedItemSheet
-      item={item}
-      canLog={item.localDate <= today}
-      showNumbers={showsFoodNumbers(me.data.profile.safetyFlags)}
-      close={close}
+    <Button
+      variant="secondary"
+      label={t.plan.item.remove}
+      onPress={() => {
+        actions.removeItems([item], format(t.plan.item.removed, { food: item.label }));
+        close();
+      }}
+      testID="plan-item-remove"
     />
   );
 }
 
+/** The item as it was planned, when there is no catalog food to change its portion with. */
+function PlannedItemSummary({
+  item,
+  showNumbers,
+  when,
+  children,
+  footer,
+}: {
+  item: PlannedMealItem;
+  showNumbers: boolean;
+  when: string;
+  children: ReactNode;
+  footer: ReactNode;
+}) {
+  const { t, format, locale } = useI18n();
+  const portionText = formatPortion(item, locale);
+  return (
+    <Screen testID="plan-item-sheet" footer={footer}>
+      <AppText variant="title">{item.label}</AppText>
+      <AppText tone="muted" testID="plan-item-when">
+        {when}
+      </AppText>
+      {portionText ? <AppText tone="muted">{portionText}</AppText> : null}
+      {showNumbers ? (
+        <AppText weight="bold">
+          {format(t.food.kcal, { value: formatNumber(Math.round(item.nutrients.kcal), locale) })}
+        </AppText>
+      ) : null}
+      {children}
+    </Screen>
+  );
+}
+
+function usePlannedWhen(item: PlannedMealItem): string {
+  const { t, format, locale } = useI18n();
+  return format(t.plan.item.plannedFor, {
+    meal: t.food.meals[item.mealType],
+    day: formatLongDate(item.localDate, locale),
+  });
+}
+
+/** Today or a past day (AC9): log it, with the portion chosen, or remove it. */
 function PlannedItemSheet({
   item,
-  canLog,
   showNumbers,
   close,
 }: {
   item: PlannedMealItem;
-  canLog: boolean;
   showNumbers: boolean;
   close: () => void;
 }) {
-  const { t, format, locale } = useI18n();
+  const { t, locale } = useI18n();
   const actions = usePlanActions();
   const setFavourite = useSetFavouriteFood();
   const favourites = useFavouriteFoods(locale);
@@ -77,23 +135,9 @@ function PlannedItemSheet({
   // The servings come from the catalog: a quick add, or a food that left it, has none.
   const food = useFood(portion ? item.foodId : null, locale);
   const i = t.plan.item;
-  const when = format(i.plannedFor, {
-    meal: t.food.meals[item.mealType],
-    day: formatLongDate(item.localDate, locale),
-  });
-  const remove = (
-    <Button
-      variant="secondary"
-      label={i.remove}
-      onPress={() => {
-        actions.removeItems([item], format(i.removed, { food: item.label }));
-        close();
-      }}
-      testID="plan-item-remove"
-    />
-  );
+  const when = usePlannedWhen(item);
 
-  if (canLog && portion && food.data) {
+  if (portion && food.data) {
     const catalogFood = food.data;
     const favourite = favourites.data?.some((f) => f.id === catalogFood.id) ?? false;
     return (
@@ -116,47 +160,143 @@ function PlannedItemSheet({
         <AppText tone="muted" testID="plan-item-when">
           {when}
         </AppText>
-        {remove}
+        <RemoveButton item={item} close={close} />
       </PortionSheet>
     );
   }
   if (food.isLoading) return <BlockingState />;
 
-  const portionText = formatPortion(item, locale);
   return (
-    <Screen
-      testID="plan-item-sheet"
+    <PlannedItemSummary
+      item={item}
+      showNumbers={showNumbers}
+      when={when}
       footer={
         <>
-          {canLog ? (
-            <Button
-              label={i.register}
-              onPress={() => {
-                actions.logPlanned([item]);
-                close();
-              }}
-              testID="portion-submit"
-            />
-          ) : null}
+          <Button
+            label={i.register}
+            onPress={() => {
+              actions.logPlanned([item]);
+              close();
+            }}
+            testID="portion-submit"
+          />
           <Button variant="ghost" label={i.close} onPress={close} testID="portion-cancel" />
         </>
       }
     >
-      <AppText variant="title">{item.label}</AppText>
-      <AppText tone="muted" testID="plan-item-when">
-        {when}
-      </AppText>
-      {portionText ? <AppText tone="muted">{portionText}</AppText> : null}
-      {showNumbers ? (
-        <AppText weight="bold">
-          {format(t.food.kcal, { value: formatNumber(Math.round(item.nutrients.kcal), locale) })}
-        </AppText>
-      ) : null}
       {/* A portion without its food: it left the catalog, or it is not on the device (offline). */}
-      {canLog && portion ? (
-        <Notice tone="info" message={i.moveOnly} testID="plan-item-as-planned" />
-      ) : null}
-      {remove}
-    </Screen>
+      {portion ? <Notice tone="info" message={i.moveOnly} testID="plan-item-as-planned" /> : null}
+      <RemoveButton item={item} close={close} />
+    </PlannedItemSummary>
+  );
+}
+
+/** The days a planned item can move to (AC6): today to the end of the horizon. */
+const horizonDays = (today: string): string[] =>
+  planTargetWeeks(today).flatMap((week) => week.days);
+
+/** A future day (AC6): its portion, meal and day can change, or it is removed; never logged. */
+function PlannedItemEditor({
+  item,
+  today,
+  showNumbers,
+  close,
+}: {
+  item: PlannedMealItem;
+  today: string;
+  showNumbers: boolean;
+  close: () => void;
+}) {
+  const { t, locale } = useI18n();
+  const actions = usePlanActions();
+  const setFavourite = useSetFavouriteFood();
+  const favourites = useFavouriteFoods(locale);
+  const portion = itemPortion(item);
+  const food = useFood(portion ? item.foodId : null, locale);
+  const [mealType, setMealType] = useState<MealType>(item.mealType);
+  const [day, setDay] = useState(item.localDate);
+  const i = t.plan.item;
+  const when = usePlannedWhen(item);
+
+  const placement = (
+    <>
+      <ChoiceGroup
+        label={i.meal}
+        options={MEAL_TYPES.map((value) => ({ value, label: t.food.meals[value] }))}
+        value={mealType}
+        onChange={setMealType}
+        testID="plan-item-meal"
+      />
+      <DaySelector
+        label={i.day}
+        days={horizonDays(today)}
+        today={today}
+        value={day}
+        onChange={setDay}
+        layout="scroll"
+        testID="plan-item-day"
+      />
+      <RemoveButton item={item} close={close} />
+    </>
+  );
+
+  if (portion && food.data) {
+    const catalogFood = food.data;
+    const favourite = favourites.data?.some((f) => f.id === catalogFood.id) ?? false;
+    return (
+      <PortionSheet
+        food={catalogFood}
+        initial={initialPortion(catalogFood, portion)}
+        favourite={favourite}
+        onToggleFavourite={() =>
+          setFavourite.mutate({ food: catalogFood, favourite: !favourite, locale })
+        }
+        showNumbers={showNumbers}
+        submitLabel={i.save}
+        onSubmit={(next) => {
+          actions.changeItem(
+            item,
+            { localDate: day, mealType },
+            { food: catalogFood, portion: next },
+          );
+          close();
+        }}
+        onCancel={close}
+        testID="plan-item-sheet"
+      >
+        <AppText tone="muted" testID="plan-item-when">
+          {when}
+        </AppText>
+        {placement}
+      </PortionSheet>
+    );
+  }
+  if (food.isLoading) return <BlockingState />;
+
+  return (
+    <PlannedItemSummary
+      item={item}
+      showNumbers={showNumbers}
+      when={when}
+      footer={
+        <>
+          <Button
+            label={i.save}
+            onPress={() => {
+              if (day !== item.localDate || mealType !== item.mealType) {
+                actions.changeItem(item, { localDate: day, mealType }, null);
+              }
+              close();
+            }}
+            testID="portion-submit"
+          />
+          <Button variant="ghost" label={i.close} onPress={close} testID="portion-cancel" />
+        </>
+      }
+    >
+      {portion ? <Notice tone="info" message={i.keepOnly} testID="plan-item-keep-only" /> : null}
+      {placement}
+    </PlannedItemSummary>
   );
 }
