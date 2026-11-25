@@ -259,5 +259,19 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
+  - Plan approved by the human (2026-11-25) with: `GET /me/review` takes the app's `today` and reviews
+    only the last complete week (no backfill); clearing an optional item in "Lo que sé de ti" waits 5 s
+    with an undo before it is sent; the calibration survives a goal change (only "Volver al cálculo
+    inicial" resets it).
+  - Contracts: `CappedFeatureSchema` names the capped AI features as `ai_usage.feature` does; the
+    proposal stores `fromKcal` and `toKcal` as shown, besides `kcalDelta` (the calibration change). The
+    review response also carries `history` (the 4 reviews before) and `firstReviewOn`.
+  - DB (2026-11-25): migration `0014_weekly_review` applied to dev; the unique (user, week) index is the
+    only index (it serves the newest-first reads).
+  - Core: a −100 kcal calibration lowers the target a little less than 100 kcal on `lose`, because the
+    deficit (a share of the TDEE) is computed again on the calibrated TDEE; the proposal shows the real
+    before and after ("2.310 → 2.230 kcal"). Gates are checked in this order: logging, sleep/stress,
+    bound, floor; the reasons list the rate reason and the first gate that stopped it. The exhaustive
+    routine test of spec 010 got its own 20 s timeout (it ran near 5 s with the whole repo testing).
