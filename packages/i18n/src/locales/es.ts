@@ -1381,6 +1381,7 @@ export const es = {
     dotLogged: 'Comida registrada',
     plannedMeals: 'Comidas planificadas: {meals}',
     tag: 'Plan',
+    registered: '✓ Registrado del plan',
     addToPlan: 'Añadir al plan',
     addToPlanMeal: 'Añadir al plan: {meal}',
     addTitle: 'Planificar · {meal} del {day}',

@@ -1369,6 +1369,7 @@ export const en: DeepStringRecord<typeof es> = {
     dotLogged: 'Logged meal',
     plannedMeals: 'Planned meals: {meals}',
     tag: 'Plan',
+    registered: '✓ Logged from the plan',
     addToPlan: 'Add to plan',
     addToPlanMeal: 'Add to plan: {meal}',
     addTitle: 'Planning · {meal} on {day}',

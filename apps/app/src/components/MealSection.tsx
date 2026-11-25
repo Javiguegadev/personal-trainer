@@ -104,6 +104,12 @@ export function MealSection({
                   {portion}
                 </AppText>
               ) : null}
+              {/* A planned item that was logged (spec 013 AC9): no longer pending. */}
+              {item.plannedItemId ? (
+                <AppText variant="caption" tone="muted" testID="meal-item-registered">
+                  {t.plan.registered}
+                </AppText>
+              ) : null}
               {pendingIds.includes(item.id) ? <SyncBadge /> : null}
             </View>
             {showNumbers ? (
