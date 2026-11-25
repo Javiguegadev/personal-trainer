@@ -239,41 +239,51 @@ describe('starterRoutine (spec 010 AC15)', () => {
     expect(body.map((e) => e.exerciseId)).toContain(idOf('flexiones'));
   });
 
-  it('gives every combination valid sessions with at least 4 exercises and no repeats', () => {
-    for (const experience of EXPERIENCES) {
-      for (const equipment of EQUIPMENT) {
-        for (const focus of FOCUSES) {
-          for (const days of [1, 2, 3, 4, 5, 6, 7]) {
-            for (const minutes of [20, 30, 45, 60, 90]) {
-              for (const teen of [false, true]) {
-                const flags = teen ? (['teen_limited'] as const) : [];
-                const routine = build({ days, minutes, experience, equipment, focus, flags })!;
-                const label = `${experience} ${equipment} ${focus} ${days} d ${minutes} min`;
-                // The routine is never more frequent than the declared days (ed_soft_stop).
-                expect(routine.sessions.length, label).toBeLessThanOrEqual(days);
-                if (teen) expect(routine.sessions.length, label).toBeLessThanOrEqual(4);
-                for (const session of routine.sessions) {
-                  const keys = session.exercises.map((e) => e.exerciseId);
-                  expect(keys.length, label).toBeGreaterThanOrEqual(4);
-                  expect(new Set(keys).size, label).toBe(keys.length);
-                  // Never longer than the declared minutes above 30 (ed_soft_stop).
-                  const seconds = session.exercises.reduce((sum, e) => sum + exerciseSeconds(e), 0);
-                  if (minutes > 30) {
-                    expect(seconds / 60 + WARM_UP_MINUTES, label).toBeLessThanOrEqual(minutes);
+  // Every combination (over 3,000 routines): near the default 5 s when the whole repo tests at once.
+  it(
+    'gives every combination valid sessions with at least 4 exercises and no repeats',
+    {
+      timeout: 20_000,
+    },
+    () => {
+      for (const experience of EXPERIENCES) {
+        for (const equipment of EQUIPMENT) {
+          for (const focus of FOCUSES) {
+            for (const days of [1, 2, 3, 4, 5, 6, 7]) {
+              for (const minutes of [20, 30, 45, 60, 90]) {
+                for (const teen of [false, true]) {
+                  const flags = teen ? (['teen_limited'] as const) : [];
+                  const routine = build({ days, minutes, experience, equipment, focus, flags })!;
+                  const label = `${experience} ${equipment} ${focus} ${days} d ${minutes} min`;
+                  // The routine is never more frequent than the declared days (ed_soft_stop).
+                  expect(routine.sessions.length, label).toBeLessThanOrEqual(days);
+                  if (teen) expect(routine.sessions.length, label).toBeLessThanOrEqual(4);
+                  for (const session of routine.sessions) {
+                    const keys = session.exercises.map((e) => e.exerciseId);
+                    expect(keys.length, label).toBeGreaterThanOrEqual(4);
+                    expect(new Set(keys).size, label).toBe(keys.length);
+                    // Never longer than the declared minutes above 30 (ed_soft_stop).
+                    const seconds = session.exercises.reduce(
+                      (sum, e) => sum + exerciseSeconds(e),
+                      0,
+                    );
+                    if (minutes > 30) {
+                      expect(seconds / 60 + WARM_UP_MINUTES, label).toBeLessThanOrEqual(minutes);
+                    }
                   }
+                  const request = programToRequest(routine, {
+                    recordedAt: '2026-11-20T10:00:00.000Z',
+                    locale: 'es',
+                  });
+                  expect(ProgramUpsertRequestSchema.safeParse(request).success, label).toBe(true);
                 }
-                const request = programToRequest(routine, {
-                  recordedAt: '2026-11-20T10:00:00.000Z',
-                  locale: 'es',
-                });
-                expect(ProgramUpsertRequestSchema.safeParse(request).success, label).toBe(true);
               }
             }
           }
         }
       }
-    }
-  });
+    },
+  );
 
   it('gives every bodyweight session a pull, no bench dips, and easier push-ups to beginners', () => {
     for (const experience of EXPERIENCES) {
