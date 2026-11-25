@@ -20,6 +20,10 @@ import type {
   Exercise,
   Workout,
   PlannedActivity,
+  PlanDelete,
+  PlannedMealItem,
+  PlannedWorkout,
+  PlanResponse,
   Program,
   TrainingProfileUpdate,
   Week,
@@ -325,8 +329,41 @@ export interface Store {
     recordedAt: string,
   ): Promise<DailyCheckin | null>;
   /** Who owns a routine session (AC18): the user (live or deleted routine), someone else, or nobody. */
-  programSessionOwner(userId: string, sessionId: string): Promise<'own' | 'other' | 'missing'>;
+  programSessionOwner(userId: string, sessionId: string): Promise<Ownership>;
+
+  // Weekly planner (spec 013)
+  /**
+   * Live planned items and sessions dated from `from` to `to` (inclusive): items by day and then by
+   * `recordedAt`, sessions by day and start time. A repeat link to a deleted workout reads as null; a
+   * routine link is returned as stored (a session of a deleted routine is stale for `@pt/core`).
+   */
+  listPlan(userId: string, from: string, to: string): Promise<PlanResponse>;
+  /**
+   * In one transaction (AC23): marks each delete's row deleted unless it was recorded after the delete,
+   * and stores each row unless the stored row of that id (live or deleted) was recorded later. Returns
+   * the live rows of the stored ids after the write (the newer ones where another write won).
+   * `id_taken`: an id of `rows` belongs to another user, and nothing is written.
+   */
+  writePlannedMealItems(
+    userId: string,
+    rows: readonly PlannedMealItem[],
+    deletes: readonly PlanDelete[],
+  ): Promise<PlannedMealItem[] | 'id_taken'>;
+  /** The same for planned sessions (AC23). */
+  writePlannedWorkouts(
+    userId: string,
+    rows: readonly PlannedWorkout[],
+    deletes: readonly PlanDelete[],
+  ): Promise<PlannedWorkout[] | 'id_taken'>;
+  /** Who owns a planned item or session, deleted or not (a log's link, AC23). */
+  plannedItemOwner(userId: string, id: string): Promise<Ownership>;
+  plannedWorkoutOwner(userId: string, id: string): Promise<Ownership>;
+  /** Who owns a workout, deleted or not (the "Repetir" link of a planned session). */
+  workoutOwner(userId: string, id: string): Promise<Ownership>;
 }
+
+/** Whose row an id is: the user's, another user's, or nobody's. */
+export type Ownership = 'own' | 'other' | 'missing';
 
 export type ProgramWriteConflict = 'id_taken' | 'program_exists';
 

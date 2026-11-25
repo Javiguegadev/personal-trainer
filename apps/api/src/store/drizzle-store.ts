@@ -10,6 +10,7 @@ import { and, asc, count, desc, eq, gte, isNull, lte, schema, sql, type Db } fro
 import type { Store } from '../deps';
 import { createCheckinStore, exportCheckins } from './checkin-store';
 import { createFoodStore, exportFoodLog } from './food-store';
+import { createPlanStore, exportPlan } from './plan-store';
 import { createTrainingStore, exportTrainingLog } from './training-store';
 
 const {
@@ -200,6 +201,7 @@ export function createDrizzleStore(db: Db): Store {
     ...createFoodStore(db),
     ...createTrainingStore(db),
     ...createCheckinStore(db),
+    ...createPlanStore(db),
 
     async getMe(userId) {
       const [[consent], [profile], profileRows, [prefs], [targets]] = await Promise.all([
@@ -555,8 +557,7 @@ export function createDrizzleStore(db: Db): Store {
         ...(await exportFoodLog(db, userId)),
         ...(await exportTrainingLog(db, userId)),
         checkins: await exportCheckins(db, userId),
-        // Stored with the planner's migration (spec 013, db step).
-        plan: { mealItems: [], workouts: [] },
+        plan: await exportPlan(db, userId),
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

@@ -10,7 +10,7 @@ import { ExportedPlanSchema } from './plan';
  * Version of the consent text shown to the user. Bump it when the text changes: a consent given to an
  * older version no longer counts, so the app asks again (spec 002 AC13, AC14).
  */
-export const CONSENT_VERSION = '2026-11-v9';
+export const CONSENT_VERSION = '2026-11-v10';
 
 export const ConsentKindSchema = z.enum(['health_data']);
 export type ConsentKind = z.infer<typeof ConsentKindSchema>;

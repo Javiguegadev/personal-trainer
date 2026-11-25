@@ -23,6 +23,9 @@ import type {
   ProfileInput,
   WeightEntry,
   CustomExerciseUpsertRequest,
+  PlanDelete,
+  PlannedMealItem,
+  PlannedWorkout,
   Exercise,
   Workout,
   Program,
@@ -71,6 +74,9 @@ interface UserRows {
   programs: (Program & { deletedAt: string | null })[];
   /** Daily check-ins, with deleted ones kept as tombstones (spec 011 AC15). */
   checkins: (DailyCheckin & { deletedAt: string | null })[];
+  /** The plan, with deleted rows kept as tombstones (spec 013 AC23). */
+  plannedMealItems: (PlannedMealItem & { deletedAt: string | null })[];
+  plannedWorkouts: (PlannedWorkout & { deletedAt: string | null })[];
 }
 
 /** A custom exercise as stored: its owner, write time and tombstone (spec 009). */
@@ -111,6 +117,8 @@ export class FakeStore implements Store {
         workouts: [],
         programs: [],
         checkins: [],
+        plannedMealItems: [],
+        plannedWorkouts: [],
       };
       this.users.set(userId, rows);
     }
@@ -416,6 +424,12 @@ export class FakeStore implements Store {
           item.servingId = null;
         }
       }
+      for (const item of rows.plannedMealItems) {
+        if (item.foodId === id) {
+          item.foodId = null;
+          item.servingId = null;
+        }
+      }
       rows.favourites = rows.favourites.filter((f) => f.foodId !== id);
     }
   }
@@ -653,6 +667,9 @@ export class FakeStore implements Store {
       for (const w of rows.workouts) {
         if (w.programSessionId === removed.id) w.programSessionId = null;
       }
+      for (const p of rows.plannedWorkouts) {
+        if (p.programSessionId === removed.id) p.programSessionId = null;
+      }
     }
     const next = {
       ...structuredClone(program),
@@ -682,6 +699,103 @@ export class FakeStore implements Store {
     return 'missing' as const;
   }
 
+  // Weekly planner (spec 013), same semantics as the Drizzle store.
+
+  async listPlan(userId: string, from: string, to: string) {
+    const rows = this.rows(userId);
+    const inRange = (r: { localDate: string; deletedAt: string | null }) =>
+      r.deletedAt === null && r.localDate >= from && r.localDate <= to;
+    const liveWorkout = (id: string | null) =>
+      id !== null && rows.workouts.some((w) => w.id === id && !w.deleted);
+    return {
+      mealItems: rows.plannedMealItems
+        .filter(inRange)
+        .sort(byDayThenTime)
+        .map(({ deletedAt: _, ...i }) => structuredClone(i)),
+      // A deleted workout to repeat leaves a free gym session with its name.
+      workouts: rows.plannedWorkouts
+        .filter(inRange)
+        .sort(byDayThenStart)
+        .map(({ deletedAt: _, ...w }) => ({
+          ...structuredClone(w),
+          repeatWorkoutId: liveWorkout(w.repeatWorkoutId) ? w.repeatWorkoutId : null,
+        })),
+    };
+  }
+
+  /** The bulk write of one plan table: deletes, then the rows; the later `recordedAt` wins. */
+  private writePlanRows<R extends { id: string; recordedAt: string }>(
+    userId: string,
+    table: 'plannedMealItems' | 'plannedWorkouts',
+    rows: readonly R[],
+    deletes: readonly PlanDelete[],
+  ): R[] | 'id_taken' {
+    const ids = new Set(rows.map((r) => r.id));
+    for (const [owner, other] of this.users) {
+      if (owner !== userId && other[table].some((r) => ids.has(r.id))) return 'id_taken';
+    }
+    const own = this.rows(userId)[table] as unknown as (R & { deletedAt: string | null })[];
+    for (const d of deletes) {
+      const stored = own.find((r) => r.id === d.id);
+      if (stored && Date.parse(stored.recordedAt) <= Date.parse(d.recordedAt)) {
+        stored.deletedAt ??= NOW.toISOString();
+        stored.recordedAt = new Date(d.recordedAt).toISOString();
+      }
+    }
+    for (const row of rows) {
+      const index = own.findIndex((r) => r.id === row.id);
+      const stored = own[index];
+      if (stored && Date.parse(stored.recordedAt) > Date.parse(row.recordedAt)) continue;
+      const next = {
+        ...structuredClone(row),
+        recordedAt: new Date(row.recordedAt).toISOString(),
+        deletedAt: null,
+      };
+      if (index >= 0) own[index] = next;
+      else own.push(next);
+    }
+    return rows.flatMap((row) => {
+      const stored = own.find((r) => r.id === row.id && r.deletedAt === null);
+      if (!stored) return [];
+      return [(({ deletedAt: _, ...live }) => live as unknown as R)(structuredClone(stored))];
+    });
+  }
+
+  async writePlannedMealItems(
+    userId: string,
+    rows: readonly PlannedMealItem[],
+    deletes: readonly PlanDelete[],
+  ) {
+    return this.writePlanRows(userId, 'plannedMealItems', rows, deletes);
+  }
+
+  async writePlannedWorkouts(
+    userId: string,
+    rows: readonly PlannedWorkout[],
+    deletes: readonly PlanDelete[],
+  ) {
+    return this.writePlanRows(userId, 'plannedWorkouts', rows, deletes);
+  }
+
+  private ownerOf(test: (rows: UserRows) => boolean, userId: string) {
+    for (const [owner, rows] of this.users) {
+      if (test(rows)) return owner === userId ? ('own' as const) : ('other' as const);
+    }
+    return 'missing' as const;
+  }
+
+  async plannedItemOwner(userId: string, id: string) {
+    return this.ownerOf((rows) => rows.plannedMealItems.some((r) => r.id === id), userId);
+  }
+
+  async plannedWorkoutOwner(userId: string, id: string) {
+    return this.ownerOf((rows) => rows.plannedWorkouts.some((r) => r.id === id), userId);
+  }
+
+  async workoutOwner(userId: string, id: string) {
+    return this.ownerOf((rows) => rows.workouts.some((w) => w.id === id), userId);
+  }
+
   async exportUser(userId: string): Promise<ExportRecord> {
     const rows = this.rows(userId);
     return {
@@ -704,7 +818,10 @@ export class FakeStore implements Store {
         key: [...this.catalog, ...this.extraFoods].find((c) => c.id === f.foodId)?.key ?? '',
         createdAt: f.createdAt,
       })),
-      plan: { mealItems: [], workouts: [] },
+      plan: {
+        mealItems: structuredClone(rows.plannedMealItems).sort(byDayThenTime),
+        workouts: structuredClone(rows.plannedWorkouts).sort(byDayThenStart),
+      },
       consents: rows.consents,
       aiUsage: rows.aiUsage.map((u) => ({
         feature: u.feature,
@@ -943,8 +1060,16 @@ export function profileInput(overrides: Partial<ProfileInput> = {}): ProfileInpu
 const newestWorkoutFirst = (a: Workout, b: Workout) =>
   b.localDate.localeCompare(a.localDate) || b.startedAt.localeCompare(a.startedAt);
 
-const byDayThenTime = (a: MealItem, b: MealItem) =>
-  a.localDate.localeCompare(b.localDate) || a.recordedAt.localeCompare(b.recordedAt);
+const byDayThenTime = (
+  a: { localDate: string; recordedAt: string },
+  b: { localDate: string; recordedAt: string },
+) => a.localDate.localeCompare(b.localDate) || a.recordedAt.localeCompare(b.recordedAt);
+
+/** Planned sessions by day and start time, untimed last (as Postgres sorts nulls ascending). */
+const byDayThenStart = (a: PlannedWorkout, b: PlannedWorkout) =>
+  a.localDate.localeCompare(b.localDate) ||
+  (a.startMinute ?? 1440) - (b.startMinute ?? 1440) ||
+  a.recordedAt.localeCompare(b.recordedAt);
 
 /** Ids of the catalog fixture, so tests can refer to its foods and servings. */
 export const FOOD = {

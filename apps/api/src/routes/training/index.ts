@@ -167,7 +167,9 @@ export function trainingRoutes(deps: Deps) {
       400: error('Invalid body, day or set values, or too many workouts that day'),
       401: error('Unauthenticated'),
       403: error('Consent required'),
-      404: error('Unknown exercise, or another user’s exercise or routine session'),
+      404: error(
+        'Unknown exercise, or another user’s exercise, routine session or planned session',
+      ),
     },
   });
 
@@ -270,6 +272,14 @@ export function trainingRoutes(deps: Deps) {
         // A session removed from the routine before this write arrived (a queued workout): the
         // workout keeps its sets and loses the link, as when the session is removed later (AC22).
         if (owner === 'missing') workout.programSessionId = null;
+      }
+      if (workout.plannedWorkoutId !== null) {
+        const owner = await deps.store.plannedWorkoutOwner(userId, workout.plannedWorkoutId);
+        if (owner === 'other') {
+          return apiError(c, 404, 'not_found', { plannedWorkoutId: 'not_found' });
+        }
+        // A planned session that never reached the API: stored without the link (spec 013 AC23).
+        if (owner === 'missing') workout.plannedWorkoutId = null;
       }
       return c.json({ workout: await deps.store.upsertWorkout(userId, workout) }, 200);
     })

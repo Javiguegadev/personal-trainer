@@ -11,6 +11,7 @@ import { feedbackRoutes } from './routes/me/feedback';
 import { productRoutes } from './routes/foods/products';
 import { meRoutes } from './routes/me';
 import { onboardingRoutes } from './routes/onboarding';
+import { planRoutes } from './routes/plan';
 import { trainingRoutes } from './routes/training';
 
 export interface AppConfig {
@@ -36,6 +37,7 @@ export function createApp(config: AppConfig) {
     app.route('/', feedbackRoutes(config.deps));
     app.route('/', foodRoutes(config.deps));
     app.route('/', trainingRoutes(config.deps));
+    app.route('/', planRoutes(config.deps));
   }
 
   app.doc('/openapi.json', {

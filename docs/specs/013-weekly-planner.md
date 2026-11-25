@@ -363,7 +363,7 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - Contracts: `CONSENT_VERSION` was not bumped in the contracts step; it changes to `2026-11-v10` in the
     API step, with the 403 `consent_required` test (AC24). The `planned_workouts` minutes check is 1–600
@@ -388,3 +388,12 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
     `planChangesToRequests` (deletes first, cut at 300). An undo is stamped with the copy's time; the
     app stamps it again at undo time (`stampChanges`). `repeatableMeal` gains the plan (AC8).
     `WEEK_VIEW.weeksForward` is 3 (`PLAN_LIMITS.horizonWeeksAhead`).
+  - API (2026-11-25): `CONSENT_VERSION` is `2026-11-v10` and `consent.points.what` (es, en) names the
+    plans (AC24). A bulk write is checked as a whole and stored entirely or not at all; an error names
+    the change (`upserts.3.foodId`). The day limits count the request's own changes (a delete or a moved
+    row frees its place). Unlike the API contracts above, an unknown routine session or workout on a
+    planned session is not a 404: the session is stored without the link (a free gym session with its
+    name), as the Stale links rule and AC23 do for the logs, so a queued plan never gets refused;
+    another user's stays 404. `GET /me/plan` returns routine links as stored and reads a repeat link to
+    a deleted workout as null. The account-deletion integration test covers both tables and passed on
+    dev.

@@ -43,6 +43,9 @@ describe('user routes', () => {
       '/me/training-profile',
       '/me/program',
       '/me/program/{id}',
+      '/me/plan',
+      '/me/plan/meal-items',
+      '/me/plan/workouts',
     ]) {
       expect(doc.paths).toHaveProperty([path]);
     }

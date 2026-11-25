@@ -51,8 +51,7 @@ function toMealItem(row: MealItemRow): MealItem {
       fiberG: row.fiberG,
     },
     inputMethod: row.inputMethod,
-    // Stored with the planner's migration (spec 013, db step).
-    plannedItemId: null,
+    plannedItemId: row.plannedItemId,
     recordedAt: row.recordedAt.toISOString(),
   };
 }
@@ -185,6 +184,7 @@ export function createFoodStore(db: Db): FoodStore {
         fatG: item.nutrients.fatG,
         fiberG: item.nutrients.fiberG,
         inputMethod: item.inputMethod,
+        plannedItemId: item.plannedItemId,
         recordedAt: new Date(item.recordedAt),
         deletedAt: null,
       };

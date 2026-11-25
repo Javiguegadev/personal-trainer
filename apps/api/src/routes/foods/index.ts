@@ -128,7 +128,7 @@ export function foodRoutes(deps: Deps) {
       400: error('Invalid body, day or portion, or too many items that day'),
       401: error('Unauthenticated'),
       403: error('Consent required'),
-      404: error('Unknown food'),
+      404: error('Unknown food, or another user’s planned item'),
     },
   });
 
@@ -266,6 +266,15 @@ export function foodRoutes(deps: Deps) {
           return item.error === 'food_not_found'
             ? apiError(c, 404, 'not_found', { foodId: 'not_found' })
             : apiError(c, 400, 'validation_error', { 'portion.servingId': 'not_found' });
+        }
+        if (item.plannedItemId !== null) {
+          const owner = await deps.store.plannedItemOwner(userId, item.plannedItemId);
+          if (owner === 'other') {
+            return apiError(c, 404, 'not_found', { plannedItemId: 'not_found' });
+          }
+          // A planned item that never reached the API: the item is stored without the link, so the
+          // queue never gets stuck (spec 013 AC23).
+          if (owner === 'missing') item.plannedItemId = null;
         }
         const onDay = await deps.store.countMealItems(userId, body.localDate);
         if (onDay >= FOOD_LOG_LIMITS.itemsPerDayMax) {

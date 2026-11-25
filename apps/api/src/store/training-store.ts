@@ -144,8 +144,7 @@ function toWorkout(row: WorkoutRow, sets: SetRow[]): Workout {
     sessionRpe: row.sessionRpe,
     inputMethod: row.inputMethod,
     programSessionId: row.programSessionId,
-    // Stored with the planner's migration (spec 013, db step).
-    plannedWorkoutId: null,
+    plannedWorkoutId: row.plannedWorkoutId,
     exercises: [...byPosition.values()],
     recordedAt: row.recordedAt.toISOString(),
   };
@@ -310,6 +309,7 @@ export function createTrainingStore(db: Db): TrainingStore {
           sessionRpe: workout.sessionRpe,
           inputMethod: workout.inputMethod,
           programSessionId: workout.programSessionId,
+          plannedWorkoutId: workout.plannedWorkoutId,
           recordedAt: new Date(workout.recordedAt),
           deletedAt: null,
         };

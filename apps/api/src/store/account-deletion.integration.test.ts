@@ -46,6 +46,9 @@ const COVERED_USER_TABLES = [
   'program_exercises',
   // Spec 011: the daily check-in.
   'daily_checkins',
+  // Spec 013: the plan.
+  'planned_meal_items',
+  'planned_workouts',
 ] as const;
 
 describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
@@ -608,6 +611,132 @@ describe.skipIf(!enabled)('account deletion (AC24, dev DB)', () => {
       [yesterday, true],
       [TODAY, false],
     ]);
+
+    // Spec 013: the plan on the real SQL, its bulk writes with the rules of AC23, and the links.
+    const plannedEgg = {
+      id: crypto.randomUUID(),
+      localDate: TODAY,
+      mealType: 'dinner' as const,
+      foodId: egg.id,
+      servingId: egg.servings[0]!.id,
+      servings: 1,
+      servingLabel: egg.servings[0]!.labelEs,
+      grams: egg.servings[0]!.grams,
+      unit: 'g' as const,
+      label: egg.nameEs,
+      nutrients: { kcal: 80.5, proteinG: 6.5, carbsG: 0.5, fatG: 5.5, fiberG: null },
+      recordedAt: iso(9000),
+    };
+    const plannedQuick = {
+      ...plannedEgg,
+      id: crypto.randomUUID(),
+      mealType: 'lunch' as const,
+      foodId: null,
+      servingId: null,
+      servings: null,
+      servingLabel: null,
+      grams: null,
+      label: 'Menú AC25',
+    };
+    expect(await store.writePlannedMealItems(id, [plannedEgg, plannedQuick], [])).toEqual([
+      plannedEgg,
+      plannedQuick,
+    ]);
+    // Sent again older: it loses. A delete is a tombstone an older write cannot undo.
+    expect(
+      await store.writePlannedMealItems(
+        id,
+        [{ ...plannedEgg, mealType: 'breakfast', recordedAt: iso(8900) }],
+        [],
+      ),
+    ).toEqual([plannedEgg]);
+    expect(
+      await store.writePlannedMealItems(id, [], [{ id: plannedQuick.id, recordedAt: iso(9100) }]),
+    ).toEqual([]);
+    expect(
+      await store.writePlannedMealItems(id, [{ ...plannedQuick, recordedAt: iso(9050) }], []),
+    ).toEqual([]);
+    expect((await store.listPlan(id, TODAY, TODAY)).mealItems).toEqual([plannedEgg]);
+    expect(await store.writePlannedMealItems(crypto.randomUUID(), [plannedEgg], [])).toBe(
+      'id_taken',
+    );
+
+    const liveSession = second.sessions[0]!;
+    const plannedGym = {
+      id: crypto.randomUUID(),
+      localDate: TODAY,
+      startMinute: 1110,
+      kind: 'gym' as const,
+      activity: null,
+      name: liveSession.name,
+      minutes: 60,
+      isMatch: false,
+      programSessionId: liveSession.id as string | null,
+      repeatWorkoutId: null as string | null,
+      recordedAt: iso(9200),
+    };
+    // A session of the deleted routine keeps its link (its row is kept); core reads it as stale.
+    const staleGym = { ...plannedGym, id: crypto.randomUUID(), startMinute: null };
+    staleGym.programSessionId = sessionA;
+    const repeat = { ...plannedGym, id: crypto.randomUUID(), startMinute: 600, name: 'Pecho' };
+    repeat.programSessionId = null;
+    repeat.repeatWorkoutId = fromB.id;
+    const match = {
+      ...plannedGym,
+      id: crypto.randomUUID(),
+      startMinute: 660,
+      kind: 'sport' as const,
+      activity: 'football' as const,
+      name: null,
+      minutes: 90,
+      isMatch: true,
+      programSessionId: null,
+    };
+    expect(await store.writePlannedWorkouts(id, [plannedGym, staleGym, repeat, match], [])).toEqual(
+      [plannedGym, staleGym, repeat, match],
+    );
+    expect((await store.listPlan(id, TODAY, TODAY)).workouts.map((w) => w.id)).toEqual([
+      repeat.id,
+      match.id,
+      plannedGym.id,
+      staleGym.id,
+    ]);
+    // A deleted workout to repeat reads as a free gym session.
+    await store.deleteWorkout(id, fromB.id, iso(9300));
+    const afterDelete = (await store.listPlan(id, TODAY, TODAY)).workouts;
+    expect(afterDelete.find((w) => w.id === repeat.id)?.repeatWorkoutId).toBeNull();
+    expect(afterDelete.find((w) => w.id === staleGym.id)?.programSessionId).toBe(sessionA);
+    expect(await store.workoutOwner(id, fromB.id)).toBe('own');
+
+    // The logs link back to the plan; the plan row never changes when it is logged.
+    const fromPlan = {
+      ...item,
+      id: crypto.randomUUID(),
+      inputMethod: 'plan' as const,
+      plannedItemId: plannedEgg.id,
+      recordedAt: iso(9400),
+    };
+    expect((await store.upsertMealItem(id, fromPlan))?.plannedItemId).toBe(plannedEgg.id);
+    const doneWorkout = {
+      ...edited,
+      id: crypto.randomUUID(),
+      plannedWorkoutId: plannedGym.id,
+      recordedAt: iso(9400),
+    };
+    expect((await store.upsertWorkout(id, doneWorkout))?.plannedWorkoutId).toBe(plannedGym.id);
+    expect(await store.plannedItemOwner(id, plannedEgg.id)).toBe('own');
+    expect(await store.plannedItemOwner(crypto.randomUUID(), plannedEgg.id)).toBe('other');
+    expect(await store.plannedItemOwner(id, crypto.randomUUID())).toBe('missing');
+    expect(await store.plannedWorkoutOwner(id, plannedGym.id)).toBe('own');
+    const exportedPlan = await store.exportUser(id);
+    expect(exportedPlan.plan.mealItems.map((i) => [i.id, i.deletedAt !== null])).toEqual([
+      [plannedEgg.id, false],
+      [plannedQuick.id, true],
+    ]);
+    expect(exportedPlan.plan.workouts).toHaveLength(4);
+    expect(exportedPlan.mealItems.find((i) => i.id === fromPlan.id)?.plannedItemId).toBe(
+      plannedEgg.id,
+    );
 
     // Spec 002 AC16: the list of user tables comes from the database, so a new table with a user
     // column that is not covered below fails this test.

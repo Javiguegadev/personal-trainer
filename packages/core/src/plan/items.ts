@@ -137,6 +137,38 @@ export function plannedWorkoutToUpsert(workout: PlannedWorkout): PlannedWorkoutU
   };
 }
 
+/** The stored row of a planned session upsert (AC10): every field, whatever its kind. */
+export function plannedWorkoutFromUpsert(upsert: PlannedWorkoutUpsert): PlannedWorkout {
+  const placement = {
+    id: upsert.id,
+    localDate: upsert.localDate,
+    startMinute: upsert.startMinute,
+    recordedAt: upsert.recordedAt,
+  };
+  if (upsert.kind === 'gym') {
+    return {
+      ...placement,
+      kind: 'gym',
+      activity: null,
+      name: upsert.name,
+      minutes: upsert.minutes,
+      isMatch: false,
+      programSessionId: upsert.programSessionId,
+      repeatWorkoutId: upsert.repeatWorkoutId,
+    };
+  }
+  return {
+    ...placement,
+    kind: upsert.kind,
+    activity: upsert.activity,
+    name: upsert.name,
+    minutes: upsert.minutes,
+    isMatch: upsert.kind === 'sport' && upsert.isMatch,
+    programSessionId: null,
+    repeatWorkoutId: null,
+  };
+}
+
 export interface LogPlannedInput {
   /** Device time of the write. */
   recordedAt: string;

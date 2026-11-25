@@ -11,6 +11,7 @@ import {
   plannedItemToUpsert,
   plannedMealItemFromUpsert,
   plannedSessionFor,
+  plannedWorkoutFromUpsert,
   plannedWorkoutToUpsert,
 } from './items';
 import {
@@ -113,6 +114,18 @@ describe('plannedItemToUpsert and plannedWorkoutToUpsert (AC6, AC12, AC22)', () 
       recordedAt: RECORDED,
     });
     expect(PlannedMealItemUpsertSchema.safeParse(upsert).success).toBe(true);
+  });
+
+  it('stores an upsert as the row it reads back', () => {
+    for (const row of [
+      plannedSession(),
+      plannedSession({ programSessionId: null, repeatWorkoutId: uuid(400), name: 'Torso' }),
+      plannedActivity({ isMatch: true }),
+      plannedActivity({ kind: 'cardio', activity: 'running', name: null, startMinute: null }),
+    ]) {
+      const upsert = PlannedWorkoutUpsertSchema.parse(plannedWorkoutToUpsert(row));
+      expect(plannedWorkoutFromUpsert(upsert)).toEqual(row);
+    }
   });
 
   it('writes a gym session with its links and an activity with its type, minutes and match', () => {
