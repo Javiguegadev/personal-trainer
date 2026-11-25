@@ -266,7 +266,7 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - Plan approved by the human (2026-11-25) with: `GET /me/review` takes the app's `today` and reviews
     only the last complete week (no backfill); clearing an optional item in "Lo que sé de ti" waits 5 s
@@ -282,3 +282,13 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
     before and after ("2.310 → 2.230 kcal"). Gates are checked in this order: logging, sleep/stress,
     bound, floor; the reasons list the rate reason and the first gate that stopped it. The exhaustive
     routine test of spec 010 got its own 20 s timeout (it ran near 5 s with the whole repo testing).
+  - Domain review (2026-11-25, fixes in `af3520a`): see AC5b. The human chose the two-week pause after a
+    calibration change and the first review at 21 days. Gates now run: weights, rate, one extreme
+    reading (`uneven_weights`), the pause (`recent_change`), logging, protected profiles
+    (`decrease_blocked_profile`), sleep/stress, bound, floor; a fast loss skips the pause and the logging
+    gate. Migration `0015` adds `profiles.energy_calibrated_at` (applied to dev) for the pause.
+  - API (2026-11-25): the targets history's start day is the UTC day of `valid_from` (close enough for a
+    week's average). "Aplicar" checks the bound and the protected profiles again and answers 409
+    `review_stale` when the proposal no longer holds. A review is computed only on `GET /me/review`, so a
+    week without any app open is never reviewed. The streak reads 52 weeks of logged days. The account
+    deletion integration test covers `weekly_reviews` and the new store writes and passed on dev.
