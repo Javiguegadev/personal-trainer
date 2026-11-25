@@ -176,6 +176,8 @@ export class FakeStore implements Store {
       week: rows.profile?.week ?? EMPTY_WEEK,
       trainingExperience: rows.profile?.trainingExperience ?? null,
       equipmentAccess: rows.profile?.equipmentAccess ?? null,
+      // A profile save never changes the calibration (spec 014): only the weekly review does.
+      energyCalibrationKcal: rows.profile?.energyCalibrationKcal ?? 0,
     };
     rows.dietaryPrefs = data.dietaryPrefs;
     for (const t of rows.targets) if (t.validTo === null) t.validTo = iso;
@@ -822,6 +824,7 @@ export class FakeStore implements Store {
         mealItems: structuredClone(rows.plannedMealItems).sort(byDayThenTime),
         workouts: structuredClone(rows.plannedWorkouts).sort(byDayThenStart),
       },
+      weeklyReviews: [],
       consents: rows.consents,
       aiUsage: rows.aiUsage.map((u) => ({
         feature: u.feature,

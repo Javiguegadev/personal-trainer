@@ -300,6 +300,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   exercise_limit_reached: 'Too many exercises of your own',
   id_taken: 'This id is already used',
   program_exists: 'Another routine is active: delete it first',
+  review_decided: 'This weekly review was already decided',
+  review_stale: 'A newer weekly review replaces this one',
 };
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -321,6 +323,8 @@ const STATUS: Record<ApiErrorCode, number> = {
   exercise_limit_reached: 400,
   id_taken: 409,
   program_exists: 409,
+  review_decided: 409,
+  review_stale: 409,
 };
 
 const fail = (code: ApiErrorCode, fields?: Record<string, string>) =>
@@ -741,6 +745,7 @@ export function createMockApiClient({
         week: record.profile?.week ?? EMPTY_WEEK,
         trainingExperience: record.profile?.trainingExperience ?? null,
         equipmentAccess: record.profile?.equipmentAccess ?? null,
+        energyCalibrationKcal: record.profile?.energyCalibrationKcal ?? 0,
       };
       record.dietaryPrefs = input.dietaryPrefs;
       for (const row of record.targets) if (row.validTo === null) row.validTo = at;
@@ -1650,6 +1655,7 @@ export function createMockApiClient({
           mealItems: [...record.plannedMealItems].sort(plannedItemOrder),
           workouts: [...record.plannedWorkouts].sort(plannedSessionOrder),
         },
+        weeklyReviews: [],
         consents: record.consents,
         aiUsage: record.aiUsage,
       };

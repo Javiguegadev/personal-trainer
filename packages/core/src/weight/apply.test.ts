@@ -50,6 +50,7 @@ function stored(weightKg: number, overrides: Partial<ProfileInput> = {}) {
     week: EMPTY_WEEK,
     trainingExperience: null,
     equipmentAccess: null,
+    energyCalibrationKcal: 0,
   };
   return { profile, targets: evaluation.targets, safety: evaluation.safety };
 }

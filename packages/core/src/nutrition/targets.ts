@@ -154,6 +154,8 @@ export function computeTargets(
       activityFactor: roundTo(activityFactor, 3),
       jobFactor: snapshot.job.factor,
       trainingFactor: roundTo(snapshot.training.factor, 3),
+      // `targets-v3` has no calibration; `targets-v4` (spec 014) adds it.
+      calibrationKcal: 0,
       tdeeKcal: Math.round(tdee),
       goalAdjustmentKcal: Math.round(adjustment),
       floorKcal: Math.round(floor),

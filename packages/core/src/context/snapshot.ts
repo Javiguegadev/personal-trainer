@@ -54,6 +54,8 @@ export interface ContextSources {
   hasRoutine?: boolean;
   /** The daily check-ins of the last weeks, in any order (spec 011). Omitted means none. */
   checkins?: readonly CheckinPoint[];
+  /** The weekly reviews' accepted correction of the energy estimate (spec 014). Omitted means 0. */
+  energyCalibrationKcal?: number;
 }
 
 /**
@@ -124,6 +126,7 @@ export function buildContextSnapshot(sources: ContextSources, today: string): Co
       readiness: dayReadiness(checkin, usual),
     },
     sleep: { usualMinutes: usual },
+    energy: { calibrationKcal: sources.energyCalibrationKcal ?? 0 },
     weight: {
       lastKg: trend.last?.weightKg ?? null,
       lastDate: trend.last?.localDate ?? null,

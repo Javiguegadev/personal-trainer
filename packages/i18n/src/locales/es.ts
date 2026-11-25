@@ -1586,6 +1586,8 @@ export const es = {
       'Has llegado al máximo de ejercicios propios. Borra alguno para crear otro.',
     id_taken: 'No hemos podido guardarlo. Vuelve a intentarlo.',
     program_exists: 'Ya tienes una rutina. Cámbiala desde Mi rutina.',
+    review_decided: 'Ya habías decidido sobre esta revisión.',
+    review_stale: 'Hay una revisión más reciente: mira la de esta semana.',
     internal_error: 'Algo ha fallado en el servidor. Vuelve a intentarlo.',
     network: 'No hay conexión con el servidor. Comprueba tu red.',
     unknown: 'Algo ha fallado. Vuelve a intentarlo.',

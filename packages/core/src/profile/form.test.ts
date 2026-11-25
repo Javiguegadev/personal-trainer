@@ -189,6 +189,7 @@ describe('profileFormFromProfile', () => {
       week: EMPTY_WEEK,
       trainingExperience: null,
       equipmentAccess: null,
+      energyCalibrationKcal: 0,
     };
     expect(profileFormFromProfile(profile, null, 'es')).toMatchObject({
       goal: 'lose',

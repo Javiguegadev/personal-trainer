@@ -15,7 +15,7 @@ import {
   WorkPatternSchema,
 } from './profile';
 
-export const CONTEXT_VERSION = 'context-v5';
+export const CONTEXT_VERSION = 'context-v6';
 
 /** One weekday of the typical week in the context (spec 010 AC25). */
 const ContextWeekDaySchema = z.object({
@@ -99,6 +99,11 @@ export const ContextSnapshotSchema = z.object({
   }),
   /** The user's usual sleep (spec 011): the median of the last 14 days, from 5 nights. */
   sleep: z.object({ usualMinutes: z.number().int().nullable() }),
+  /**
+   * The weekly reviews' accepted correction of the energy estimate (spec 014 AC8), in kcal per day.
+   * Added by `context-v6`; `targets-v4` adds it to the TDEE.
+   */
+  energy: z.object({ calibrationKcal: z.number().int() }),
   /** The weight log (spec 003 AC25). Added by `context-v2`. */
   weight: z.object({
     lastKg: z.number().nullable(),

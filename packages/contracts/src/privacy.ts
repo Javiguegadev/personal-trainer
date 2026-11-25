@@ -5,6 +5,7 @@ import { WeightEntrySchema } from './weight';
 import { FoodSchema, MealItemSchema } from './food';
 import { ExerciseSchema, ProgramSchema, WorkoutSchema } from './training';
 import { ExportedPlanSchema } from './plan';
+import { WeeklyReviewSchema } from './review';
 
 /**
  * Version of the consent text shown to the user. Bump it when the text changes: a consent given to an
@@ -49,6 +50,8 @@ export const ExportResponseSchema = z.object({
   checkins: z.array(ExportedCheckinSchema),
   /** The planned meals and sessions, deleted ones included with their date (spec 013 AC25). */
   plan: ExportedPlanSchema,
+  /** The weekly reviews with their numbers and decisions, oldest first (spec 014 AC16). */
+  weeklyReviews: z.array(WeeklyReviewSchema),
   consents: z.array(
     z.object({
       kind: ConsentKindSchema,

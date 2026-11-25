@@ -24,6 +24,9 @@ export const ApiErrorCodeSchema = z.enum([
   'id_taken',
   // Routine (spec 010)
   'program_exists',
+  // Weekly review (spec 014)
+  'review_decided',
+  'review_stale',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;
 

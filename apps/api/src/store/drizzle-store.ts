@@ -155,6 +155,8 @@ function toProfile(
     },
     trainingExperience: training?.experience ?? null,
     equipmentAccess: training?.equipment ?? null,
+    // The column arrives with migration 0014 (spec 014).
+    energyCalibrationKcal: 0,
   };
 }
 
@@ -558,6 +560,7 @@ export function createDrizzleStore(db: Db): Store {
         ...(await exportTrainingLog(db, userId)),
         checkins: await exportCheckins(db, userId),
         plan: await exportPlan(db, userId),
+        weeklyReviews: [],
         consents: consentRows.map((c) => ({
           kind: c.kind,
           version: c.version,

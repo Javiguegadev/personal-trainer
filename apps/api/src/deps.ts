@@ -57,6 +57,7 @@ export interface ProfileWrite {
     | 'week'
     | 'trainingExperience'
     | 'equipmentAccess'
+    | 'energyCalibrationKcal'
   > & {
     jobActivity: JobActivity;
     trainingFocus: TrainingFocus;

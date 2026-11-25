@@ -1576,6 +1576,8 @@ export const en: DeepStringRecord<typeof es> = {
       "You've reached the maximum number of your own exercises. Delete one to create another.",
     id_taken: "We couldn't save it. Please try again.",
     program_exists: 'You already have a routine. Change it from My routine.',
+    review_decided: 'You had already decided on this review.',
+    review_stale: 'There is a newer review: see the one for this week.',
     internal_error: 'Something went wrong on the server. Please try again.',
     network: 'No connection to the server. Check your network.',
     unknown: 'Something went wrong. Please try again.',

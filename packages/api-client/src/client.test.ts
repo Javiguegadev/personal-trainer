@@ -213,6 +213,7 @@ describe('createApiClient', () => {
             programs: [],
             checkins: [],
             plan: { mealItems: [], workouts: [] },
+            weeklyReviews: [],
             consents: [],
             aiUsage: [],
           }),

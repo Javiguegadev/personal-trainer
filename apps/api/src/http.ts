@@ -29,6 +29,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   exercise_limit_reached: 'Too many exercises of your own',
   id_taken: 'This id is already used',
   program_exists: 'Another routine is active: delete it first',
+  review_decided: 'This weekly review was already decided',
+  review_stale: 'A newer weekly review replaces this one',
 };
 
 export function errorBody(code: ApiErrorCode, fields?: Record<string, string>): ApiErrorBody {

@@ -316,10 +316,15 @@ export type Targets = z.infer<typeof TargetsSchema>;
 export const TargetsBreakdownSchema = z.object({
   ageYears: z.number().int(),
   bmrKcal: z.number().int(),
-  /** Job factor + training factor, after the ceiling. TDEE = BMR × this. */
+  /** Job factor + training factor, after the ceiling. TDEE = BMR × this + the calibration. */
   activityFactor: z.number(),
   jobFactor: z.number(),
   trainingFactor: z.number(),
+  /**
+   * The weekly reviews' accepted corrections of the energy estimate (spec 014 AC8), added to the TDEE
+   * before the goal's deficit or surplus. Added by `targets-v4`; 0 without any.
+   */
+  calibrationKcal: z.number().int(),
   tdeeKcal: z.number().int(),
   goalAdjustmentKcal: z.number().int(),
   floorKcal: z.number().int(),
@@ -373,6 +378,11 @@ export const ProfileSchema = z.object({
   /** Set by the routine wizard (spec 010 AC14); null until then. */
   trainingExperience: TrainingExperienceSchema.nullable(),
   equipmentAccess: EquipmentAccessSchema.nullable(),
+  /**
+   * The sum of the weekly reviews' accepted corrections of the energy estimate (spec 014), within
+   * ±`REVIEW_RULES.calibrationMaxKcal`. 0 for a profile read before spec 014.
+   */
+  energyCalibrationKcal: z.number().int().default(0),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 

@@ -4,6 +4,7 @@
  */
 export * from './checkin';
 export * from './context';
+export * from './entitlements';
 export * from './errors';
 export * from './feedback';
 export * from './food';
@@ -13,6 +14,7 @@ export * from './onboarding';
 export * from './plan';
 export * from './privacy';
 export * from './profile';
+export * from './review';
 export * from './training';
 export * from './weight';
 export * from './workout-draft';

@@ -290,6 +290,7 @@ describe('computeTargets — targets-v2 numbers under targets-v3 (spec 002 AC6)'
       activityFactor: 1.596,
       jobFactor: 1.4,
       trainingFactor: 0.196,
+      calibrationKcal: 0,
       tdeeKcal: 2792,
       goalAdjustmentKcal: 0,
       floorKcal: 1749,

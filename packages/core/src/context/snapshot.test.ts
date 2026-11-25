@@ -36,11 +36,11 @@ const sources: ContextSources = {
   trainingFocus: 'strength',
 };
 
-describe('buildContextSnapshot — context-v5 (spec 002 AC12, spec 003 AC25, spec 004 AC11, spec 011 AC17)', () => {
+describe('buildContextSnapshot — context-v6 (spec 002 AC12, spec 003 AC25, spec 004 AC11, spec 011 AC17, spec 014 AC8)', () => {
   it('returns the profile, the job and the planned training for the given day', () => {
     const snapshot = buildContextSnapshot(sources, TODAY);
     expect(snapshot).toEqual({
-      version: 'context-v5',
+      version: 'context-v6',
       date: TODAY,
       profile: {
         sex: 'male',
@@ -70,6 +70,7 @@ describe('buildContextSnapshot — context-v5 (spec 002 AC12, spec 003 AC25, spe
       },
       today: { checkin: null, readiness: { level: 'unknown', reasons: [] } },
       sleep: { usualMinutes: null },
+      energy: { calibrationKcal: 0 },
       weight: {
         lastKg: null,
         lastDate: null,
