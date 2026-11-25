@@ -45,7 +45,7 @@ describe('evaluateProfileInput', () => {
     const result = evaluateProfileInput(input(), [], NOW);
     expect(result.kind).toBe('ok');
     if (result.kind !== 'ok') return;
-    expect(result.targets?.formulaVersion).toBe('targets-v3');
+    expect(result.targets?.formulaVersion).toBe('targets-v4');
     expect(result.breakdown).not.toBeNull();
     expect(result.flags).toEqual([]);
   });

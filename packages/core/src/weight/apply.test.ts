@@ -83,7 +83,7 @@ describe('applyLatestWeight (spec 003 AC10–AC13)', () => {
     const viaForm = stored(66, hypertrophy);
     const change = applyLatestWeight(before.profile, before.targets, entry(66), TODAY);
     expect(change?.targetsChange?.current).toEqual(viaForm.targets);
-    expect(viaForm.targets).toMatchObject({ proteinG: 132, formulaVersion: 'targets-v3' }); // 2.0 × 66
+    expect(viaForm.targets).toMatchObject({ proteinG: 132, formulaVersion: 'targets-v4' }); // 2.0 × 66
 
     // A profile without a focus (never after migration 0004) counts as health and general fitness.
     const untagged = { ...before.profile, trainingFocus: null };

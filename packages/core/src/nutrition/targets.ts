@@ -17,13 +17,14 @@ import {
 export { computeAge };
 
 /**
- * Daily calorie and macro targets, version `targets-v3` (spec 004; spec 002 AC6, AC9–AC11; spec 001
- * AC13–AC15). v2 replaced the single activity level of v1 with a job factor plus a training factor
- * (`./activity`); v3 adds what the user trains for (`./focus`): protein by focus, a smaller deficit and a
- * carbohydrate minimum for sport performance. Changing any constant here means a new formula version,
- * new fixtures and a domain review.
+ * Daily calorie and macro targets, version `targets-v4` (spec 014; spec 004; spec 002 AC6, AC9–AC11;
+ * spec 001 AC13–AC15). v2 replaced the single activity level of v1 with a job factor plus a training
+ * factor (`./activity`); v3 adds what the user trains for (`./focus`): protein by focus, a smaller
+ * deficit and a carbohydrate minimum for sport performance; v4 adds the weekly reviews' accepted
+ * calibration to the TDEE, before the deficit or surplus, so their limits and the floor still apply.
+ * Changing any constant here means a new formula version, new fixtures and a domain review.
  */
-export const TARGETS_FORMULA_VERSION = 'targets-v3';
+export const TARGETS_FORMULA_VERSION = 'targets-v4';
 
 /** Minimum daily kcal by sex (AC14); the BMR is also a floor. */
 export const CALORIE_FLOOR: Record<Sex, number> = { female: 1200, male: 1500, other: 1350 };
@@ -81,7 +82,9 @@ export function computeTargets(
   // Tolerance: 1.8 + 0.6 is 2.4000000000000004 in floating point, which is not above the ceiling.
   const capped = uncapped - ACTIVITY_FACTOR_CEILING > 1e-9;
   const activityFactor = capped ? ACTIVITY_FACTOR_CEILING : uncapped;
-  const tdee = bmr * activityFactor;
+  // The calibration corrects the estimate of the expenditure (spec 014), not the goal.
+  const calibrationKcal = snapshot.energy.calibrationKcal;
+  const tdee = bmr * activityFactor + calibrationKcal;
   const goal = safety.appliedGoal;
   const { focus, minutesPerWeek } = snapshot.training;
   const smallDeficit = isHighTrainingLoad(minutesPerWeek) || focus === 'sport_performance';
@@ -154,8 +157,7 @@ export function computeTargets(
       activityFactor: roundTo(activityFactor, 3),
       jobFactor: snapshot.job.factor,
       trainingFactor: roundTo(snapshot.training.factor, 3),
-      // `targets-v3` has no calibration; `targets-v4` (spec 014) adds it.
-      calibrationKcal: 0,
+      calibrationKcal,
       tdeeKcal: Math.round(tdee),
       goalAdjustmentKcal: Math.round(adjustment),
       floorKcal: Math.round(floor),

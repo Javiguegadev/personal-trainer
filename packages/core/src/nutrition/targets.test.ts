@@ -276,7 +276,7 @@ const fixtures: {
 describe('computeTargets — targets-v2 numbers under targets-v3 (spec 002 AC6)', () => {
   it.each(fixtures)('$name', ({ person, safety: s, expected }) => {
     const { targets } = targetsFor(person, s);
-    expect(targets).toEqual({ ...expected, formulaVersion: 'targets-v3' });
+    expect(targets).toEqual({ ...expected, formulaVersion: 'targets-v4' });
     // Macros add up to the kcal target (rounding tolerance).
     const macroKcal = 4 * targets.proteinG + 4 * targets.carbsG + 9 * targets.fatG;
     expect(Math.abs(macroKcal - targets.kcal)).toBeLessThanOrEqual(10);
@@ -762,9 +762,9 @@ describe('targets-v3: what the user trains for (spec 004)', () => {
     expect(targetsFor(person, s).breakdown.goalAdjustmentKcal).toBe(0);
   });
 
-  it('new targets carry formula version targets-v3 (AC10)', () => {
+  it('new targets carry the current formula version (AC10, spec 014)', () => {
     expect(
       targetsFor({ ...man, job: 'sedentary' }, safety('maintain')).targets.formulaVersion,
-    ).toBe('targets-v3');
+    ).toBe('targets-v4');
   });
 });

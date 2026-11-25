@@ -57,6 +57,8 @@ export function evaluateProfileInput(
   previousFlags: readonly SafetyFlag[],
   now: Date,
   history?: WeightHistory,
+  /** The stored calibration of the weekly reviews (spec 014): a profile save keeps it. */
+  energyCalibrationKcal = 0,
 ): ProfileEvaluation {
   const invalid = checkClientDates(input, now);
   if (invalid) return { kind: 'invalid', fields: invalid };
@@ -65,7 +67,13 @@ export function evaluateProfileInput(
     history && history.storedWeightKg !== input.weightKg
       ? withWeightOnDay(history.entries, input.today, input.weightKg)
       : (history?.entries ?? []);
-  return evaluate(input, previousFlags, input.today, weightTrend(entries, input.today).averageKg);
+  return evaluate(
+    input,
+    previousFlags,
+    input.today,
+    weightTrend(entries, input.today).averageKg,
+    energyCalibrationKcal,
+  );
 }
 
 type EvaluatedFields = Pick<
@@ -88,6 +96,7 @@ function evaluate(
   previousFlags: readonly SafetyFlag[],
   today: string,
   weightAverageKg: number | null,
+  energyCalibrationKcal: number,
 ): Exclude<ProfileEvaluation, { kind: 'invalid' }> {
   const safety = evaluateProfileSafety(
     {
@@ -113,6 +122,7 @@ function evaluate(
       jobActivity: input.jobActivity,
       plannedActivities: input.plannedActivities,
       trainingFocus: input.trainingFocus,
+      energyCalibrationKcal,
     },
     today,
   );
@@ -162,6 +172,7 @@ export function evaluateStoredProfile(
     profile.safetyFlags,
     today,
     weightTrend(entries, today).averageKg,
+    profile.energyCalibrationKcal ?? 0,
   );
 }
 

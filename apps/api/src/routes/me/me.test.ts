@@ -139,7 +139,7 @@ describe('PUT /me/profile', () => {
     const me = MeResponseSchema.parse(await res.json());
     expect(me.onboardingCompleted).toBe(true);
     expect(me.profile).toMatchObject({ requestedGoal: 'lose', goal: 'lose', heightCm: 165 });
-    expect(me.targets).toMatchObject({ formulaVersion: 'targets-v3', clampedReason: null });
+    expect(me.targets).toMatchObject({ formulaVersion: 'targets-v4', clampedReason: null });
     expect(me.targets?.kcal).toBeGreaterThan(1200);
   });
 
@@ -150,7 +150,7 @@ describe('PUT /me/profile', () => {
     const me = MeResponseSchema.parse(await res.json());
     expect(me.profile?.trainingFocus).toBe('hypertrophy');
     // 70 kg, lose, muscle: 2.0 g/kg = 140 g, above 35 % of 1560 kcal → ⌊136.5⌋ = 136 g
-    expect(me.targets).toMatchObject({ kcal: 1560, proteinG: 136, formulaVersion: 'targets-v3' });
+    expect(me.targets).toMatchObject({ kcal: 1560, proteinG: 136, formulaVersion: 'targets-v4' });
     expect(t.store.rows(USER_ID).profile?.trainingFocus).toBe('hypertrophy');
   });
 
@@ -442,10 +442,10 @@ describe('PUT /me/profile', () => {
     const after = MeResponseSchema.parse(await res.json());
     expect(after.onboardingCompleted).toBe(true);
     expect(after.profile?.jobActivity).toBe('standing');
-    expect(after.targets?.formulaVersion).toBe('targets-v3');
+    expect(after.targets?.formulaVersion).toBe('targets-v4');
   });
 
-  it('moves an account to targets-v3 on its next save, keeping the old rows (spec 004 AC10, AC13)', async () => {
+  it('moves an account to the current formula on its next save, keeping the old rows (spec 004 AC10, AC13; spec 014)', async () => {
     await consent();
     await t.call('PUT', '/me/profile', profileInput());
     // An account from before spec 004: targets-v2, and the focus the backfill gave it.
@@ -456,7 +456,7 @@ describe('PUT /me/profile', () => {
     await t.call('PUT', '/me/profile', profileInput({ weightKg: 69 }));
     expect(t.store.rows(USER_ID).targets.map((row) => row.formulaVersion)).toEqual([
       'targets-v2',
-      'targets-v3',
+      'targets-v4',
     ]);
   });
 

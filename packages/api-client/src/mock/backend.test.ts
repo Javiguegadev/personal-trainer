@@ -117,7 +117,7 @@ describe('mock backend: profile and targets', () => {
   it('previews targets without storing anything (AC10)', async () => {
     const { api } = await consented();
     const preview = await api.targetsPreview(input());
-    expect(preview.targets?.formulaVersion).toBe('targets-v3');
+    expect(preview.targets?.formulaVersion).toBe('targets-v4');
     expect((await api.me()).onboardingCompleted).toBe(false);
   });
 
@@ -127,7 +127,7 @@ describe('mock backend: profile and targets', () => {
     expect(preview.breakdown).toMatchObject({ trainingFocus: 'strength', proteinGPerKg: 1.8 });
     const me = await api.updateProfile(input({ trainingFocus: 'strength' }));
     expect(me.profile?.trainingFocus).toBe('strength');
-    expect(me.targets).toMatchObject({ proteinG: 108, formulaVersion: 'targets-v3' }); // 1.8 × 60
+    expect(me.targets).toMatchObject({ proteinG: 108, formulaVersion: 'targets-v4' }); // 1.8 × 60
     expect((await api.exportData()).profile?.trainingFocus).toBe('strength');
   });
 
