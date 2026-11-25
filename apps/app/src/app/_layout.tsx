@@ -109,6 +109,8 @@ function RootNavigator() {
           <Stack.Screen name="checkin/[date]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="plan/item/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="plan/workout" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="plan/copy" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="plan/fill" options={{ presentation: 'modal' }} />
         </Stack.Protected>
       </Stack>
       {loading ? <BlockingState /> : null}

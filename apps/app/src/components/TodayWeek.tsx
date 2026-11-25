@@ -1,6 +1,7 @@
 import type { Profile, StoredTargets } from '@pt/contracts';
 import {
   addDays,
+  copyWeekTargets,
   formatShortDate,
   moveWeek,
   weekNavigation,
@@ -27,6 +28,7 @@ import { WeekDayRow } from './WeekDayRow';
  * logged; "‹" and "›" move from 12 weeks back to the end of the plan horizon (spec 013 AC1), "Hoy"
  * returns. A week already visited stays on the device; an unvisited one offline shows only its typical
  * week. Today and future rows add the plan, which is cached for the whole horizon (spec 013 AC2, AC22).
+ * The current and later weeks offer "Planificar con mi rutina" and "Copiar semana" (AC11, AC21).
  */
 export function TodayWeek({
   profile,
@@ -113,6 +115,25 @@ export function TodayWeek({
           />
         </View>
       )}
+      {/* The current week and later ones can be planned (spec 013 AC11, AC21). */}
+      {weekStart >= current ? (
+        <View style={styles.planActions}>
+          <Button
+            variant="secondary"
+            label={t.plan.fill.open}
+            onPress={() => router.push({ pathname: '/plan/fill', params: { week: weekStart } })}
+            testID="week-plan-fill"
+          />
+          {copyWeekTargets(weekStart, today).length > 0 ? (
+            <Button
+              variant="secondary"
+              label={t.plan.copy.weekOpen}
+              onPress={() => router.push({ pathname: '/plan/copy', params: { week: weekStart } })}
+              testID="week-plan-copy"
+            />
+          ) : null}
+        </View>
+      ) : null}
       {offline ? <Notice tone="info" message={v.offline} testID="week-offline-empty" /> : null}
       {failed ? (
         <Notice tone="danger" message={v.loadError} testID="week-load-error">
@@ -150,4 +171,5 @@ const styles = StyleSheet.create({
     gap: tokens.space.sm,
   },
   current: { alignSelf: 'flex-start' },
+  planActions: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
 });

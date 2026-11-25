@@ -363,7 +363,7 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [ ] e2e
 - Decisions taken during implementation:
   - Contracts: `CONSENT_VERSION` was not bumped in the contracts step; it changes to `2026-11-v10` in the
     API step, with the 403 `consent_required` test (AC24). The `planned_workouts` minutes check is 1–600
@@ -426,3 +426,16 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
     planned repeat stores the workout's shown name as its snapshot, and the 4-a-day limit is a field
     error. Tapping a pending planned session of today or a future day opens it. The sheet shows the AC13
     notices of the session being planned.
+  - UI part 3, copy and fill (2026-11-25): the week view shows "Planificar con mi rutina" and "Copiar
+    semana" under its header on the current and later weeks ("Copiar semana" only while a later week
+    fits in the horizon); Today shows the plan's undo and refused-write notice. `plan/fill?week=`
+    previews "mié 2 · Rutina A" lines and plans them with an undo; without a routine it redirects to
+    "Crea tu rutina", without gym days it says so with "Ir a Mi semana", and a week with nothing to
+    place says its gym days are already planned. "Copiar día" is at the end of every day screen;
+    `plan/copy?from=` / `?week=` asks what (a "Comidas" checkbox with meal-type chips, all on; a
+    "Entrenos" checkbox) and where (`TargetDayChips`, a row per week; or a later week), warns before
+    copying when a day limit cuts the copy, says when the chosen kinds give nothing to copy, and asks
+    for the confirmation of AC20 only when a target day has a plan of those kinds. A day or week whose
+    log is not on the device (offline, never opened) shows the spec 010 AC10 message instead of a copy
+    without its logs. As the core copy defines it, a source day with nothing of a chosen kind clears
+    that kind on its target day (named in the confirmation, with the undo).

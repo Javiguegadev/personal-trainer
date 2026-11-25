@@ -83,7 +83,8 @@ import { profileActivities, profileWeek } from '@/lib/week';
  * (AC8), the pending planned sessions with "Empezar", "Hecho" or "Registrar" (AC14–AC17), their notices
  * (AC13) and "Plan del día" with the planned energy and "Añadir al plan" per meal (AC4); a future day
  * lists its planned meals there. Today and future days offer "Planificar entreno" (AC10), and a planned
- * session opens its sheet (AC12). Past days older than 27 days show only what was logged.
+ * session opens its sheet (AC12). "Copiar día" copies what the day shows onto days of the horizon
+ * (AC19). Past days older than 27 days show only what was logged.
  */
 export default function DayRoute() {
   const { t } = useI18n();
@@ -485,6 +486,13 @@ function DayScreen({
           </View>
         </Card>
       ) : null}
+      {/* Any day the week view shows can be copied onto days of the horizon (spec 013 AC19). */}
+      <Button
+        variant="secondary"
+        label={t.plan.copy.dayOpen}
+        onPress={() => router.push({ pathname: '/plan/copy', params: { from: date } })}
+        testID="day-copy"
+      />
     </Screen>
   );
 }
