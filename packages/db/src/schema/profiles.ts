@@ -53,6 +53,11 @@ export const profiles = pgTable(
      * by `targets-v4`; written only by a review decision or "Volver al cálculo inicial".
      */
     energyCalibrationKcal: smallint('energy_calibration_kcal').notNull().default(0),
+    /**
+     * When the calibration last changed ("Aplicar" or "Volver al cálculo inicial"): the review proposes
+     * nothing until both weeks it compares start after it (spec 014 AC5b). Null: never changed.
+     */
+    energyCalibratedAt: timestamp('energy_calibrated_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
