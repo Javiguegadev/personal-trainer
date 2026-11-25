@@ -18,6 +18,7 @@ import {
   MuscleGroupSchema,
   ProgramOriginSchema,
   QuantityUnitSchema,
+  ReviewStatusSchema,
   SexSchema,
   StressLevelSchema,
   TrainingExperienceSchema,
@@ -72,3 +73,4 @@ export const programOriginEnum = pgEnum('program_origin', values(ProgramOriginSc
 export const stressLevelEnum = pgEnum('stress_level', values(StressLevelSchema));
 export const workShiftEnum = pgEnum('work_shift', values(WorkShiftSchema));
 export const checkinSourceEnum = pgEnum('checkin_source', values(CheckinSourceSchema));
+export const reviewStatusEnum = pgEnum('review_status', values(ReviewStatusSchema));

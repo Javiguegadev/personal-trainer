@@ -99,6 +99,13 @@
       "when": 1795545718063,
       "tag": "0013_weekly_planner",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795624613169,
+      "tag": "0014_weekly_review",
+      "breakpoints": true
     }
   ]
 }

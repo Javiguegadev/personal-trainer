@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   check,
   numeric,
+  smallint,
   pgPolicy,
   pgTable,
   text,
@@ -47,6 +48,11 @@ export const profiles = pgTable(
     units: unitsEnum('units').notNull().default('metric'),
     locale: localeEnum('locale').notNull().default('es'),
     onboardingCompletedAt: timestamp('onboarding_completed_at', { withTimezone: true }),
+    /**
+     * The weekly reviews' accepted corrections of the energy estimate, in kcal per day (spec 014). Read
+     * by `targets-v4`; written only by a review decision or "Volver al cálculo inicial".
+     */
+    energyCalibrationKcal: smallint('energy_calibration_kcal').notNull().default(0),
     ...timestamps,
   },
   (t) => [
@@ -55,6 +61,11 @@ export const profiles = pgTable(
     check(
       'profiles_target_weight_kg_range',
       sql`${t.targetWeightKg} is null or ${t.targetWeightKg} between 30 and 300`,
+    ),
+    // REVIEW_RULES.calibrationMaxKcal in @pt/contracts.
+    check(
+      'profiles_energy_calibration_range',
+      sql`${t.energyCalibrationKcal} between -300 and 300`,
     ),
     pgPolicy('profiles_select_own', {
       for: 'select',
