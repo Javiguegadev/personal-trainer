@@ -18,8 +18,10 @@ export interface ItemPlacement {
   plannedItemId?: string | null;
 }
 
-/** The portion an item was logged with: the servings when it has them, else its grams. */
-export function itemPortion(item: MealItem): Portion | null {
+/** The portion an item was logged (or planned) with: the servings when it has them, else its grams. */
+export function itemPortion(
+  item: Pick<MealItem, 'servingId' | 'servings' | 'grams'>,
+): Portion | null {
   if (item.servingId !== null && item.servings !== null) {
     return { kind: 'serving', servingId: item.servingId, servings: item.servings };
   }

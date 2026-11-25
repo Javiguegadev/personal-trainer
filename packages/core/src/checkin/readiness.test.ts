@@ -1,6 +1,16 @@
-import type { StressLevel } from '@pt/contracts';
+import type { PlannedWorkout, StressLevel } from '@pt/contracts';
 import { describe, expect, it } from 'vitest';
 import { addDays } from '../dates';
+import {
+  OLD_SESSION_ID,
+  PROGRAM,
+  SESSION_A,
+  SESSION_B,
+  plannedActivity,
+  plannedSession,
+  uuid,
+  workout,
+} from '../plan/test-fixtures';
 import {
   dayReadiness,
   readinessHeadline,
@@ -8,6 +18,7 @@ import {
   readinessPlanSession,
   sessionCut,
   sleepStressNotice,
+  withTodayPlan,
 } from './readiness';
 
 const TODAY = '2026-11-23';
@@ -267,6 +278,45 @@ describe('readinessPlanSession', () => {
         exercises: [exercise('a', 3), exercise(null, 4), exercise('b', 2)] as never,
       }),
     ).toEqual({ exercises: [{ sets: 3 }, { sets: 2 }] });
+  });
+});
+
+describe('withTodayPlan (spec 013 AC15, AC18)', () => {
+  const day = '2026-11-25';
+  const base = { session: readinessPlanSession(SESSION_A), activities: [{ isMatch: false }] };
+  const input = (planned: PlannedWorkout[], workouts = [workout()]) => ({
+    today: day,
+    planned,
+    workouts,
+    program: PROGRAM,
+  });
+
+  it('keeps the rotation and the typical week without planned sessions today', () => {
+    const tomorrow = plannedSession({ localDate: '2026-11-26' });
+    expect(withTodayPlan(base, input([tomorrow]))).toBe(base);
+  });
+
+  it('takes today’s planned routine session first, and the planned activities', () => {
+    const gym = plannedSession({ id: uuid(301), programSessionId: SESSION_B.id });
+    const match = plannedActivity({ id: uuid(351), isMatch: true });
+    expect(withTodayPlan(base, input([match, gym]))).toEqual({
+      session: readinessPlanSession(SESSION_B),
+      activities: [{ isMatch: true }],
+    });
+  });
+
+  it('counts a free or repeated gym session as training without a session to cut', () => {
+    const free = plannedSession({ id: uuid(302), programSessionId: OLD_SESSION_ID });
+    expect(withTodayPlan(base, input([free]))).toEqual({
+      session: null,
+      activities: [{ isMatch: false }],
+    });
+  });
+
+  it('leaves out what was already done today', () => {
+    const gym = plannedSession({ id: uuid(301), programSessionId: SESSION_B.id });
+    const done = workout({ localDate: day, plannedWorkoutId: gym.id });
+    expect(withTodayPlan(base, input([gym], [done]))).toEqual({ session: null, activities: [] });
   });
 });
 

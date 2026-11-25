@@ -87,6 +87,14 @@ export function localToday(now: Date, dayStartMinute: number, timeZone?: string)
   return minute < dayStartMinute ? addDays(isoDate, -1) : isoDate;
 }
 
+/**
+ * The wall-clock minute (after midnight) of an instant, in `timeZone` or the device's zone: the start
+ * time a copied workout keeps on the plan (spec 013 AC19).
+ */
+export function localMinuteOf(iso: string, timeZone?: string): number {
+  return wallClock(new Date(iso), timeZone).minute;
+}
+
 /** ISO weekday of a date: Monday = 1 … Sunday = 7. */
 export function isoWeekday(isoDate: string): number {
   const [y, m, d] = parts(isoDate);

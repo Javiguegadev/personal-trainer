@@ -363,5 +363,28 @@ neither`, `minutes` optional; other kinds with `activity`, `minutes`, `isMatch` 
 
 ## Progress
 
-- [ ] contracts · [ ] db · [ ] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [ ] api · [ ] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
+  - Contracts: `CONSENT_VERSION` was not bumped in the contracts step; it changes to `2026-11-v10` in the
+    API step, with the 403 `consent_required` test (AC24). The `planned_workouts` minutes check is 1–600
+    (as the contract's gym minutes), not 5–600 as the data table above says; activities keep 5–600.
+  - Core (approved by the human 2026-11-25):
+    1. A session of a deleted routine keeps its link (spec 010 AC20 tombstones the routine and keeps
+       its session rows): `isStaleRoutineLink` reads it as a free gym session with its name and "Planificar
+       con mi rutina" replaces it. A session removed from a routine loses the link in the database (a free
+       gym session, kept). So `GET /me/plan` returns routine links as stored; it nulls repeat links to
+       deleted workouts (contract comment).
+    2. `planNotices` "hard activity": a planned activity is hard when the profile activity with the same
+       name is hard (planned rows have no intensity); a planned gym session is strength.
+    3. The sessions of a day are its planned sessions when it has some, otherwise the typical week's:
+       the week view (today and future rows), the readiness and the match of the next day read it so.
+       Past rows keep the typical slots as in spec 010.
+    4. `withTodayPlan`: with planned sessions today, the readiness takes the first pending planned
+       routine session; a pending free or repeated gym session counts as training without a session to
+       cut; what was done today is left out (all done: nothing to adjust).
+    5. Copy respects the day limits (150 items, 4 sessions) and says so (`capped`) instead of letting the
+       API answer 400 and stall the queue.
+  - Core: `PlanChanges` holds rows (not upserts), so one value feeds the optimistic cache and
+    `planChangesToRequests` (deletes first, cut at 300). An undo is stamped with the copy's time; the
+    app stamps it again at undo time (`stampChanges`). `repeatableMeal` gains the plan (AC8).
+    `WEEK_VIEW.weeksForward` is 3 (`PLAN_LIMITS.horizonWeeksAhead`).

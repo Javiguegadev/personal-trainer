@@ -4,6 +4,7 @@ import {
   isPlausibleClientDate,
   isoWeekday,
   lastDays,
+  localMinuteOf,
   localToday,
   toLocalIsoDate,
   toLocalTime,
@@ -55,6 +56,14 @@ describe('lastDays', () => {
       '2026-02-28',
       '2026-02-27',
     ]);
+  });
+});
+
+describe('localMinuteOf (spec 013 AC19)', () => {
+  it('is the wall-clock minute of an instant in the zone', () => {
+    expect(localMinuteOf('2026-11-23T17:30:00.000Z', 'Europe/Madrid')).toBe(1110); // 18:30
+    expect(localMinuteOf('2026-11-23T23:15:00Z', 'Europe/Madrid')).toBe(15); // 00:15 the next day
+    expect(localMinuteOf('2026-07-01T17:30:00Z', 'Europe/Madrid')).toBe(1170); // summer time
   });
 });
 

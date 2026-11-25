@@ -1,4 +1,10 @@
-import type { Locale, MealItem, MealItemUpsertRequest, MealType } from '@pt/contracts';
+import type {
+  Locale,
+  MealItem,
+  MealItemUpsertRequest,
+  MealType,
+  PlannedMealItem,
+} from '@pt/contracts';
 import { addDays } from '../dates';
 import { itemToRequest } from './item-request';
 
@@ -9,14 +15,17 @@ const itemsOf = (items: readonly MealItem[], mealType: MealType, localDate: stri
 
 /**
  * "Repetir lo de ayer" (spec 005 AC13): offered when the meal is empty on `day` and had items the day
- * before. Returns how many items and their kcal, or null.
+ * before, and not for a meal that has a plan that day (spec 013 AC8). Returns how many items and their
+ * kcal, or null.
  */
 export function repeatableMeal(
   items: readonly MealItem[],
   mealType: MealType,
   day: string,
+  planned: readonly Pick<PlannedMealItem, 'localDate' | 'mealType'>[] = [],
 ): { count: number; kcal: number } | null {
   if (itemsOf(items, mealType, day).length > 0) return null;
+  if (planned.some((p) => p.localDate === day && p.mealType === mealType)) return null;
   const previous = itemsOf(items, mealType, addDays(day, -1));
   if (previous.length === 0) return null;
   const kcal = previous.reduce((sum, i) => sum + i.nutrients.kcal, 0);

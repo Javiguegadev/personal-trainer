@@ -1,11 +1,15 @@
 import type {
   DailyCheckin,
+  PlannedWorkout,
+  Program,
   ProgramSession,
   Readiness,
   ReadinessLevel,
   ReadinessReason,
+  Workout,
 } from '@pt/contracts';
 import { daysBetween } from '../dates';
+import { pendingPlannedWorkouts, resolvePlannedSession, sortPlannedSessions } from '../plan/status';
 import { latestPerDay } from './checkin';
 
 /**
@@ -124,6 +128,37 @@ export interface ReadinessPlan {
   session: { exercises: readonly { sets: number }[] } | null;
   /** The activities planned today; `isMatch` when today is a match (spec 010 AC2). */
   activities: readonly { isMatch: boolean }[];
+}
+
+/**
+ * Today's plan when the weekly planner has sessions for today (spec 013 AC15): the pending planned
+ * routine session is today's session (the readiness adjusts it exactly as the rotation's), the pending
+ * planned activities count with their match, and a pending free or repeated gym session counts as
+ * training without a session to cut. What was already done today is left out. Without planned
+ * sessions today, `base` (the rotation and the typical week, spec 010 AC17) is kept.
+ */
+export function withTodayPlan(
+  base: ReadinessPlan,
+  input: {
+    today: string;
+    planned: readonly PlannedWorkout[];
+    workouts: readonly Pick<Workout, 'plannedWorkoutId'>[];
+    program: Pick<Program, 'sessions'> | null;
+  },
+): ReadinessPlan {
+  const ofToday = input.planned.filter((p) => p.localDate === input.today);
+  if (ofToday.length === 0) return base;
+  let session: ReadinessPlan['session'] = null;
+  const activities: { isMatch: boolean }[] = [];
+  for (const planned of sortPlannedSessions(pendingPlannedWorkouts(ofToday, input.workouts))) {
+    const start = resolvePlannedSession(planned, input.program);
+    if (start.type === 'program' && session === null) {
+      session = readinessPlanSession(start.session);
+    } else {
+      activities.push({ isMatch: planned.isMatch });
+    }
+  }
+  return { session, activities };
 }
 
 /**

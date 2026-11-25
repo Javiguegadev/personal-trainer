@@ -179,4 +179,11 @@ describe('repeatableMeal (AC13)', () => {
   it('offers nothing when the day before has no items in that meal', () => {
     expect(repeatableMeal(items, 'dinner', TODAY)).toBeNull();
   });
+
+  it('offers nothing for a meal that has a plan that day (spec 013 AC8)', () => {
+    const plan = [{ localDate: TODAY, mealType: 'breakfast' as const }];
+    expect(repeatableMeal(items, 'breakfast', TODAY, plan)).toBeNull();
+    const otherMeal = [{ localDate: TODAY, mealType: 'dinner' as const }];
+    expect(repeatableMeal(items, 'breakfast', TODAY, otherMeal)).toEqual({ count: 3, kcal: 521 });
+  });
 });
