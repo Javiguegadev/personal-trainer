@@ -1,5 +1,6 @@
 import {
   ApiErrorSchema,
+  CalibrationResetResponseSchema,
   CheckinListResponseSchema,
   CheckinSaveResponseSchema,
   CustomExerciseSaveResponseSchema,
@@ -24,6 +25,8 @@ import {
   PlanWorkoutChangesResponseSchema,
   ProgramResponseSchema,
   RecentFoodsResponseSchema,
+  ReviewDecisionResponseSchema,
+  ReviewResponseSchema,
   TargetsPreviewResponseSchema,
   WeightListResponseSchema,
   WeightSaveResponseSchema,
@@ -31,6 +34,7 @@ import {
   WorkoutSaveResponseSchema,
   WorkoutDraftResponseSchema,
   type ApiErrorCode,
+  type CalibrationResetResponse,
   type CheckinDeleteQuery,
   type CheckinListQuery,
   type CheckinListResponse,
@@ -72,6 +76,10 @@ import {
   type PlanWorkoutChangesRequest,
   type PlanWorkoutChangesResponse,
   type RecentFoodsResponse,
+  type ReviewDecisionRequest,
+  type ReviewDecisionResponse,
+  type ReviewQuery,
+  type ReviewResponse,
   type ProfileInput,
   type TargetsPreviewResponse,
   type WeightDeleteQuery,
@@ -233,6 +241,11 @@ export function createApiClient({
         CheckinSaveResponseSchema,
         { method: 'DELETE' },
       ),
+
+    /** `DELETE /me/checkins`: every check-in of the user ("Borrar mis check-ins", spec 014 AC12). */
+    deleteAllCheckins: async (): Promise<void> => {
+      await send('/me/checkins', { method: 'DELETE' });
+    },
 
     /** `GET /foods/search`: at most 25 foods, best first (spec 005 AC4). */
     searchFoods: (q: string, locale: Locale): Promise<FoodSearchResponse> =>
@@ -422,6 +435,32 @@ export function createApiClient({
         ProgramResponseSchema,
         { method: 'DELETE' },
       ),
+
+    /**
+     * `GET /me/review`: the review of the last complete week (computed and stored on its first read),
+     * the reviews before it and the logging streak (spec 014 AC1, AC9).
+     */
+    getReview: ({ today }: ReviewQuery): Promise<ReviewResponse> =>
+      request(`/me/review?today=${today}`, ReviewResponseSchema),
+
+    /**
+     * `POST /me/review/:weekStart/decision`: "Aplicar" or "Ahora no" (spec 014 AC6). 409
+     * `review_decided` or `review_stale`. Needs a connection (never queued, AC15).
+     */
+    decideReview: (
+      weekStart: string,
+      body: ReviewDecisionRequest,
+    ): Promise<ReviewDecisionResponse> =>
+      request(`/me/review/${weekStart}/decision`, ReviewDecisionResponseSchema, {
+        method: 'POST',
+        json: body,
+      }),
+
+    /** `DELETE /me/energy-calibration`: "Volver al cálculo inicial" (spec 014 AC12). */
+    resetCalibration: ({ today }: ReviewQuery): Promise<CalibrationResetResponse> =>
+      request(`/me/energy-calibration?today=${today}`, CalibrationResetResponseSchema, {
+        method: 'DELETE',
+      }),
 
     /** `GET /me/plan`: the planned items and sessions of at most 63 days (spec 013 AC22). */
     getPlan: ({ from, to }: PlanQuery): Promise<PlanResponse> =>

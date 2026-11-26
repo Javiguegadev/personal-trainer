@@ -429,7 +429,7 @@ test.describe('weekly planner (spec 013)', () => {
     await onboard(page, 'plan-ed@example.com', [{}]);
     // The flag is set on the mock server, as spec 010's test does.
     await page.evaluate(() => {
-      const key = 'pt.mock-db.v10';
+      const key = 'pt.mock-db.v11';
       const db = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
         string,
         { profile: { safetyFlags: string[] } }

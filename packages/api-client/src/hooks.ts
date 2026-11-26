@@ -84,6 +84,15 @@ import {
   type SavePlanMealsVariables,
   type SavePlanWorkoutsVariables,
 } from './plan';
+import {
+  decideReviewMutationOptions,
+  deleteAllCheckinsMutationOptions,
+  dismissCalibrationNotice,
+  resetCalibrationMutationOptions,
+  reviewKeys,
+  reviewQueryOptions,
+  type CalibrationTargetsChange,
+} from './review';
 import { weekLogQueryOptions, type WeekSaveResult } from './week';
 import {
   dismissWeightNotice,
@@ -567,6 +576,46 @@ export function createApiHooks(api: ApiClient) {
         initialData: null,
       });
       return { rejected: data, dismiss: () => dismissRejectedPlanWrite(queryClient) };
+    },
+
+    /**
+     * The latest weekly review, the ones before it and the streak (spec 014 AC1, AC9). Kept offline:
+     * without a connection the last one received shows (AC15).
+     */
+    useReview: (today: string, options: { enabled?: boolean } = {}) =>
+      useQuery({ ...reviewQueryOptions(api, today), enabled: options.enabled ?? true }),
+
+    /**
+     * "Aplicar" or "Ahora no" (AC6). Needs a connection (AC15): never paused and replayed, never
+     * retried. A 409 fetches the review and `/me` again; the screen says why.
+     */
+    useDecideReview: () => {
+      const queryClient = useQueryClient();
+      return useMutation(decideReviewMutationOptions(api, queryClient));
+    },
+
+    /** "Volver al cálculo inicial" (AC12): the calibration back to 0. Needs a connection (AC15). */
+    useResetCalibration: () => {
+      const queryClient = useQueryClient();
+      return useMutation(resetCalibrationMutationOptions(api, queryClient));
+    },
+
+    /** The old and new targets of the last calibration change, and how to dismiss them (AC6). */
+    useCalibrationTargetsChange: () => {
+      const queryClient = useQueryClient();
+      const { data } = useQuery<CalibrationTargetsChange | null>({
+        queryKey: reviewKeys.targetsChange,
+        queryFn: () => null,
+        enabled: false,
+        initialData: null,
+      });
+      return { change: data, dismiss: () => dismissCalibrationNotice(queryClient) };
+    },
+
+    /** "Borrar mis check-ins" (AC12): every check-in, after a confirmation. Needs a connection. */
+    useDeleteAllCheckins: () => {
+      const queryClient = useQueryClient();
+      return useMutation(deleteAllCheckinsMutationOptions(api, queryClient));
     },
 
     useExportData: () => useMutation({ mutationFn: () => api.exportData() }),

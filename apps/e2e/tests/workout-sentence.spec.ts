@@ -340,7 +340,7 @@ test.describe('workout sentence (spec 012)', () => {
 
     // AC17: the 20 sentences of the day are used (two above, 18 set on the mock server).
     await page.evaluate(() => {
-      const key = 'pt.mock-db.v10';
+      const key = 'pt.mock-db.v11';
       const db = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
         string,
         { aiUsage: Record<string, unknown>[] }

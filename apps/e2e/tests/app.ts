@@ -152,7 +152,7 @@ export async function localToday(page: Page): Promise<string> {
 export async function mockRecord<T>(page: Page): Promise<T | undefined> {
   return page.evaluate(() => {
     // Must match `MOCK_DB_KEY` in packages/api-client/src/mock/backend.ts.
-    const db = JSON.parse(localStorage.getItem('pt.mock-db.v10') ?? '{}') as Record<
+    const db = JSON.parse(localStorage.getItem('pt.mock-db.v11') ?? '{}') as Record<
       string,
       unknown
     >;

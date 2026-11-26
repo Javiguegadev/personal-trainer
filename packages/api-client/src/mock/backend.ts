@@ -57,6 +57,9 @@ import {
   PlanMealChangesRequestSchema,
   PlanQuerySchema,
   PlanWorkoutChangesRequestSchema,
+  ReviewDecisionRequestSchema,
+  ReviewQuerySchema,
+  ReviewWeekParamSchema,
   type PlanDelete,
   type PlannedMealItem,
   type PlannedWorkout,
@@ -76,6 +79,7 @@ import {
   type Profile,
   type RecentFood,
   type DailyCheckin,
+  type WeeklyReview,
   type WeightEntry,
   type WeightSaveResponse,
 } from '@pt/contracts';
@@ -128,6 +132,12 @@ import {
   checkPlanWrite,
   plannedMealItemFromUpsert,
   plannedWorkoutFromUpsert,
+  applyCalibration,
+  blocksDecrease,
+  loggingStreak,
+  reviewWeekToShow,
+  weekStartOf,
+  weeklyReview,
   type ExerciseSetRow,
   type LoggableExercise,
 } from '@pt/core';
@@ -183,6 +193,10 @@ interface UserRecord {
   /** The plan, deletes kept as tombstones (spec 013 AC23). */
   plannedMealItems: (PlannedMealItem & { deletedAt: string | null })[];
   plannedWorkouts: (PlannedWorkout & { deletedAt: string | null })[];
+  /** The weekly reviews, oldest week first (spec 014). */
+  weeklyReviews: WeeklyReview[];
+  /** When the energy calibration last changed (spec 014 AC5b). */
+  calibratedAt: string | null;
 }
 
 type PlanTable = 'plannedMealItems' | 'plannedWorkouts';
@@ -201,8 +215,8 @@ interface StoredCustomExercise {
 
 type MockDb = Record<string, UserRecord>;
 
-/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v10: spec 013). */
-export const MOCK_DB_KEY = 'pt.mock-db.v10';
+/** Storage key of the mock database. The suffix changes with the shape of the stored rows (v11: spec 014). */
+export const MOCK_DB_KEY = 'pt.mock-db.v11';
 
 const exerciseById = new Map(MOCK_EXERCISES.map((e) => [e.id, e]));
 
@@ -253,6 +267,10 @@ const MOCK_LABEL_READING: LabelReading = {
 
 /** An image this small (a few pixels, in base64 characters) is "not a label" for the mock (AC17). */
 const MOCK_UNREADABLE_BELOW = 2000;
+
+/** Weeks of logs the streak reads back, and reviews shown before the latest one (as the API). */
+const REVIEW_STREAK_WEEKS = 52;
+const REVIEW_HISTORY = 4;
 
 /** Recently logged foods the feedback candidates come from (spec 008 AC12). */
 const FEEDBACK_RECENTS_MAX = 60;
@@ -363,6 +381,8 @@ const emptyUser = (email: string | null): UserRecord => ({
   checkins: [],
   plannedMealItems: [],
   plannedWorkouts: [],
+  weeklyReviews: [],
+  calibratedAt: null,
 });
 
 /** Planned items by day and time; planned sessions by day and start time, untimed last (as the API). */
@@ -610,33 +630,104 @@ export function createMockApiClient({
     return live ? (({ deletedAt: _, ...program }) => program)(live) : null;
   };
 
+  /** The profile a weekly review needs: one without a job (before spec 002) cannot be reviewed. */
+  const reviewableProfile = (record: UserRecord) => {
+    const profile = record.profile;
+    return profile && profile.jobActivity !== null
+      ? { ...profile, jobActivity: profile.jobActivity }
+      : null;
+  };
+
+  /** The reviews, newest week first, at most `limit` (as the API reads them). */
+  const newestReviews = (record: UserRecord, limit: number): WeeklyReview[] =>
+    [...record.weeklyReviews]
+      .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+      .slice(0, limit)
+      .map((review) => ({ ...review }));
+
+  /** The local dates with a live meal item, a live workout or a weight (the streak, spec 014 AC9). */
+  const loggedDays = (record: UserRecord, from: string, to: string): string[] =>
+    [
+      ...new Set([
+        ...live(record).map((i) => i.localDate),
+        ...liveWorkouts(record).map((w) => w.localDate),
+        ...record.weights.map((w) => w.localDate),
+      ]),
+    ]
+      .filter((day) => day >= from && day <= to)
+      .sort();
+
+  /** The profile evaluated with another calibration (spec 014 AC6, AC12), as a weight change does. */
+  function evaluateWithCalibration(
+    record: UserRecord,
+    profile: NonNullable<ReturnType<typeof reviewableProfile>>,
+    calibrationKcal: number,
+    today: string,
+  ) {
+    const evaluation = evaluateStoredProfile(
+      { ...profile, energyCalibrationKcal: calibrationKcal },
+      profile.weightKg,
+      today,
+      record.weights,
+    );
+    if (evaluation.kind !== 'ok') throw fail('validation_error', { profile: 'required' });
+    return evaluation;
+  }
+
+  /** A calibration change, as the API's transaction: the profile, then a new targets row. */
+  function writeCalibration(
+    record: UserRecord,
+    calibrationKcal: number,
+    evaluation: ReturnType<typeof evaluateWithCalibration>,
+  ) {
+    const at = now().toISOString();
+    if (record.profile) {
+      record.profile = {
+        ...record.profile,
+        energyCalibrationKcal: calibrationKcal,
+        goal: evaluation.safety.appliedGoal,
+        safetyFlags: evaluation.flags,
+      };
+    }
+    record.calibratedAt = at;
+    for (const row of record.targets) if (row.validTo === null) row.validTo = at;
+    if (evaluation.targets) {
+      record.targets.push({ ...evaluation.targets, validFrom: at, validTo: null });
+    }
+  }
+
   async function authenticateWithConsent() {
     const session = await authenticate();
     if (!hasConsent(session.record)) throw fail('consent_required');
     return session;
   }
 
+  /** The current targets row as `/me` shows it, or null. */
+  function storedTargets(record: UserRecord): MeResponse['targets'] {
+    const current = record.targets.find((t) => t.validTo === null);
+    return current
+      ? {
+          kcal: current.kcal,
+          proteinG: current.proteinG,
+          carbsG: current.carbsG,
+          fatG: current.fatG,
+          fiberG: current.fiberG,
+          formulaVersion: current.formulaVersion,
+          clampedReason: current.clampedReason,
+          validFrom: current.validFrom,
+        }
+      : null;
+  }
+
   function toMe(userId: string, record: UserRecord): MeResponse {
     const consent = activeConsent(record);
-    const current = record.targets.find((t) => t.validTo === null);
     return {
       userId,
       consent: { healthData: hasConsent(record), version: consent?.version ?? null },
       onboardingCompleted: record.profile?.onboardingCompletedAt != null,
       profile: record.profile,
       dietaryPrefs: record.dietaryPrefs,
-      targets: current
-        ? {
-            kcal: current.kcal,
-            proteinG: current.proteinG,
-            carbsG: current.carbsG,
-            fatG: current.fatG,
-            fiberG: current.fiberG,
-            formulaVersion: current.formulaVersion,
-            clampedReason: current.clampedReason,
-            validFrom: current.validFrom,
-          }
-        : null,
+      targets: storedTargets(record),
     };
   }
 
@@ -686,10 +777,15 @@ export function createMockApiClient({
 
   function evaluate(body: unknown, record: UserRecord) {
     const input = parse(ProfileInputSchema, body);
-    const evaluation = evaluateProfileInput(input, record.profile?.safetyFlags ?? [], now(), {
-      storedWeightKg: record.profile?.weightKg ?? null,
-      entries: record.weights,
-    });
+    // The weekly reviews' calibration stays through a profile save and shows in its preview (spec 014
+    // AC8), as in the API.
+    const evaluation = evaluateProfileInput(
+      input,
+      record.profile?.safetyFlags ?? [],
+      now(),
+      { storedWeightKg: record.profile?.weightKg ?? null, entries: record.weights },
+      record.profile?.energyCalibrationKcal ?? 0,
+    );
     if (evaluation.kind === 'invalid') throw fail('validation_error', evaluation.fields);
     if (evaluation.kind === 'blocked') throw fail('age_blocked');
     return { input, evaluation };
@@ -998,6 +1094,19 @@ export function createMockApiClient({
         persist();
       }
       return { checkin: liveCheckin(record, localDate) };
+    },
+
+    deleteAllCheckins: async () => {
+      const { record } = await authenticateWithConsent();
+      // Tombstones, as the per-day delete: an older queued write cannot bring one back.
+      const at = now().toISOString();
+      for (const checkin of record.checkins) {
+        if (checkin.deletedAt === null) {
+          checkin.deletedAt = at;
+          checkin.recordedAt = at;
+        }
+      }
+      persist();
     },
 
     searchFoods: async (q, locale) => {
@@ -1623,6 +1732,118 @@ export function createMockApiClient({
       return { workouts: writePlan(user.userId, record, 'plannedWorkouts', rows, deletes) };
     },
 
+    getReview: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { today } = parse(ReviewQuerySchema, query);
+      const invalid = checkClientDates({ today }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const profile = reviewableProfile(record);
+      const flags = profile?.safetyFlags ?? [];
+      const streak = loggingStreak({
+        loggedDays: loggedDays(record, addDays(today, -7 * REVIEW_STREAK_WEEKS), today),
+        today,
+        flags,
+      });
+      const empty = { review: null, history: [], firstReviewOn: null, streak };
+      if (!profile?.onboardingCompletedAt) return empty;
+      const { weekStart, firstReviewOn } = reviewWeekToShow({
+        today,
+        onboardedOn: profile.onboardingCompletedAt.slice(0, 10),
+        flags,
+      });
+      if (!weekStart) return { ...empty, firstReviewOn };
+
+      // Only the last complete week, stored on its first read (no backfill), as the API.
+      const stored = newestReviews(record, REVIEW_HISTORY + 1);
+      let review = stored.find((r) => r.weekStart === weekStart) ?? null;
+      if (!review) {
+        const sunday = addDays(weekStart, 6);
+        const inWeek = (day: string) => day >= weekStart && day <= sunday;
+        const draft = weeklyReview({
+          weekStart,
+          today,
+          profile,
+          mealItems: live(record).filter(
+            (i) => i.localDate >= addDays(weekStart, -7) && i.localDate <= sunday,
+          ),
+          workouts: liveWorkouts(record).filter((w) => inWeek(w.localDate)),
+          weights: record.weights.filter(
+            (w) => w.localDate >= addDays(weekStart, -14) && w.localDate <= today,
+          ),
+          checkins: record.checkins.filter((c) => c.deletedAt === null && inWeek(c.localDate)),
+          targetsHistory: record.targets.map((t) => ({
+            kcal: t.kcal,
+            fromDate: t.validFrom.slice(0, 10),
+          })),
+          calibratedOn: record.calibratedAt?.slice(0, 10) ?? null,
+        });
+        if (!draft) return empty;
+        review = { ...draft, createdAt: now().toISOString(), decidedAt: null };
+        record.weeklyReviews.push({ ...review });
+        persist();
+      }
+      const history = stored.filter((r) => r.weekStart < weekStart).slice(0, REVIEW_HISTORY);
+      return { review, history, firstReviewOn: null, streak };
+    },
+
+    decideReview: async (week, body) => {
+      const { record } = await authenticateWithConsent();
+      const { weekStart } = parse(ReviewWeekParamSchema, { weekStart: week });
+      const request = parse(ReviewDecisionRequestSchema, body);
+      if (weekStartOf(weekStart) !== weekStart) {
+        throw fail('validation_error', { weekStart: 'not_monday' });
+      }
+      const invalid = checkClientDates({ today: request.today }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const profile = reviewableProfile(record);
+      if (!profile) throw fail('validation_error', { profile: 'required' });
+      const review = record.weeklyReviews.find((r) => r.weekStart === weekStart);
+      if (!review) throw fail('not_found');
+      if (review.status !== 'proposed' || !review.proposal) throw fail('review_decided');
+
+      // "Aplicar" checks the bound and the protected profiles again at the tap (domain review).
+      let calibration: {
+        kcal: number;
+        evaluation: ReturnType<typeof evaluateWithCalibration>;
+      } | null = null;
+      if (request.decision === 'accept') {
+        const { kcalDelta } = review.proposal;
+        const stored = profile.energyCalibrationKcal;
+        const base = blocksDecrease(profile.safetyFlags) ? Math.max(0, stored) : stored;
+        const next = applyCalibration(base, kcalDelta);
+        if (next === null) throw fail('review_stale');
+        const evaluation = evaluateWithCalibration(record, profile, next, request.today);
+        if (kcalDelta < 0 && blocksDecrease(evaluation.flags)) throw fail('review_stale');
+        calibration = { kcal: next, evaluation };
+      }
+      // Only the latest review can be decided (AC6).
+      if (record.weeklyReviews.some((r) => r.weekStart > weekStart)) throw fail('review_stale');
+
+      const decided: WeeklyReview = {
+        ...review,
+        status: request.decision === 'accept' ? 'accepted' : 'rejected',
+        decidedAt: now().toISOString(),
+      };
+      record.weeklyReviews = record.weeklyReviews.map((r) =>
+        r.weekStart === weekStart ? decided : r,
+      );
+      if (calibration) writeCalibration(record, calibration.kcal, calibration.evaluation);
+      persist();
+      return { review: { ...decided }, targets: storedTargets(record) };
+    },
+
+    resetCalibration: async (query) => {
+      const { record } = await authenticateWithConsent();
+      const { today } = parse(ReviewQuerySchema, query);
+      const invalid = checkClientDates({ today }, now());
+      if (invalid) throw fail('validation_error', invalid);
+      const profile = reviewableProfile(record);
+      if (!profile) throw fail('validation_error', { profile: 'required' });
+      writeCalibration(record, 0, evaluateWithCalibration(record, profile, 0, today));
+      persist();
+      return { targets: storedTargets(record) };
+    },
+
     exportData: async () => {
       const { user, record } = await authenticate();
       return {
@@ -1655,7 +1876,8 @@ export function createMockApiClient({
           mealItems: [...record.plannedMealItems].sort(plannedItemOrder),
           workouts: [...record.plannedWorkouts].sort(plannedSessionOrder),
         },
-        weeklyReviews: [],
+        // With their numbers and decisions (spec 014 AC16).
+        weeklyReviews: newestReviews(record, record.weeklyReviews.length).reverse(),
         consents: record.consents,
         aiUsage: record.aiUsage,
       };

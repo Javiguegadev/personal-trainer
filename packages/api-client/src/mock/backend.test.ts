@@ -2,6 +2,7 @@ import { CONSENT_VERSION, type ProfileInput } from '@pt/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { isApiError } from '../client';
 import { profileInput } from '../test/fixtures';
+import { FIRST_REVIEW, ONBOARDED, REVIEWED_WEEK, reviewHistory } from '../test/review-history';
 import { createMockApiClient, MOCK_DB_KEY, type KeyValueStorage } from './backend';
 import { MOCK_EXERCISES } from './exercises';
 import { MOCK_CATALOG } from './foods';
@@ -674,5 +675,151 @@ describe('mock backend: exercises and workouts (spec 009)', () => {
     await reloaded.grantConsent({ kind: 'health_data', version: CONSENT_VERSION });
     expect(await list(reloaded)).toEqual([]);
     expect((await reloaded.exportData()).customExercises).toEqual([]);
+  });
+});
+
+describe('mock backend: weekly review and calibration (spec 014)', () => {
+  const errorCode = (error: unknown) => (isApiError(error) ? error.code : error);
+
+  async function proposed() {
+    const h = reviewHistory();
+    const me = await h.onboard();
+    h.seedSlowLoss(me.targets!.kcal);
+    const { review } = await h.api().getReview({ today: h.at(FIRST_REVIEW) });
+    return { h, me, review: review! };
+  }
+
+  const decide = (h: ReturnType<typeof reviewHistory>, decision: 'accept' | 'reject') =>
+    h.api().decideReview(REVIEWED_WEEK, { decision, today: FIRST_REVIEW });
+
+  it('needs consent', async () => {
+    const h = reviewHistory();
+    const calls = [
+      () => h.api().getReview({ today: ONBOARDED }),
+      () => h.api().decideReview(REVIEWED_WEEK, { decision: 'accept', today: ONBOARDED }),
+      () => h.api().resetCalibration({ today: ONBOARDED }),
+      () => h.api().deleteAllCheckins(),
+    ];
+    for (const call of calls)
+      expect(errorCode(await call().catch((e: unknown) => e))).toBe('consent_required');
+  });
+
+  it('names the first review before 21 days, then reviews the last complete week once (AC1, AC7)', async () => {
+    const h = reviewHistory();
+    const me = await h.onboard();
+    h.seedSlowLoss(me.targets!.kcal);
+    const early = await h.api().getReview({ today: h.at('2026-11-25') });
+    expect(early).toMatchObject({ review: null, firstReviewOn: FIRST_REVIEW });
+
+    const first = await h.api().getReview({ today: h.at(FIRST_REVIEW) });
+    expect(first.review).toMatchObject({
+      weekStart: REVIEWED_WEEK,
+      status: 'proposed',
+      reasons: ['slow_loss'],
+      proposal: { kcalDelta: -100, fromKcal: me.targets!.kcal },
+      rulesVersion: 'review-v1',
+    });
+    expect(first.review!.summary).toMatchObject({ foodDays: 7, averageKcal: me.targets!.kcal });
+    // Four full weeks logged (9 November to 6 December); today has nothing yet (AC9).
+    expect(first.streak).toEqual({ weeks: 4, currentWeekDays: 0, hidden: false });
+    const again = await h.api().getReview({ today: h.at('2026-12-09') });
+    expect(again.review).toEqual(first.review);
+  });
+
+  it('shows no review and no streak with an eating-disorder signal (AC1, AC10)', async () => {
+    const h = reviewHistory();
+    const me = await h.onboard();
+    h.seedSlowLoss(me.targets!.kcal);
+    h.seed((record) => record.profile!.safetyFlags.push('ed_soft_stop'));
+    const body = await h.api().getReview({ today: h.at(FIRST_REVIEW) });
+    expect(body).toMatchObject({ review: null, firstReviewOn: null, streak: { hidden: true } });
+  });
+
+  it('"Aplicar" changes the calibration and the targets once, kept by a profile save (AC6, AC8)', async () => {
+    const { h, me, review } = await proposed();
+    const body = await decide(h, 'accept');
+    expect(body.review).toMatchObject({ status: 'accepted', decidedAt: expect.any(String) });
+    expect(body.targets?.kcal).toBe(review.proposal!.toKcal);
+    expect(body.targets!.kcal).toBeLessThan(me.targets!.kcal);
+    expect((await h.api().me()).profile?.energyCalibrationKcal).toBe(-100);
+    expect(errorCode(await decide(h, 'accept').catch((e: unknown) => e))).toBe('review_decided');
+
+    // "Tus datos": the preview and the save keep the calibration.
+    const edit = {
+      ...profileInput,
+      goal: 'lose',
+      targetWeightKg: 55,
+      today: h.at('2026-12-08'),
+    } as const;
+    const preview = await h.api().targetsPreview(edit);
+    expect(preview.breakdown?.calibrationKcal).toBe(-100);
+    expect(preview.targets?.kcal).toBe(review.proposal!.toKcal);
+    const saved = await h.api().updateProfile(edit);
+    expect(saved.profile?.energyCalibrationKcal).toBe(-100);
+    expect(saved.targets?.kcal).toBe(review.proposal!.toKcal);
+  });
+
+  it('"Ahora no" stores the rejection and changes nothing (AC6)', async () => {
+    const { h, me } = await proposed();
+    const body = await decide(h, 'reject');
+    expect(body.review.status).toBe('rejected');
+    expect(body.targets?.kcal).toBe(me.targets!.kcal);
+    expect((await h.api().me()).profile?.energyCalibrationKcal).toBe(0);
+  });
+
+  it('refuses a replaced review, a week without one and a day that is not a Monday (AC6)', async () => {
+    const { h } = await proposed();
+    expect(
+      errorCode(
+        await h
+          .api()
+          .decideReview('2026-11-23', { decision: 'accept', today: FIRST_REVIEW })
+          .catch((e: unknown) => e),
+      ),
+    ).toBe('not_found');
+    const notMonday = await h
+      .api()
+      .decideReview('2026-12-01', { decision: 'accept', today: FIRST_REVIEW })
+      .catch((e: unknown) => e);
+    expect(isApiError(notMonday, 'validation_error') && notMonday.fields).toEqual({
+      weekStart: 'not_monday',
+    });
+
+    await h.api().getReview({ today: h.at('2026-12-14') });
+    const stale = await h
+      .api()
+      .decideReview(REVIEWED_WEEK, { decision: 'accept', today: '2026-12-14' })
+      .catch((e: unknown) => e);
+    expect(errorCode(stale)).toBe('review_stale');
+  });
+
+  it('"Volver al cálculo inicial" sets the calibration to 0 and recomputes the targets (AC12)', async () => {
+    const { h, me } = await proposed();
+    await decide(h, 'accept');
+    const body = await h.api().resetCalibration({ today: FIRST_REVIEW });
+    expect(body.targets?.kcal).toBe(me.targets!.kcal);
+    expect((await h.api().me()).profile?.energyCalibrationKcal).toBe(0);
+  });
+
+  it('"Borrar mis check-ins" deletes every check-in, kept as tombstones in the export (AC12, AC16)', async () => {
+    const { h } = await proposed();
+    for (const localDate of ['2026-12-05', '2026-12-06']) {
+      await h.api().saveCheckin(localDate, {
+        sleepMinutes: 420,
+        stress: 'normal',
+        workShift: null,
+        shiftStartMinute: null,
+        shiftEndMinute: null,
+        recordedAt: `${FIRST_REVIEW}T08:00:00.000Z`,
+        today: FIRST_REVIEW,
+      });
+    }
+    await h.api().deleteAllCheckins();
+    expect((await h.api().listCheckins({ from: '2026-12-01', to: FIRST_REVIEW })).checkins).toEqual(
+      [],
+    );
+    const data = await h.api().exportData();
+    expect(data.checkins.every((c) => c.deletedAt !== null)).toBe(true);
+    expect(data.weeklyReviews).toMatchObject([{ weekStart: REVIEWED_WEEK, status: 'proposed' }]);
   });
 });

@@ -9,6 +9,7 @@ export * from './feedback';
 export * from './foods';
 export * from './hooks';
 export * from './plan';
+export * from './review';
 export * from './training';
 export * from './week';
 export * from './weights';

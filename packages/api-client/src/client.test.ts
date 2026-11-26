@@ -8,6 +8,7 @@ import {
   type ProgramUpsertRequest,
   type CheckinUpsertRequest,
   type WeekRequest,
+  type WeeklyReview,
   type WorkoutUpsertRequest,
 } from '@pt/contracts';
 import { NO_BESTS } from '@pt/core';
@@ -112,6 +113,29 @@ const planWorkoutBody: PlanWorkoutChangesRequest = {
     },
   ],
   deletes: [],
+};
+const reviewBody: WeeklyReview = {
+  weekStart: '2026-11-16',
+  status: 'proposed',
+  summary: {
+    daysLogged: 7,
+    foodDays: 6,
+    averageKcal: 2180,
+    targetKcal: 2200,
+    weightAverageKg: 80.2,
+    weightRateKgPerWeek: -0.05,
+    weightRatePerWeek: -0.0006,
+    workouts: 3,
+    workoutMinutes: 170,
+    checkinDays: 5,
+    poorSleepDays: 0,
+    highStressDays: 1,
+  },
+  proposal: { kcalDelta: -100, fromKcal: 2200, toKcal: 2120 },
+  reasons: ['slow_loss'],
+  rulesVersion: 'review-v1',
+  createdAt: '2026-11-23T08:00:00.000Z',
+  decidedAt: null,
 };
 const healthBody = {
   status: 'ok',
@@ -275,6 +299,42 @@ describe('createApiClient', () => {
         method: 'DELETE',
         path: '/me/checkins/2026-11-11?recordedAt=2026-11-11T10%3A00%3A00.000%2B01%3A00&today=2026-11-11',
         res: () => Response.json({ checkin: null }),
+      },
+      {
+        run: (a: Api) => a.deleteAllCheckins(),
+        method: 'DELETE',
+        path: '/me/checkins',
+        res: () => new Response(null, { status: 204 }),
+      },
+      // Spec 014: weekly review, decision and calibration reset.
+      {
+        run: (a: Api) => a.getReview({ today: '2026-11-25' }),
+        method: 'GET',
+        path: '/me/review?today=2026-11-25',
+        res: () =>
+          Response.json({
+            review: reviewBody,
+            history: [],
+            firstReviewOn: null,
+            streak: { weeks: 3, currentWeekDays: 2, hidden: false },
+          }),
+      },
+      {
+        run: (a: Api) => a.decideReview('2026-11-16', { decision: 'accept', today: '2026-11-25' }),
+        method: 'POST',
+        path: '/me/review/2026-11-16/decision',
+        body: { decision: 'accept', today: '2026-11-25' },
+        res: () =>
+          Response.json({
+            review: { ...reviewBody, status: 'accepted', decidedAt: '2026-11-25T08:00:00.000Z' },
+            targets: null,
+          }),
+      },
+      {
+        run: (a: Api) => a.resetCalibration({ today: '2026-11-25' }),
+        method: 'DELETE',
+        path: '/me/energy-calibration?today=2026-11-25',
+        res: () => Response.json({ targets: null }),
       },
       {
         run: (a: Api) => a.saveWeek(weekBody),
