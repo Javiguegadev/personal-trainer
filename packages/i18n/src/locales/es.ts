@@ -593,6 +593,7 @@ export const es = {
     title: 'Revisión semanal',
     range: '{from} – {to}',
     open: 'Ver la revisión',
+    openWeekly: 'Ver la revisión semanal',
     summary: {
       days: '{count} de 7 días con algo registrado',
       food: 'Comida: {days} · {average} kcal de media · objetivo {target}',

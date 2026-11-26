@@ -588,6 +588,7 @@ export const en: DeepStringRecord<typeof es> = {
     title: 'Weekly review',
     range: '{from} – {to}',
     open: 'See the review',
+    openWeekly: 'See the weekly review',
     summary: {
       days: '{count} of 7 days with something logged',
       food: 'Food: {days} · {average} kcal on average · target {target}',

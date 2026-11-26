@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { Notice } from '@/components/Notice';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { ProgressReview } from '@/components/ProgressReview';
 import { Screen } from '@/components/Screen';
 import { TrendSummary } from '@/components/TrendSummary';
 import { WeightChart } from '@/components/WeightChart';
@@ -23,7 +24,10 @@ import { useMe, useWeights } from '@/lib/api';
 const RANGES = ['30', '90', '365'] as const;
 type Range = (typeof RANGES)[number];
 
-/** Progress (spec 003 AC14–AC17, AC24): chart, trend and the list of entries. */
+/**
+ * Progress (spec 003 AC14–AC17, AC24): the logging streak and the weekly review (spec 014 AC9), chart,
+ * trend and the list of entries.
+ */
 export default function ProgressScreen() {
   const me = useMe();
   if (!me.data?.profile) return <BlockingState />;
@@ -123,6 +127,7 @@ function Progress({ profile }: { profile: Profile }) {
       <OfflineBanner />
       <WeightRejectedNotice />
       <TargetsChangeNotice withSafety />
+      <ProgressReview today={today} />
       {body}
     </Screen>
   );
