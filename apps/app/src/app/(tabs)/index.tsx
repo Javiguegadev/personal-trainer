@@ -2,6 +2,7 @@ import { formatLongDate, profileNotices } from '@pt/core';
 import { View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BlockingState } from '@/components/BlockingState';
+import { CalibrationNotice } from '@/components/CalibrationNotice';
 import { CheckinRejectedNotice } from '@/components/CheckinRejectedNotice';
 import { FoodRejectedNotice } from '@/components/FoodRejectedNotice';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -17,6 +18,7 @@ import { TrainingLine } from '@/components/TrainingLine';
 import { TrainingRejectedNotice } from '@/components/TrainingRejectedNotice';
 import { UndoToast } from '@/components/UndoToast';
 import { WeightCard } from '@/components/WeightCard';
+import { TodayReview } from '@/components/WeeklyReviewCard';
 import { TargetsChangeNotice, WeightRejectedNotice } from '@/components/WeightNotices';
 import { useI18n } from '@/hooks/useI18n';
 import { usePlanActions } from '@/hooks/usePlanActions';
@@ -29,7 +31,8 @@ import { setTodayView, useTodayView, type TodayView } from '@/lib/todayView';
  * "Today" (spec 003 AC3–AC5): the date, what was eaten against the daily targets (spec 005 AC17), the
  * weight, the workouts of the day (spec 009 AC21) and the planned training. Offline it shows the last
  * data received. The daily check-in sits above the workouts (spec 011 AC1, AC4). "Día" / "Semana"
- * switches to the week view (spec 010 AC7), remembered on the device.
+ * switches to the week view (spec 010 AC7), remembered on the device. The day view opens with the
+ * weekly review while it waits for a decision (spec 014 AC1).
  */
 export default function TodayScreen() {
   const { t, locale } = useI18n();
@@ -72,6 +75,7 @@ export default function TodayScreen() {
       <OfflineBanner />
       <WeightRejectedNotice />
       <TargetsChangeNotice />
+      <CalibrationNotice />
       <FoodRejectedNotice />
       <TrainingRejectedNotice />
       <CheckinRejectedNotice />
@@ -80,6 +84,7 @@ export default function TodayScreen() {
         <TodayWeek profile={profile} targets={targets} />
       ) : (
         <>
+          <TodayReview profile={profile} today={today} />
           <TodayFoodCard profile={profile} targets={targets} />
           <SafetyNotices
             notices={notices}

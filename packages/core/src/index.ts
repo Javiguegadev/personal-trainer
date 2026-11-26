@@ -53,6 +53,7 @@ export * from './plan/items';
 export * from './plan/notices';
 export * from './plan/status';
 export * from './review/review';
+export * from './review/show';
 export * from './streak/streak';
 export * from './entitlements/entitlements';
 export * from './week/day';

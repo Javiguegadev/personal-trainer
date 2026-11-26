@@ -3,6 +3,7 @@ import { removeCheckinPrefs } from './checkinPrefs';
 import { removeSessions } from './liveSession';
 import { stopOfflineCache } from './offline';
 import { queryClient } from './query';
+import { removeReviewPrefs } from './reviewPrefs';
 
 /**
  * Signs out and removes everything cached on the device, the queue of writes included, so the next
@@ -17,9 +18,10 @@ export async function signOut(): Promise<void> {
   queryClient.clear();
   await removeSavedCache();
   // The workout in progress and a draft are this user's too (spec 009 AC11), and so are "Hoy no" and
-  // the preferred shift hours of the check-in (spec 011).
+  // the preferred shift hours of the check-in (spec 011), and the dismissed weekly review (spec 014).
   if (user) {
     removeSessions(user);
     removeCheckinPrefs(user);
+    removeReviewPrefs(user);
   }
 }

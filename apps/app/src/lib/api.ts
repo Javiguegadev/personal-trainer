@@ -100,6 +100,11 @@ export const {
   useSavePlanChanges,
   usePendingPlanIds,
   useRejectedPlanWrite,
+  useReview,
+  useDecideReview,
+  useResetCalibration,
+  useCalibrationTargetsChange,
+  useDeleteAllCheckins,
   useExportData,
   useDeleteAccount,
 } = createApiHooks(api);

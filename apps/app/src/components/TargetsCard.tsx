@@ -144,6 +144,12 @@ function Breakdown({ targets, breakdown }: { targets: Targets; breakdown: Target
   const n = (value: number, decimals = 0) => formatNumber(value, locale, decimals);
   const signed = (value: number) =>
     value > 0 ? `+${n(value)}` : value < 0 ? `−${n(Math.abs(value))}` : n(0);
+  const calibration = breakdown.calibrationKcal;
+  const tdee = {
+    bmr: n(breakdown.bmrKcal),
+    factor: n(breakdown.activityFactor, 2),
+    value: n(breakdown.tdeeKcal),
+  };
   const lines = [
     format(b.bmr, { age: breakdown.ageYears, value: n(breakdown.bmrKcal) }),
     format(targets.clampedReason === 'activity_ceiling' ? b.activityCapped : b.activity, {
@@ -151,11 +157,14 @@ function Breakdown({ targets, breakdown }: { targets: Targets; breakdown: Target
       training: n(breakdown.trainingFactor, 2),
       factor: n(breakdown.activityFactor, 2),
     }),
-    format(b.tdee, {
-      bmr: n(breakdown.bmrKcal),
-      factor: n(breakdown.activityFactor, 2),
-      value: n(breakdown.tdeeKcal),
-    }),
+    // The weekly reviews' accepted corrections, a line of their own (spec 014 AC8).
+    ...(calibration === 0 ? [] : [format(b.calibration, { value: signed(calibration) })]),
+    calibration === 0
+      ? format(b.tdee, tdee)
+      : format(b.tdeeCalibrated, {
+          ...tdee,
+          calibration: `${calibration > 0 ? '+' : '−'} ${n(Math.abs(calibration))}`,
+        }),
     format(b.adjustment, { value: signed(breakdown.goalAdjustmentKcal) }),
     format(b.floor, { value: n(breakdown.floorKcal) }),
     // The focus sets the protein per kg and, for sport performance, the carbohydrate minimum (AC4).

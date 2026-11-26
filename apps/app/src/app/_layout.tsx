@@ -12,6 +12,7 @@ import { errorMessage } from '@/lib/errors';
 import { setSessionUser } from '@/lib/liveSession';
 import { startOfflineCache, useOfflineCacheRestored } from '@/lib/offline';
 import { queryClient } from '@/lib/query';
+import { setReviewPrefsUser } from '@/lib/reviewPrefs';
 import { signOut } from '@/lib/session';
 
 export default function RootLayout() {
@@ -23,6 +24,7 @@ export default function RootLayout() {
     if (userId) startOfflineCache(userId);
     setSessionUser(userId);
     setCheckinPrefsUser(userId);
+    setReviewPrefsUser(userId);
   }, [userId]);
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = {
@@ -105,6 +107,7 @@ function RootNavigator() {
           <Stack.Screen name="training/routine/index" />
           <Stack.Screen name="training/routine/new" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="review" />
           <Stack.Screen name="day/[date]" />
           <Stack.Screen name="checkin/[date]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="plan/item/[id]" options={{ presentation: 'modal' }} />
