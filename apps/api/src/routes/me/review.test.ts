@@ -6,6 +6,7 @@ import {
   MeResponseSchema,
   ReviewDecisionResponseSchema,
   ReviewResponseSchema,
+  TargetsPreviewResponseSchema,
   type MealItem,
 } from '@pt/contracts';
 import { addDays } from '@pt/core';
@@ -190,6 +191,19 @@ describe('POST /me/review/{weekStart}/decision (spec 014 AC6, AC8)', () => {
     const me = MeResponseSchema.parse(await res.json());
     expect(me.profile?.energyCalibrationKcal).toBe(-100);
     expect(me.targets?.kcal).toBe(review.proposal!.toKcal);
+  });
+
+  it('keeps the calibration in the preview of "Tus datos" (AC8)', async () => {
+    const { review } = await proposed();
+    await decide(WEEK, 'accept');
+    const res = await t.call(
+      'POST',
+      '/onboarding/targets-preview',
+      profileInput({ today: at('2026-12-08') }),
+    );
+    const body = TargetsPreviewResponseSchema.parse(await res.json());
+    expect(body.breakdown?.calibrationKcal).toBe(-100);
+    expect(body.targets?.kcal).toBe(review.proposal!.toKcal);
   });
 
   it('refuses a review that a newer one replaced (409 review_stale)', async () => {

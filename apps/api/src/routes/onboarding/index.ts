@@ -36,10 +36,15 @@ export function onboardingRoutes(deps: Deps) {
     const input = c.req.valid('json');
     // The last 7 days of the log: the low-BMI recovery rule reads their average (spec 003 AC12).
     const context = await deps.store.getSafetyContext(c.var.user.userId, addDays(input.today, -6));
-    const evaluation = evaluateProfileInput(input, context.flags, deps.now(), {
-      storedWeightKg: context.weightKg,
-      entries: context.weights,
-    });
+    // "Tus datos" previews with this route too: the weekly reviews' calibration shows in it (spec 014
+    // AC8), as the save keeps it. A new profile has none.
+    const evaluation = evaluateProfileInput(
+      input,
+      context.flags,
+      deps.now(),
+      { storedWeightKg: context.weightKg, entries: context.weights },
+      context.energyCalibrationKcal,
+    );
     if (evaluation.kind === 'invalid') {
       return apiError(c, 400, 'validation_error', evaluation.fields);
     }
