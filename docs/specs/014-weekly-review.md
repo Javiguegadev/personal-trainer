@@ -266,7 +266,7 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [x] ui · [ ] e2e
 - Decisions taken during implementation:
   - Plan approved by the human (2026-11-25) with: `GET /me/review` takes the app's `today` and reviews
     only the last complete week (no backfill); clearing an optional item in "Lo que sé de ti" waits 5 s
@@ -299,3 +299,17 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
     (`useCalibrationTargetsChange`), and refetch `/me` for the profile's calibration; a 409 refetches
     the review and `/me`. Mock database key `v11`. Fix found on the way (`68f0943`): the targets preview
     of "Tus datos" ignored the calibration, so "¿Cómo se calcula?" missed its line (AC8).
+  - UI (2026-11-26; part 1 `ced8625`, part 2 `58bee53`, part 3 `dc7ed54`), checked on web with the
+    Playwright MCP at 390 and 1280 px, light and dark, offline, no console errors:
+    - "Entendido" on a review without a proposal is kept on the device per user (`lib/reviewPrefs.ts`,
+      removed on sign-out); `reviewToShow` in core decides what the Today card shows. A decided review
+      leaves Today; "Ahora no" shows nothing else.
+    - "¿Cómo se calcula?" adds "Ajuste por tu evolución: −100 kcal" and writes the expenditure as
+      "BMR × factor − 100 = TDEE" when there is a calibration.
+    - "Lo que sé de ti": "Borrar" is held 5 s with an undo, then saved as a profile save built from the
+      stored numbers (`profileInputWithout`), so an imperial weight is not converted back and forth;
+      the item shows as cleared meanwhile. Usual stress is `recentStress` (high days of the last 14
+      with an answer, from 5 answers). Reported conditions are named neutrally ("Tu relación con la
+      comida" for an eating-disorder signal). "Volver al cálculo inicial" asks no confirmation: the
+      old and new kcal show after it, as after "Aplicar". Experience, equipment and routine open
+      "Mi rutina".
