@@ -266,7 +266,7 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
 
 ## Progress
 
-- [x] contracts · [x] db · [x] core · [x] api · [ ] client · [ ] ui · [ ] e2e
+- [x] contracts · [x] db · [x] core · [x] api · [x] client · [ ] ui · [ ] e2e
 - Decisions taken during implementation:
   - Plan approved by the human (2026-11-25) with: `GET /me/review` takes the app's `today` and reviews
     only the last complete week (no backfill); clearing an optional item in "Lo que sé de ti" waits 5 s
@@ -292,3 +292,10 @@ onboardedAt)`, `applyCalibration(current, delta)` (bounds); `streak/` with `logg
     `review_stale` when the proposal no longer holds. A review is computed only on `GET /me/review`, so a
     week without any app open is never reviewed. The streak reads 52 weeks of logged days. The account
     deletion integration test covers `weekly_reviews` and the new store writes and passed on dev.
+  - Client (2026-11-26, `647cc1c`): one `review` query (key without the day) kept offline, so Today and
+    Progress show the last response received (AC15). The decision, the reset and "Borrar mis
+    check-ins" are never paused, queued or retried; "Aplicar" and the reset write the new targets into
+    `/me`, keep the old and new kcal under `review-targets-change` for Today's notice
+    (`useCalibrationTargetsChange`), and refetch `/me` for the profile's calibration; a 409 refetches
+    the review and `/me`. Mock database key `v11`. Fix found on the way (`68f0943`): the targets preview
+    of "Tus datos" ignored the calibration, so "¿Cómo se calcula?" missed its line (AC8).
