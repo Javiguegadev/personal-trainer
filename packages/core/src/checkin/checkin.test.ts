@@ -10,6 +10,7 @@ import {
   checkinPrefill,
   checkinToRequest,
   latestPerDay,
+  recentStress,
   selectShift,
   setShiftHours,
   sleepChipOf,
@@ -67,6 +68,25 @@ describe('sleep chips (spec 011 Assumptions, AC6)', () => {
 
   it('gives back the chip of its own stored value', () => {
     for (const chip of SLEEP_CHIPS) expect(sleepChipOf(chip.minutes)).toBe(chip.key);
+  });
+});
+
+describe('recentStress (spec 014 AC11)', () => {
+  it('is null with fewer than 5 answers in the 14 days before today', () => {
+    const days = [1, 2, 3, 4].map((d) => point(d, { stress: 'normal' }));
+    expect(recentStress(days, TODAY)).toBeNull();
+  });
+
+  it('counts the answers and the high ones, without today, older days or sleep-only check-ins', () => {
+    const days = [
+      point(0, { stress: 'high' }),
+      point(15, { stress: 'high' }),
+      point(6, { stress: null, sleepMinutes: 420 }),
+      point(1, { stress: 'high' }),
+      point(2, { stress: 'low' }),
+      ...[3, 4, 14].map((d) => point(d, { stress: 'normal' })),
+    ];
+    expect(recentStress(days, TODAY)).toEqual({ days: 5, highDays: 1 });
   });
 });
 

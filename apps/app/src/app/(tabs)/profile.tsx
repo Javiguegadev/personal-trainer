@@ -14,8 +14,8 @@ import { signOut } from '@/lib/session';
 import { setThemePreference, useThemePreference } from '@/lib/themePreference';
 
 /**
- * Profile tab (spec 003 AC2, AC22): the profile form, privacy, data sources (spec 005 AC3), appearance (system, light or dark, per
- * device) and sign out. Signing out deletes the queue of writes, so with writes waiting it asks first
+ * Profile tab (spec 003 AC2, AC22): the profile form, "Lo que sé de ti" (spec 014 AC11), privacy,
+ * data sources (spec 005 AC3), appearance (system, light or dark, per device) and sign out. Signing out deletes the queue of writes, so with writes waiting it asks first
  * and says how many would be lost.
  */
 export default function ProfileTabScreen() {
@@ -43,6 +43,12 @@ export default function ProfileTabScreen() {
         label={p.week}
         onPress={() => router.push('/settings/week')}
         testID="open-week"
+      />
+      <Button
+        variant="secondary"
+        label={p.aboutMe}
+        onPress={() => router.push('/settings/about-me')}
+        testID="open-about-me"
       />
       <Button
         variant="secondary"

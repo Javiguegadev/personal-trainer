@@ -124,6 +124,22 @@ export function usualSleep(
     : nights[Math.floor(middle)]!;
 }
 
+/**
+ * Usual stress ("Lo que sé de ti", spec 014 AC11): of the same 14 days as the usual sleep, the days
+ * with a stress answer and how many were high; null with fewer than 5 answers.
+ */
+export function recentStress(
+  checkins: readonly Pick<CheckinPoint, 'localDate' | 'stress' | 'recordedAt'>[],
+  today: string,
+): { days: number; highDays: number } | null {
+  const answers = latestPerDay(checkins).filter((c) => {
+    const age = daysBetween(c.localDate, today);
+    return c.stress !== null && age >= 1 && age <= USUAL_SLEEP.days;
+  });
+  if (answers.length < USUAL_SLEEP.minNights) return null;
+  return { days: answers.length, highDays: answers.filter((c) => c.stress === 'high').length };
+}
+
 const NO_SHIFT = { workShift: null, shiftStartMinute: null, shiftEndMinute: null } as const;
 
 /**
